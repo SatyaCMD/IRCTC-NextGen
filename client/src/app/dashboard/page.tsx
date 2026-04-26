@@ -29,6 +29,7 @@ export default function Dashboard() {
       headers: { Authorization: `Bearer ${token}` }
     }).then(res => setHistory(res.data)).catch(console.error);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   const handleLogout = () => {

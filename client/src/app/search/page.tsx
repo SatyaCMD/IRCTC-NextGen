@@ -27,6 +27,7 @@ function SearchResults() {
         })
         .catch(err => setLoading(false));
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source, destination]);
 
   const fetchAIRecommendation = async (trainData: any) => {
