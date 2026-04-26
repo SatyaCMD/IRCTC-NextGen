@@ -1,4 +1,4 @@
-import TrainSearch from './TrainSearch';
+import TrainSearch from '@/components/TrainSearch';
 
 export default function Hero() {
   return (
