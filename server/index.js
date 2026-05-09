@@ -25,9 +25,25 @@ app.use('/api/ai', aiRoutes);
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/irctc-clone';
 
+const { execSync } = require('child_process');
+const Service = require('./models/Service');
+
 mongoose.connect(MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log('Connected to MongoDB');
+
+    try {
+      const serviceCount = await Service.countDocuments();
+      if (serviceCount === 0) {
+        console.log('Database is empty. Running auto-seeding scripts...');
+        execSync('node massive_seed.js', { stdio: 'inherit' });
+        execSync('node mega_seed.js', { stdio: 'inherit' });
+        console.log('Auto-seeding completed successfully.');
+      }
+    } catch (seedErr) {
+      console.error('Error during auto-seeding:', seedErr);
+    }
+
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });

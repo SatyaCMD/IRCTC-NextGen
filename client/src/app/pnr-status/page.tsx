@@ -4,6 +4,8 @@ import { useState } from 'react';
 import Navbar from '@/components/Navbar';
 import { Search, Loader2, Train, MapPin, CheckCircle, Clock, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
+import axios from 'axios';
+import Cookies from 'js-cookie';
 
 export default function PnrStatusPage() {
   const [pnr, setPnr] = useState('');
@@ -22,24 +24,18 @@ export default function PnrStatusPage() {
     setIsLoading(true);
     setResult(null);
 
-    // Simulate API Call
-    setTimeout(() => {
-      setIsLoading(false);
-      setResult({
-        pnr: pnr,
-        trainNo: '12951',
-        trainName: 'MUMBAI RAJDHANI',
-        doj: '12 May, 2026',
-        from: 'Mumbai Central (MMCT)',
-        to: 'New Delhi (NDLS)',
-        class: '3A',
-        chartStatus: 'Chart Prepared',
-        passengers: [
-          { no: 1, currentStatus: 'CNF / B4 / 32', bookingStatus: 'CNF / B4 / 32' },
-          { no: 2, currentStatus: 'CNF / B4 / 33', bookingStatus: 'CNF / B4 / 33' }
-        ]
+    // API Call
+    axios.get(`http://localhost:5000/api/bookings/pnr/${pnr}`, {
+      headers: { Authorization: `Bearer ${Cookies.get('token')}` }
+    })
+      .then(res => {
+        setIsLoading(false);
+        setResult(res.data);
+      })
+      .catch(err => {
+        setIsLoading(false);
+        toast.error(err.response?.data?.error || 'Failed to fetch PNR status.');
       });
-    }, 1500);
   };
 
   return (

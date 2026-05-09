@@ -45,25 +45,7 @@ export default function SessionTimer() {
     return () => clearInterval(timer);
   }, [isLoggedIn, timeLeft, router]);
 
-  // Reset timer on user activity
-  useEffect(() => {
-    const resetTimer = () => {
-      if (isLoggedIn) setTimeLeft(30 * 60);
-    };
-
-    window.addEventListener('mousemove', resetTimer);
-    window.addEventListener('keypress', resetTimer);
-    window.addEventListener('click', resetTimer);
-    window.addEventListener('scroll', resetTimer);
-
-    return () => {
-      window.removeEventListener('mousemove', resetTimer);
-      window.removeEventListener('keypress', resetTimer);
-      window.removeEventListener('click', resetTimer);
-      window.removeEventListener('scroll', resetTimer);
-    };
-  }, [isLoggedIn]);
-
+  // Removed activity listeners to enforce strict 30-minute session
   if (!isLoggedIn) return null;
 
   const minutes = Math.floor(timeLeft / 60);
@@ -71,10 +53,10 @@ export default function SessionTimer() {
   const isWarning = timeLeft <= 300; // Warning at 5 minutes
 
   return (
-    <div className={`fixed bottom-6 left-6 z-50 flex items-center gap-2 px-4 py-2 rounded-full shadow-lg backdrop-blur-md border transition-colors ${
+    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-colors ${
       isWarning 
-        ? 'bg-red-500/20 border-red-500/50 text-red-400 animate-pulse' 
-        : 'bg-black/60 border-white/10 text-gray-300'
+        ? 'bg-red-500/10 border-red-500/30 text-red-400 animate-pulse' 
+        : 'bg-white/5 border-white/10 text-gray-400 hover:text-white'
     }`}>
       {isWarning ? <AlertTriangle className="w-4 h-4" /> : <Timer className="w-4 h-4" />}
       <span className="text-sm font-mono font-bold tracking-wider">

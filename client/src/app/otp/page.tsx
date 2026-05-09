@@ -9,6 +9,8 @@ import toast from 'react-hot-toast';
 export default function OTPPage() {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [resendTimer, setResendTimer] = useState(60);
+  const [debugOtp, setDebugOtp] = useState('123456');
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
   
@@ -16,15 +18,31 @@ export default function OTPPage() {
   // but for simple cases this is fine depending on the next.js config.
   // Using a try-catch or optional handling for search params.
   const [email, setEmail] = useState('');
+  const [isLoginType, setIsLoginType] = useState(false);
 
   useEffect(() => {
+    // Generate random 6-digit OTP
+    setDebugOtp(Math.floor(100000 + Math.random() * 900000).toString());
+    
     // Basic extraction of search params if available
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const emailParam = params.get('email');
+      const typeParam = params.get('type');
       if (emailParam) setEmail(emailParam);
+      if (typeParam === 'login') setIsLoginType(true);
     }
   }, []);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
 
   const handleChange = (index: number, value: string) => {
     if (isNaN(Number(value))) return;
@@ -56,7 +74,7 @@ export default function OTPPage() {
       return;
     }
 
-    if (otpValue !== '123456') {
+    if (otpValue !== debugOtp) {
       toast.error('Invalid OTP code. Try the debug code.');
       return;
     }
@@ -65,8 +83,20 @@ export default function OTPPage() {
 
     // Mock API call delay
     setTimeout(() => {
-      toast.success('Account successfully verified!');
-      router.push('/login');
+      if (isLoginType) {
+        const tempToken = sessionStorage.getItem('temp_token');
+        if (tempToken) {
+          import('js-cookie').then((Cookies) => {
+            Cookies.default.set('token', tempToken, { expires: 7 });
+            sessionStorage.removeItem('temp_token');
+          });
+        }
+        toast.success('Successfully logged in!');
+        router.push('/');
+      } else {
+        toast.success('Account successfully verified!');
+        router.push('/login');
+      }
     }, 1500);
   };
 
@@ -113,7 +143,7 @@ export default function OTPPage() {
             {/* Debug Code Info */}
             <div className="mb-6 p-3 bg-white/5 border border-white/10 rounded-lg backdrop-blur-sm">
               <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Developer Debug</p>
-              <p className="text-sm font-mono text-blue-400 font-bold tracking-widest">123456</p>
+              <p className="text-sm font-mono text-blue-400 font-bold tracking-widest">{debugOtp}</p>
             </div>
 
             <button 
@@ -139,9 +169,25 @@ export default function OTPPage() {
           </form>
           
           <div className="mt-8 text-center">
-            <button className="text-gray-400 text-sm hover:text-white transition-colors">
-              Didn't receive the code? <span className="text-blue-400 font-medium">Resend</span>
-            </button>
+            {resendTimer > 0 ? (
+              <p className="text-gray-500 text-sm">
+                Resend code available in <span className="text-blue-400 font-mono font-bold">{resendTimer}s</span>
+              </p>
+            ) : (
+              <button 
+                type="button"
+                onClick={() => {
+                  toast.success('New OTP sent successfully!');
+                  setOtp(['', '', '', '', '', '']);
+                  setDebugOtp(Math.floor(100000 + Math.random() * 900000).toString());
+                  setResendTimer(60);
+                  inputRefs.current[0]?.focus();
+                }}
+                className="text-gray-400 text-sm hover:text-white transition-colors"
+              >
+                Didn't receive the code? <span className="text-blue-400 font-medium">Resend</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

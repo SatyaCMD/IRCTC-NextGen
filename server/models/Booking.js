@@ -15,10 +15,14 @@ const bookingSchema = new mongoose.Schema({
   passengers: [passengerSchema],
   seatNumbers: [{ type: String }],
   totalPrice: { type: Number, required: true },
-  status: { type: String, enum: ['Pending', 'Confirmed', 'Cancelled'], default: 'Pending' },
+  status: { type: String, enum: ['Pending', 'Confirmed', 'Cancelled', 'WL', 'RAC'], default: 'Pending' },
   paymentId: { type: String },
   pnr: { type: String },
-  bookingRef: { type: String }
+  bookingRef: { type: String },
+  journeyDate: { type: String },
+  from: { type: String },
+  to: { type: String },
+  departureTime: { type: String }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Booking', bookingSchema);

@@ -12,12 +12,25 @@ export default function AdminOTPPage() {
   const [captchaQuestion, setCaptchaQuestion] = useState('');
   const [captchaInput, setCaptchaInput] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+  const [resendTimer, setResendTimer] = useState(60);
+  const [debugOtp, setDebugOtp] = useState('999999');
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
 
   useEffect(() => {
     generateCaptcha();
+    setDebugOtp(Math.floor(100000 + Math.random() * 900000).toString());
   }, []);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
 
   const generateCaptcha = () => {
     const num1 = Math.floor(Math.random() * 9) + 1;
@@ -63,7 +76,7 @@ export default function AdminOTPPage() {
       return;
     }
 
-    if (otpValue !== '999999') {
+    if (otpValue !== debugOtp) {
       toast.error('Invalid 2FA code. Use the secure debug code.');
       return;
     }
@@ -137,13 +150,13 @@ export default function AdminOTPPage() {
 
             <div className="mb-8 p-4 bg-white/5 border border-white/10 rounded-xl text-left">
               <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Secure Debug Bypass</p>
-              <p className="text-sm font-mono text-purple-400 font-bold tracking-widest">999999</p>
+              <p className="text-sm font-mono text-purple-400 font-bold tracking-widest">{debugOtp}</p>
             </div>
 
             <button 
               type="submit" 
               disabled={isVerifying}
-              className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(168,85,247,0.3)]"
+              className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(168,85,247,0.3)] mb-4"
             >
               {isVerifying ? (
                 <span className="flex items-center gap-2">
@@ -160,6 +173,28 @@ export default function AdminOTPPage() {
                 </>
               )}
             </button>
+
+            <div className="text-center">
+              {resendTimer > 0 ? (
+                <p className="text-gray-500 text-sm">
+                  Resend code available in <span className="text-purple-400 font-mono font-bold">{resendTimer}s</span>
+                </p>
+              ) : (
+                <button 
+                  type="button"
+                  onClick={() => {
+                    toast.success('New 2FA code sent to Admin device!');
+                    setOtp(['', '', '', '', '', '']);
+                    setDebugOtp(Math.floor(100000 + Math.random() * 900000).toString());
+                    setResendTimer(60);
+                    inputRefs.current[0]?.focus();
+                  }}
+                  className="text-gray-400 text-sm hover:text-white transition-colors"
+                >
+                  Didn't receive the code? <span className="text-purple-400 font-medium">Resend</span>
+                </button>
+              )}
+            </div>
           </form>
         </div>
       </div>

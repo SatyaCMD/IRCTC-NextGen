@@ -13,7 +13,8 @@ exports.register = async (req, res) => {
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
     res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email, preferences: user.preferences } });
   } catch (error) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('Signup Error:', error);
+    res.status(500).json({ error: error.message || 'Server error' });
   }
 };
 
@@ -40,4 +41,23 @@ exports.getMe = async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
-}
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      return res.status(404).json({ error: 'No account found with this email' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+
+    res.json({ message: 'Password reset successful' });
+  } catch (error) {
+    console.error('Reset Password Error:', error);
+    res.status(500).json({ error: 'Server error during password reset' });
+  }
+};

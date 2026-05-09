@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bookingController = require('../controllers/bookingController');
 const authMiddleware = require('../middleware/authMiddleware');
+router.get('/pnr/:pnr', bookingController.getPnrStatus);
 
 router.use(authMiddleware);
 

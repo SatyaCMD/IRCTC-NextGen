@@ -9,7 +9,9 @@ export default function TrainSearch() {
   const router = useRouter();
   const [source, setSource] = useState('YPR - Yesvantpur Jn');
   const [destination, setDestination] = useState('SUR - Solapur Jn');
-  const [date] = useState('Tue 27 Apr');
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const [date, setDate] = useState(tomorrow.toISOString().split('T')[0]);
   const [ticketType, setTicketType] = useState('General');
   const [className, setClassName] = useState('All Classes');
 
@@ -20,7 +22,7 @@ export default function TrainSearch() {
       router.push('/login?redirect=auth-required');
       return;
     }
-    router.push(`/search?source=${encodeURIComponent(source)}&destination=${encodeURIComponent(destination)}`);
+    router.push(`/search?source=${encodeURIComponent(source)}&destination=${encodeURIComponent(destination)}&date=${encodeURIComponent(date)}`);
   };
 
   return (
@@ -55,6 +57,8 @@ export default function TrainSearch() {
            <div className="relative">
              <input 
                type="date" 
+               value={date}
+               onChange={(e) => setDate(e.target.value)}
                min={new Date().toISOString().split('T')[0]} 
                max={new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0]} 
                className="input-field cursor-pointer" 

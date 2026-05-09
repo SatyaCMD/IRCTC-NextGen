@@ -1,82 +1,80 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Navbar from '@/components/Navbar';
-import LocationInput from '@/components/LocationInput';
 import { jsPDF } from 'jspdf';
 import { 
   Download, CheckCircle2, CreditCard, Users, MapPin, 
   ChevronRight, ShieldCheck, Plane, Train, 
-  Hotel, Utensils, Bus, User, Loader2, BedDouble, Coffee
+  Hotel, Utensils, Bus, User, Loader2, ArrowRightLeft
 } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Cookies from 'js-cookie';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 
-export default function ServiceBookingFlow() {
+function BookingFlowInner() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  const urlTrainId = searchParams.get('trainId') || '';
+  const urlClass = searchParams.get('class') || '';
+  const urlSource = searchParams.get('source') || 'Delhi';
+  const urlDestination = searchParams.get('destination') || 'Mumbai';
+  const urlDate = searchParams.get('date') || new Date().toISOString().split('T')[0];
+  const urlDepartureTime = searchParams.get('departureTime') || '10:00';
+  const urlPrice = searchParams.get('price');
+
   const type = params.type as string;
   const title = type.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-
-  // No immediate redirect needed, let user view first
 
   // Determine service category
   const isHotel = type.includes('hotel') || type.includes('room');
   const isFlight = type.includes('flight');
   const isBus = type.includes('bus');
   const isFood = type.includes('catering');
-  const isTrain = !isHotel && !isFlight && !isBus && !isFood; // Default
 
+  // Step 1: Passengers, Step 2: Payment, Step 3: Ticket
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Dynamic Background Image - Using premium high-res images
   const getBackgroundImage = () => {
     if (isFlight) return 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=2074&auto=format&fit=crop';
-    if (isHotel) return 'https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2070&auto=format&fit=crop'; // Better luxury hotel image
+    if (isHotel) return 'https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2070&auto=format&fit=crop';
     if (isBus) return 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=2069&auto=format&fit=crop';
     if (isFood) return 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070&auto=format&fit=crop';
-    return 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=2070&auto=format&fit=crop'; // Train/Default
+    return 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?q=80&w=2070&auto=format&fit=crop';
   };
 
-  // Terminology helpers based on service
   const terms = {
-    step1Title: isHotel ? 'Stay Details' : isFood ? 'Order Details' : 'Journey Details',
-    step2Title: isHotel ? 'Guests' : 'Passengers',
+    step1Title: isHotel ? 'Guests' : 'Passengers',
     personTerm: isHotel ? 'Guest' : 'Passenger',
-    primaryLocation: isHotel ? 'Destination / City' : isFood ? 'Station / Train' : 'Leaving From',
-    secondaryLocation: isHotel ? null : isFood ? 'Restaurant' : 'Going To',
-    date1Label: isHotel ? 'Check-In Date' : isFood ? 'Delivery Date' : 'Departure Date',
-    date2Label: isHotel ? 'Check-Out Date' : isFlight ? 'Return Date' : null,
     classLabel: isHotel ? 'Room Type' : isFood ? 'Meal Preference' : 'Class of Travel',
-    icon1: isHotel ? <BedDouble className="w-6 h-6" /> : isFood ? <Coffee className="w-6 h-6" /> : <MapPin className="w-6 h-6" />
   };
 
-  // Form Data States
-  const [journeyDetails, setJourneyDetails] = useState({
-    from: '',
-    to: '',
-    date1: '', 
-    date2: '', 
-    travelClass: '',
-    quota: 'General'
+  const [journeyDetails] = useState({
+    from: urlSource,
+    to: urlDestination,
+    date1: urlDate,
+    travelClass: urlClass,
   });
 
   const [passengers, setPassengers] = useState([
     { name: '', age: '', gender: 'Male', pref: 'No Preference' }
   ]);
-
   const [contactInfo, setContactInfo] = useState({ email: '', phone: '' });
-  
   const [paymentDetails, setPaymentDetails] = useState({
     cardNumber: '', expiry: '', cvv: '', nameOnCard: ''
   });
+  const [bookingResult, setBookingResult] = useState({ bookingId: '', pnr: '', status: '', serviceClass: '' });
+  const [showReturnPrompt, setShowReturnPrompt] = useState(true);
 
-  const [bookingResult, setBookingResult] = useState({ bookingId: '', pnr: '' });
+  // Payment states
+  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [upiId, setUpiId] = useState('');
+  const [bank, setBank] = useState('');
 
-  // Get appropriate icon for header
   const getIcon = () => {
     if (isFlight) return <Plane className="w-8 h-8" />;
     if (isHotel) return <Hotel className="w-8 h-8" />;
@@ -93,7 +91,6 @@ export default function ServiceBookingFlow() {
       router.push('/login?redirect=auth-required');
       return;
     }
-
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
@@ -104,20 +101,23 @@ export default function ServiceBookingFlow() {
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
     try {
       const token = Cookies.get('token');
-      // 1. Create booking (simulate getting a temporary booking)
       const bookingRes = await axios.post('http://localhost:5000/api/bookings', {
+        trainId: urlTrainId.startsWith('mock_') ? null : urlTrainId,
+        mockTrainId: urlTrainId,
         serviceType: isHotel ? 'Hotel' : isFlight ? 'Flight' : isBus ? 'Bus' : isFood ? 'Food' : 'Train',
         serviceClass: journeyDetails.travelClass || 'Standard',
         passengers,
-        totalPrice: totalPrice + Math.round(totalPrice * 0.18)
+        totalPrice: Math.round(totalPrice + (totalPrice * 0.18)),
+        journeyDate: journeyDetails.date1,
+        from: journeyDetails.from,
+        to: journeyDetails.to,
+        departureTime: urlDepartureTime
       }, { headers: { Authorization: `Bearer ${token}` } });
 
       const createdBooking = bookingRes.data;
 
-      // 2. Confirm payment
       const confirmRes = await axios.put(`http://localhost:5000/api/bookings/${createdBooking._id}/payment`, {
         paymentId: `PAY${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
         status: 'success'
@@ -125,9 +125,11 @@ export default function ServiceBookingFlow() {
 
       setBookingResult({
         bookingId: confirmRes.data.bookingRef || `BKG${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
-        pnr: confirmRes.data.pnr || `${Math.floor(1000000000 + Math.random() * 9000000000)}` 
+        pnr: confirmRes.data.pnr || `${Math.floor(1000000000 + Math.random() * 9000000000)}`,
+        status: confirmRes.data.status || 'Confirmed',
+        serviceClass: confirmRes.data.serviceClass || journeyDetails.travelClass
       });
-      setStep(4);
+      setStep(3);
       toast.success('Payment successful! Booking confirmed.', { duration: 5000 });
     } catch (err) {
       toast.error('Payment processing failed. Please try again.');
@@ -136,159 +138,234 @@ export default function ServiceBookingFlow() {
     }
   };
 
-  const addPassenger = () => setPassengers([...passengers, { name: '', age: '', gender: 'Male', pref: 'No Preference' }]);
-  
+  const addPassenger = () => {
+    if (passengers.length < 6) {
+      setPassengers([...passengers, { name: '', age: '', gender: 'Male', pref: 'No Preference' }]);
+    }
+  };
+  const removePassenger = (index: number) => {
+    setPassengers(passengers.filter((_, i) => i !== index));
+  };
   const updatePassenger = (index: number, field: string, value: string) => {
     const updated = [...passengers];
     updated[index] = { ...updated[index], [field]: value };
     setPassengers(updated);
   };
 
-  // Pricing Logic
   const getBasePrice = () => {
-    if (isFlight) return 5500;
-    if (isHotel) return 4200;
-    if (isBus) return 850;
-    if (isFood) return 350;
-    return 1250; 
+    if (urlPrice) return Number(urlPrice);
+    let base = 1250;
+    if (isFlight) base = 5500;
+    if (isHotel) base = 4200;
+    if (isBus) base = 850;
+    if (isFood) base = 350;
+    return base;
   };
-  const totalPrice = passengers.length * getBasePrice();
+
+  const isChartPrepared = () => {
+    if (!journeyDetails.date1 || !urlDepartureTime) return false;
+    const now = new Date();
+    const journeyDateTime = new Date(`${journeyDetails.date1}T${urlDepartureTime}`);
+    const hoursToDeparture = (journeyDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    return hoursToDeparture > 0 && hoursToDeparture <= 4;
+  };
+
+  const chartPrepared = isChartPrepared();
+  const baseTotal = passengers.length * getBasePrice();
+  const totalPrice = chartPrepared ? baseTotal * 1.25 : baseTotal;
 
   const generatePDF = () => {
     const doc = new jsPDF();
     
-    // IRCTC Official E-Ticket Style
-    doc.setFillColor(255, 255, 255); 
+    // Premium Design Setup
+    doc.setFillColor(245, 247, 250); // Light gray background
     doc.rect(0, 0, 210, 297, 'F');
     
-    // Header Bar
-    doc.setFillColor(0, 51, 102); // IRCTC Blue
-    doc.rect(10, 10, 190, 25, 'F');
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.setTextColor(255, 255, 255);
-    doc.text("IRCTC e-Ticketing Service", 105, 22, { align: "center" });
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text("Electronic Reservation Slip (ERS)", 105, 29, { align: "center" });
-
-    // PNR and Details Box
-    doc.setDrawColor(0, 51, 102);
-    doc.rect(10, 40, 190, 45);
-    doc.setTextColor(0, 0, 0);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text(`PNR No: ${bookingResult.pnr}`, 15, 50);
-    doc.setFontSize(10);
-    doc.text(`Transaction ID: ${bookingResult.bookingId}`, 15, 58);
+    // Header Banner
+    doc.setFillColor(15, 23, 42); // Slate 900
+    doc.rect(0, 0, 210, 40, 'F');
     
+    // Header Text
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(255, 255, 255);
+    doc.text(`IRCTC 2.0 | Premium ${title}`, 105, 20, { align: "center" });
+    doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    if (isHotel) {
-      doc.text(`Location: ${journeyDetails.from}`, 15, 68);
-      doc.text(`Check-in: ${journeyDetails.date1} | Check-out: ${journeyDetails.date2 || 'N/A'}`, 15, 76);
-      doc.text(`Room Type: ${journeyDetails.travelClass || 'Standard'}`, 120, 68);
-    } else {
-      doc.text(`Journey Date: ${journeyDetails.date1}`, 15, 68);
-      doc.text(`From: ${journeyDetails.from}`, 15, 76);
-      doc.text(`To: ${journeyDetails.to}`, 120, 76);
-      doc.text(`Class: ${journeyDetails.travelClass || 'Standard'}`, 120, 68);
+    doc.text("Official Electronic Reservation Slip (ERS)", 105, 28, { align: "center" });
+    
+    if (chartPrepared) {
+      doc.setFillColor(220, 38, 38); // Red 600
+      doc.rect(80, 33, 50, 6, 'F');
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text("CHART PREPARED", 105, 37, { align: "center" });
     }
 
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text("Passenger Details", 10, 95);
+    // PNR and Main Details Card
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(15, 50, 180, 45, 3, 3, 'FD');
     
-    // Passenger Table
-    doc.setFillColor(230, 230, 230);
-    doc.rect(10, 100, 190, 8, 'F');
-    doc.setFontSize(9);
-    doc.text("S.No.", 12, 106);
-    doc.text("Name", 30, 106);
-    doc.text("Age", 100, 106);
-    doc.text("Sex", 120, 106);
-    doc.text("Booking Status/Current Status/Coach No/Seat No", 140, 106);
+    doc.setTextColor(15, 23, 42);
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("Booking Reference:", 20, 60);
+    doc.setTextColor(37, 99, 235); // Blue 600
+    doc.text(bookingResult.bookingId, 65, 60);
+    
+    doc.setTextColor(15, 23, 42);
+    doc.text("PNR Number:", 120, 60);
+    doc.setTextColor(16, 185, 129); // Emerald 500
+    doc.setFontSize(16);
+    doc.text(bookingResult.pnr, 155, 60);
 
+    // Separator line
+    doc.setDrawColor(226, 232, 240);
+    doc.line(20, 68, 190, 68);
+
+    doc.setTextColor(71, 85, 105);
+    doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    let yPos = 114;
+    
+    doc.text("Date:", 20, 78);
+    doc.setTextColor(15, 23, 42);
+    doc.setFont("helvetica", "bold");
+    doc.text(journeyDetails.date1, 35, 78);
+    
+    doc.setTextColor(71, 85, 105);
+    doc.setFont("helvetica", "normal");
+    doc.text("Departure:", 80, 78);
+    doc.setTextColor(15, 23, 42);
+    doc.setFont("helvetica", "bold");
+    doc.text(urlDepartureTime, 100, 78);
+
+    doc.setTextColor(71, 85, 105);
+    doc.setFont("helvetica", "normal");
+    doc.text("Class:", 140, 78);
+    doc.setTextColor(15, 23, 42);
+    doc.setFont("helvetica", "bold");
+    doc.text(journeyDetails.travelClass || 'Standard', 155, 78);
+
+    doc.setTextColor(71, 85, 105);
+    doc.setFont("helvetica", "normal");
+    doc.text("Route:", 20, 88);
+    doc.setTextColor(15, 23, 42);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${journeyDetails.from}   -->   ${journeyDetails.to}`, 35, 88);
+
+    // Passenger Table
+    doc.setFontSize(14);
+    doc.text("Passenger Details", 15, 110);
+    
+    doc.setFillColor(30, 41, 59); // Slate 800
+    doc.roundedRect(15, 115, 180, 10, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("#", 20, 121);
+    doc.text("Name", 35, 121);
+    doc.text("Age", 100, 121);
+    doc.text("Sex", 115, 121);
+    doc.text("Status / Seat / Pref", 140, 121);
+
+    doc.setTextColor(15, 23, 42);
+    doc.setFont("helvetica", "normal");
+    let yPos = 132;
     passengers.forEach((p, idx) => {
-      doc.text(`${idx + 1}`, 12, yPos);
-      doc.text(p.name || `${terms.personTerm} ${idx+1}`, 30, yPos);
+      if (idx % 2 === 0) {
+        doc.setFillColor(255, 255, 255);
+      } else {
+        doc.setFillColor(248, 250, 252);
+      }
+      doc.rect(15, yPos - 5, 180, 8, 'F');
+      
+      doc.text(`${idx + 1}`, 20, yPos);
+      doc.setFont("helvetica", "bold");
+      doc.text(p.name || `${terms.personTerm} ${idx+1}`, 35, yPos);
+      doc.setFont("helvetica", "normal");
       doc.text(p.age || "-", 100, yPos);
-      doc.text(p.gender.charAt(0), 120, yPos);
-      doc.text(`CNF / ${journeyDetails.travelClass?.charAt(0) || 'S'} / ${Math.floor(Math.random() * 80) + 1} / ${p.pref}`, 140, yPos);
+      doc.text(p.gender.charAt(0), 115, yPos);
+      
+      let statusCode = bookingResult.status === 'WL' ? 'WL' : bookingResult.status === 'RAC' ? 'RAC' : 'CNF';
+      doc.text(`${statusCode} / ${bookingResult.serviceClass?.charAt(0) || 'S'}${Math.floor(Math.random() * 80) + 1} / ${p.pref}`, 140, yPos);
+      
       yPos += 8;
     });
 
-    yPos += 10;
+    // Fare Details
+    yPos += 15;
+    doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text("Fare Details", 10, yPos);
+    doc.text("Fare Details", 15, yPos);
     
     yPos += 5;
-    doc.rect(10, yPos, 190, 25);
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(15, yPos, 180, chartPrepared ? 35 : 28, 3, 3, 'FD');
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    yPos += 6;
-    doc.text("Ticket Fare:", 15, yPos); doc.text(`Rs. ${totalPrice}.00`, 180, yPos, { align: 'right' });
-    yPos += 6;
-    doc.text("IRCTC Convenience Fee (Incl. of GST):", 15, yPos); doc.text(`Rs. ${Math.round(totalPrice * 0.18)}.00`, 180, yPos, { align: 'right' });
-    yPos += 6;
+    doc.setFontSize(10);
+    yPos += 8;
+    doc.text("Base Ticket Fare:", 20, yPos); 
+    doc.text(`Rs. ${baseTotal.toLocaleString()}`, 185, yPos, { align: 'right' });
+    
+    if (chartPrepared) {
+      yPos += 7;
+      doc.setTextColor(220, 38, 38);
+      doc.text("Late Booking Fee (Chart Prepared +25%):", 20, yPos); 
+      doc.text(`Rs. ${(baseTotal * 0.25).toLocaleString()}`, 185, yPos, { align: 'right' });
+      doc.setTextColor(15, 23, 42);
+    }
+    
+    yPos += 7;
+    doc.text("Convenience Fee (Incl. of 18% GST):", 20, yPos); 
+    doc.text(`Rs. ${Math.round(totalPrice * 0.18).toLocaleString()}`, 185, yPos, { align: 'right' });
+    
+    yPos += 8;
+    doc.setDrawColor(226, 232, 240);
+    doc.line(20, yPos - 5, 190, yPos - 5);
     doc.setFont("helvetica", "bold");
-    doc.text("Total Fare (all inclusive):", 15, yPos); doc.text(`Rs. ${totalPrice + Math.round(totalPrice * 0.18)}.00`, 180, yPos, { align: 'right' });
+    doc.setFontSize(12);
+    doc.text("Total Amount Paid:", 20, yPos); 
+    doc.setTextColor(16, 185, 129);
+    doc.text(`Rs. ${Math.round(totalPrice + (totalPrice * 0.18)).toLocaleString()}`, 185, yPos, { align: 'right' });
 
+    // Footer
+    doc.setTextColor(148, 163, 184);
     doc.setFontSize(8);
-    doc.setTextColor(100, 100, 100);
     doc.setFont("helvetica", "normal");
-    doc.text("* This ticket is booked on a personal user ID and cannot be sold by an agent.", 105, 275, { align: "center" });
+    doc.text("* Valid ID proof is required during journey.", 105, 275, { align: "center" });
     doc.text("Contact us at care@irctc.co.in or call 14646 for assistance.", 105, 280, { align: "center" });
 
-    doc.save(`IRCTC2.0_${title.replace(/\s+/g, '')}_${bookingResult.pnr}.pdf`);
-    toast.success('Ticket downloaded successfully!');
-  };
+    // "Barcode" mockup for professional look
+    doc.setFillColor(15, 23, 42);
+    for(let i=0; i<30; i++) {
+       doc.rect(70 + (i*2.2), 260, Math.random() > 0.5 ? 1 : 0.5, 8, 'F');
+    }
 
-  const renderClassOptions = () => {
-    if (isFlight) return (
-      <><option value="">Select Flight Class</option><option>Economy Class</option><option>Premium Economy</option><option>Business Class</option><option>First Class</option></>
-    );
-    if (isHotel) return (
-      <><option value="">Select Room Type</option><option>Standard Room</option><option>Deluxe Room</option><option>Ocean View Suite</option><option>Presidential Suite</option></>
-    );
-    if (isBus) return (
-      <><option value="">Select Bus Type</option><option>Non-AC Seater</option><option>AC Seater</option><option>Non-AC Sleeper</option><option>Volvo AC Sleeper</option></>
-    );
-    if (isFood) return (
-      <><option value="">Select Cuisine Type</option><option>North Indian Thali</option><option>South Indian</option><option>Continental</option><option>Jain Meals</option></>
-    );
-    return (
-      <><option value="">Select Train Class</option><option>Sleeper (SL)</option><option>AC 3 Tier (3A)</option><option>AC 2 Tier (2A)</option><option>AC First Class (1A)</option><option>Second Sitting (2S)</option></>
-    );
+    doc.save(`IRCTC2.0_${title.replace(/\s+/g, '')}_${bookingResult.pnr}.pdf`);
+    toast.success('Official E-Ticket downloaded successfully!');
   };
 
   const renderPreferences = () => {
-    if (isHotel) return <><option>No Preference</option><option>High Floor</option><option>Near Elevator</option><option>Quiet Room</option></>;
-    if (isFlight) return <><option>No Preference</option><option>Window Seat</option><option>Aisle Seat</option><option>Extra Legroom</option></>;
-    if (isBus) return <><option>No Preference</option><option>Window Seat</option><option>Front Rows</option></>;
-    if (isFood) return <><option>Regular Spice</option><option>Extra Spicy</option><option>Less Spicy</option></>;
-    return <><option>No Preference</option><option>Lower Berth</option><option>Middle Berth</option><option>Upper Berth</option><option>Side Lower</option></>;
+    const optStyle = "bg-gray-900 text-white font-medium";
+    if (isHotel) return <><option className={optStyle}>No Preference</option><option className={optStyle}>High Floor</option><option className={optStyle}>Near Elevator</option><option className={optStyle}>Quiet Room</option></>;
+    if (isFlight) return <><option className={optStyle}>No Preference</option><option className={optStyle}>Window Seat</option><option className={optStyle}>Aisle Seat</option><option className={optStyle}>Extra Legroom</option></>;
+    if (isBus) return <><option className={optStyle}>No Preference</option><option className={optStyle}>Window Seat</option><option className={optStyle}>Front Rows</option></>;
+    if (isFood) return <><option className={optStyle}>Regular Spice</option><option className={optStyle}>Extra Spicy</option><option className={optStyle}>Less Spicy</option></>;
+    return <><option className={optStyle}>No Preference</option><option className={optStyle}>Lower Berth</option><option className={optStyle}>Middle Berth</option><option className={optStyle}>Upper Berth</option><option className={optStyle}>Side Lower</option><option className={optStyle}>Side Upper</option></>;
   };
 
   return (
     <main className="min-h-screen pt-24 pb-12 relative selection:bg-blue-500/30 font-sans bg-black">
-      <Navbar />
-      
-      {/* Dynamic Background with reduced darkening for much better visibility */}
       <div className="fixed inset-0 z-0">
         <div 
           className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000 scale-105"
           style={{ backgroundImage: `url('${getBackgroundImage()}')` }}
         />
-        {/* Lighter, elegant gradient overlay to let the image shine through */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/80" />
       </div>
       
       <div className="relative z-10 w-full max-w-5xl mx-auto px-4 lg:px-8">
-        
-        {/* Header Section */}
         <div className="flex flex-col items-center text-center mb-10">
           <div className="p-4 bg-white/20 backdrop-blur-xl text-white rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.2)] mb-4 border border-white/30">
             {getIcon()}
@@ -297,13 +374,17 @@ export default function ServiceBookingFlow() {
             {title} Booking
           </h1>
           <p className="text-white/90 text-lg font-medium max-w-2xl drop-shadow-md">
-            Experience the pinnacle of {isHotel ? 'hospitality' : 'travel'}. Fast, secure, and elegantly designed for your convenience.
+            Journey selected: <span className="font-bold text-white">{journeyDetails.from}</span> to <span className="font-bold text-white">{journeyDetails.to}</span>
           </p>
+          <div className="mt-2 inline-flex items-center gap-2 bg-white/10 px-4 py-1.5 rounded-full border border-white/20 backdrop-blur-md">
+            <span className="text-sm font-bold text-white">{journeyDetails.travelClass}</span>
+            <div className="w-1.5 h-1.5 rounded-full bg-blue-400"></div>
+            <span className="text-sm font-bold text-white">{journeyDetails.date1}</span>
+          </div>
         </div>
 
-        {/* Premium Stepper */}
-        <div className="flex items-center justify-center mb-10 max-w-3xl mx-auto drop-shadow-xl">
-          {['Search', terms.step2Title, 'Payment', 'Ticket'].map((label, index) => {
+        <div className="flex items-center justify-center mb-10 max-w-2xl mx-auto drop-shadow-xl">
+          {[terms.step1Title, 'Payment', 'Ticket'].map((label, index) => {
             const stepNum = index + 1;
             const isActive = step >= stepNum;
             const isCurrent = step === stepNum;
@@ -319,7 +400,7 @@ export default function ServiceBookingFlow() {
                     {label}
                   </span>
                 </div>
-                {index < 3 && (
+                {index < 2 && (
                   <div className={`w-12 md:w-24 h-1.5 mx-2 rounded-full transition-colors duration-500 ${step > stepNum ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]' : 'bg-black/30 backdrop-blur-md'}`} />
                 )}
               </div>
@@ -327,100 +408,18 @@ export default function ServiceBookingFlow() {
           })}
         </div>
 
-        {/* Form Container - Premium Glassmorphism */}
         <div className="bg-black/60 backdrop-blur-2xl border border-white/20 rounded-[2rem] p-6 md:p-12 shadow-[0_20px_50px_rgba(0,0,0,0.5)] mt-12">
           
-          {/* STEP 1: JOURNEY / STAY DETAILS */}
+          {/* STEP 1: PASSENGERS / GUESTS */}
           {step === 1 && (
-            <form onSubmit={handleNextStep} className="animate-in fade-in zoom-in-95 duration-500">
-              <div className="flex items-center gap-3 mb-8 pb-4 border-b border-white/10">
-                <div className="bg-blue-500/20 p-2 rounded-lg text-blue-400 border border-blue-500/30">
-                  {terms.icon1}
-                </div>
-                <h2 className="text-2xl font-bold text-white tracking-wide">{terms.step1Title}</h2>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-                {/* Primary Location */}
-                <LocationInput 
-                  label={terms.primaryLocation} 
-                  value={journeyDetails.from} 
-                  onChange={val => setJourneyDetails({...journeyDetails, from: val})} 
-                  type={isFlight ? 'Flight' : isHotel ? 'City' : 'Train'} 
-                  placeholder={isHotel ? "E.g. Taj Mahal Palace, Mumbai" : "City or Station Code"}
-                />
-
-                {/* Secondary Location */}
-                {terms.secondaryLocation && (
-                  <LocationInput 
-                    label={terms.secondaryLocation} 
-                    value={journeyDetails.to} 
-                    onChange={val => setJourneyDetails({...journeyDetails, to: val})} 
-                    type={isFlight ? 'Flight' : isHotel ? 'City' : 'Train'} 
-                    placeholder={isFood ? "Select Restaurant" : "City or Station Code"}
-                  />
-                )}
-
-                {/* Date 1 */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black text-blue-300 uppercase tracking-widest ml-1 drop-shadow-md">
-                    {terms.date1Label}
-                  </label>
-                  <input type="date" min={new Date().toISOString().split('T')[0]} max={new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0]} required value={journeyDetails.date1} onChange={e => setJourneyDetails({...journeyDetails, date1: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all backdrop-blur-md font-medium [color-scheme:dark]" />
-                </div>
-
-                {/* Date 2 */}
-                {terms.date2Label && (
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-black text-blue-300 uppercase tracking-widest ml-1 drop-shadow-md">
-                      {terms.date2Label}
-                    </label>
-                    <input type="date" min={new Date().toISOString().split('T')[0]} max={new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0]} required={isHotel} value={journeyDetails.date2} onChange={e => setJourneyDetails({...journeyDetails, date2: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all backdrop-blur-md font-medium [color-scheme:dark]" />
-                  </div>
-                )}
-
-                {/* Class / Quota Fields */}
-                <div className="space-y-2">
-                  <label className="text-[11px] font-black text-blue-300 uppercase tracking-widest ml-1 drop-shadow-md">
-                    {terms.classLabel}
-                  </label>
-                  <select required value={journeyDetails.travelClass} onChange={e => setJourneyDetails({...journeyDetails, travelClass: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all backdrop-blur-md font-medium appearance-none cursor-pointer">
-                    {renderClassOptions()}
-                  </select>
-                </div>
-
-                {isTrain && (
-                  <div className="space-y-2">
-                    <label className="text-[11px] font-black text-blue-300 uppercase tracking-widest ml-1 drop-shadow-md">Quota</label>
-                    <select value={journeyDetails.quota} onChange={e => setJourneyDetails({...journeyDetails, quota: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all backdrop-blur-md font-medium appearance-none cursor-pointer">
-                      <option>General Quota</option>
-                      <option>Tatkal</option>
-                      <option>Ladies</option>
-                      <option>Senior Citizen</option>
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-end pt-6 mt-8 border-t border-white/10">
-                <button type="submit" disabled={isLoading} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-10 py-4 rounded-2xl font-bold text-lg transition-all flex items-center gap-3 disabled:opacity-70 group shadow-[0_10px_30px_rgba(59,130,246,0.4)] hover:shadow-[0_10px_40px_rgba(59,130,246,0.6)] hover:-translate-y-1">
-                  {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : `Continue to ${terms.step2Title}`}
-                  {!isLoading && <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* STEP 2: PASSENGERS / GUESTS */}
-          {step === 2 && (
             <form onSubmit={handleNextStep} className="animate-in fade-in zoom-in-95 duration-500">
               <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/10">
                 <div className="flex items-center gap-3">
                   <div className="bg-blue-500/20 p-2 rounded-lg text-blue-400 border border-blue-500/30"><Users className="w-6 h-6" /></div>
-                  <h2 className="text-2xl font-bold text-white tracking-wide">{terms.step2Title} Details</h2>
+                  <h2 className="text-2xl font-bold text-white tracking-wide">{terms.step1Title} Details</h2>
                 </div>
-                <button type="button" onClick={addPassenger} className="text-sm font-bold bg-white/10 hover:bg-white/20 text-white px-5 py-3 rounded-xl transition-all border border-white/20 backdrop-blur-md flex items-center gap-2 shadow-lg">
-                  + Add {terms.personTerm}
+                <button type="button" onClick={addPassenger} disabled={passengers.length >= 6} className="text-sm font-bold bg-white/10 hover:bg-white/20 text-white px-5 py-3 rounded-xl transition-all border border-white/20 backdrop-blur-md flex items-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                  + Add {terms.personTerm} {passengers.length >= 6 ? '(Max 6)' : ''}
                 </button>
               </div>
 
@@ -428,7 +427,12 @@ export default function ServiceBookingFlow() {
                 {passengers.map((p, idx) => (
                   <div key={idx} className="bg-white/5 border border-white/10 rounded-2xl p-6 relative overflow-hidden backdrop-blur-xl">
                     <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-blue-400 to-indigo-600" />
-                    <h3 className="text-[11px] font-black text-blue-300 uppercase tracking-widest mb-5 ml-3 drop-shadow-md">{terms.personTerm} {idx + 1}</h3>
+                    <div className="flex justify-between items-center mb-5 ml-3">
+                      <h3 className="text-[11px] font-black text-blue-300 uppercase tracking-widest drop-shadow-md">{terms.personTerm} {idx + 1}</h3>
+                      {idx > 0 && (
+                        <button type="button" onClick={() => removePassenger(idx)} className="text-red-400 hover:text-red-300 text-xs font-bold uppercase tracking-wider">Remove</button>
+                      )}
+                    </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-5 ml-3">
                       <div className="md:col-span-5 space-y-2">
@@ -442,7 +446,7 @@ export default function ServiceBookingFlow() {
                       <div className="md:col-span-2 space-y-2">
                         <label className="text-[10px] font-bold text-white/60 uppercase tracking-widest ml-1">Gender</label>
                         <select value={p.gender} onChange={e => updatePassenger(idx, 'gender', e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white font-medium focus:ring-2 focus:ring-blue-500/50 appearance-none">
-                          <option>Male</option><option>Female</option><option>Other</option>
+                          <option className="bg-gray-900 text-white">Male</option><option className="bg-gray-900 text-white">Female</option><option className="bg-gray-900 text-white">Other</option>
                         </select>
                       </div>
                       <div className="md:col-span-3 space-y-2">
@@ -473,8 +477,8 @@ export default function ServiceBookingFlow() {
               </div>
 
               <div className="flex justify-between items-center pt-6 mt-8 border-t border-white/10">
-                <button type="button" onClick={() => setStep(1)} className="text-white/60 hover:text-white px-6 py-3 font-bold transition-colors flex items-center gap-2">
-                  Back
+                <button type="button" onClick={() => router.push('/search')} className="text-white/60 hover:text-white px-6 py-3 font-bold transition-colors flex items-center gap-2">
+                  Cancel Booking
                 </button>
                 <button type="submit" disabled={isLoading} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-10 py-4 rounded-2xl font-bold text-lg transition-all flex items-center gap-3 disabled:opacity-70 group shadow-[0_10px_30px_rgba(59,130,246,0.4)] hover:shadow-[0_10px_40px_rgba(59,130,246,0.6)] hover:-translate-y-1">
                   {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Review & Pay'}
@@ -484,12 +488,11 @@ export default function ServiceBookingFlow() {
             </form>
           )}
 
-          {/* STEP 3: PAYMENT */}
-          {step === 3 && (
+          {/* STEP 2: PAYMENT */}
+          {step === 2 && (
             <form onSubmit={handlePayment} className="animate-in fade-in zoom-in-95 duration-500">
               <div className="flex flex-col lg:flex-row gap-10">
                 
-                {/* Left: Payment Form */}
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-8 pb-4 border-b border-white/10">
                     <div className="bg-emerald-500/20 p-2 rounded-lg text-emerald-400 border border-emerald-500/30"><CreditCard className="w-6 h-6" /></div>
@@ -497,28 +500,76 @@ export default function ServiceBookingFlow() {
                   </div>
                   
                   <div className="bg-white/5 border border-white/10 rounded-3xl p-8 space-y-6 backdrop-blur-xl">
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-black text-white/50 uppercase tracking-widest ml-1">Card Number</label>
-                      <input type="text" required maxLength={19} value={paymentDetails.cardNumber} onChange={e => setPaymentDetails({...paymentDetails, cardNumber: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white text-lg font-bold focus:ring-2 focus:ring-emerald-500/50 font-mono tracking-widest" placeholder="0000 0000 0000 0000" />
+                    <div className="flex gap-4 mb-6 border-b border-white/10 pb-4">
+                      {['card', 'upi', 'netbanking'].map(method => (
+                        <button 
+                          key={method}
+                          type="button"
+                          onClick={() => setPaymentMethod(method)}
+                          className={`px-4 py-2 rounded-xl text-sm font-bold uppercase tracking-widest transition-all ${paymentMethod === method ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-black/40 text-white/60 hover:bg-black/60 border border-white/10'}`}
+                        >
+                          {method === 'card' ? 'Card' : method === 'upi' ? 'UPI' : 'Net Banking'}
+                        </button>
+                      ))}
                     </div>
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-black text-white/50 uppercase tracking-widest ml-1">Name on Card</label>
-                      <input type="text" required value={paymentDetails.nameOnCard} onChange={e => setPaymentDetails({...paymentDetails, nameOnCard: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white text-lg font-bold focus:ring-2 focus:ring-emerald-500/50 uppercase" placeholder="JOHN DOE" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <label className="text-[11px] font-black text-white/50 uppercase tracking-widest ml-1">Expiry Date</label>
-                        <input type="text" required maxLength={5} value={paymentDetails.expiry} onChange={e => setPaymentDetails({...paymentDetails, expiry: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white text-lg font-bold focus:ring-2 focus:ring-emerald-500/50 font-mono" placeholder="MM/YY" />
+
+                    {paymentMethod === 'card' && (
+                      <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                        <div className="space-y-2">
+                          <label className="text-[11px] font-black text-white/50 uppercase tracking-widest ml-1">Card Number</label>
+                          <input type="text" required maxLength={19} value={paymentDetails.cardNumber} onChange={e => {
+                            let val = e.target.value.replace(/\D/g, '');
+                            val = val.replace(/(.{4})/g, '$1 ').trim();
+                            setPaymentDetails({...paymentDetails, cardNumber: val});
+                          }} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white text-lg font-bold focus:ring-2 focus:ring-emerald-500/50 font-mono tracking-widest" placeholder="0000 0000 0000 0000" />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[11px] font-black text-white/50 uppercase tracking-widest ml-1">Name on Card</label>
+                          <input type="text" required value={paymentDetails.nameOnCard} onChange={e => setPaymentDetails({...paymentDetails, nameOnCard: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white text-lg font-bold focus:ring-2 focus:ring-emerald-500/50 uppercase" placeholder="JOHN DOE" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <label className="text-[11px] font-black text-white/50 uppercase tracking-widest ml-1">Expiry Date</label>
+                            <input type="text" required maxLength={5} value={paymentDetails.expiry} onChange={e => setPaymentDetails({...paymentDetails, expiry: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white text-lg font-bold focus:ring-2 focus:ring-emerald-500/50 font-mono" placeholder="MM/YY" />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[11px] font-black text-white/50 uppercase tracking-widest ml-1">Security Code</label>
+                            <input type="password" required maxLength={4} value={paymentDetails.cvv} onChange={e => setPaymentDetails({...paymentDetails, cvv: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white text-lg font-bold focus:ring-2 focus:ring-emerald-500/50 font-mono" placeholder="CVV" />
+                          </div>
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-[11px] font-black text-white/50 uppercase tracking-widest ml-1">Security Code</label>
-                        <input type="password" required maxLength={4} value={paymentDetails.cvv} onChange={e => setPaymentDetails({...paymentDetails, cvv: e.target.value})} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white text-lg font-bold focus:ring-2 focus:ring-emerald-500/50 font-mono" placeholder="CVV" />
+                    )}
+
+                    {paymentMethod === 'upi' && (
+                      <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                        <div className="space-y-2">
+                          <label className="text-[11px] font-black text-white/50 uppercase tracking-widest ml-1">UPI ID / VPA</label>
+                          <input type="text" required value={upiId} onChange={e => setUpiId(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white text-lg font-bold focus:ring-2 focus:ring-emerald-500/50 tracking-wide" placeholder="username@upi" />
+                        </div>
+                        <p className="text-sm text-emerald-400/80 italic text-center mt-4">Open your UPI app (GPay, PhonePe, Paytm) to approve the payment request after clicking Pay.</p>
                       </div>
-                    </div>
+                    )}
+
+                    {paymentMethod === 'netbanking' && (
+                      <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                        <div className="space-y-2">
+                          <label className="text-[11px] font-black text-white/50 uppercase tracking-widest ml-1">Select Bank</label>
+                          <select required value={bank} onChange={e => setBank(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-white text-lg font-bold focus:ring-2 focus:ring-emerald-500/50 appearance-none">
+                            <option value="" className="text-gray-500">Choose your bank...</option>
+                            <option className="bg-gray-900 text-white" value="sbi">State Bank of India</option>
+                            <option className="bg-gray-900 text-white" value="hdfc">HDFC Bank</option>
+                            <option className="bg-gray-900 text-white" value="icici">ICICI Bank</option>
+                            <option className="bg-gray-900 text-white" value="axis">Axis Bank</option>
+                            <option className="bg-gray-900 text-white" value="pnb">Punjab National Bank</option>
+                            <option className="bg-gray-900 text-white" value="kotak">Kotak Mahindra Bank</option>
+                          </select>
+                        </div>
+                        <p className="text-sm text-emerald-400/80 italic text-center mt-4">You will be redirected to your bank's secure portal.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Right: Order Summary */}
                 <div className="lg:w-96">
                   <div className="bg-gradient-to-br from-blue-900/60 to-indigo-900/60 border border-blue-500/40 rounded-3xl p-8 backdrop-blur-2xl h-full shadow-[0_15px_40px_rgba(30,58,138,0.5)]">
                     <h3 className="text-xl font-black text-white mb-6 flex items-center gap-2 tracking-wide">
@@ -528,35 +579,38 @@ export default function ServiceBookingFlow() {
                     <div className="space-y-4 text-[15px] text-blue-100/90 mb-8 border-b border-white/20 pb-6 font-medium">
                       <div className="flex justify-between items-center"><span className="uppercase tracking-wider text-[11px] font-bold text-blue-300">Service</span><span className="text-white font-bold">{title}</span></div>
                       <div className="flex justify-between items-center"><span className="uppercase tracking-wider text-[11px] font-bold text-blue-300">Date</span><span className="text-white font-bold">{journeyDetails.date1 || '-'}</span></div>
-                      <div className="flex justify-between items-center"><span className="uppercase tracking-wider text-[11px] font-bold text-blue-300">{terms.step2Title}</span><span className="text-white font-bold">{passengers.length}</span></div>
+                      <div className="flex justify-between items-center"><span className="uppercase tracking-wider text-[11px] font-bold text-blue-300">{terms.step1Title}</span><span className="text-white font-bold">{passengers.length}</span></div>
                       <div className="flex justify-between items-center"><span className="uppercase tracking-wider text-[11px] font-bold text-blue-300">{terms.classLabel}</span><span className="text-white font-bold truncate max-w-[120px] text-right">{journeyDetails.travelClass || 'Standard'}</span></div>
                     </div>
 
                     <div className="space-y-3 mb-6 font-semibold">
-                      <div className="flex justify-between text-blue-100/90 text-sm"><span>Base Fare (x{passengers.length})</span><span>₹{totalPrice.toLocaleString()}</span></div>
+                      <div className="flex justify-between text-blue-100/90 text-sm"><span>Base Fare (x{passengers.length})</span><span>₹{baseTotal.toLocaleString()}</span></div>
+                      {chartPrepared && (
+                        <div className="flex justify-between text-red-400 font-bold text-sm"><span>Late Booking (Chart Prepared)</span><span>+ ₹{(baseTotal * 0.25).toLocaleString()}</span></div>
+                      )}
                       <div className="flex justify-between text-blue-100/90 text-sm"><span>Taxes & Fees (18%)</span><span>₹{Math.round(totalPrice * 0.18).toLocaleString()}</span></div>
                     </div>
 
                     <div className="border-t border-white/30 pt-6 flex flex-col gap-2">
                       <span className="text-blue-300 text-[11px] uppercase tracking-widest font-black">Total Amount Due</span>
-                      <span className="text-4xl font-black text-white drop-shadow-md">₹{(totalPrice + Math.round(totalPrice * 0.18)).toLocaleString()}</span>
+                      <span className="text-4xl font-black text-white drop-shadow-md">₹{Math.round(totalPrice + (totalPrice * 0.18)).toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="flex justify-between items-center pt-8 mt-10 border-t border-white/10">
-                <button type="button" onClick={() => setStep(2)} className="text-white/60 hover:text-white px-6 py-3 font-bold transition-colors">Back to details</button>
+                <button type="button" onClick={() => setStep(1)} className="text-white/60 hover:text-white px-6 py-3 font-bold transition-colors">Back to details</button>
                 <button type="submit" disabled={isLoading} className="bg-emerald-500 hover:bg-emerald-400 text-white px-10 py-4 rounded-2xl font-bold text-lg transition-all flex items-center gap-3 disabled:opacity-70 group shadow-[0_10px_30px_rgba(16,185,129,0.4)] hover:shadow-[0_10px_40px_rgba(16,185,129,0.6)] hover:-translate-y-1">
                   {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <ShieldCheck className="w-6 h-6" />}
-                  {isLoading ? 'Processing securely...' : `Pay ₹${(totalPrice + Math.round(totalPrice * 0.18)).toLocaleString()}`}
+                  {isLoading ? 'Processing securely...' : `Pay ₹${Math.round(totalPrice + (totalPrice * 0.18)).toLocaleString()}`}
                 </button>
               </div>
             </form>
           )}
 
-          {/* STEP 4: CONFIRMATION */}
-          {step === 4 && (
+          {/* STEP 3: CONFIRMATION */}
+          {step === 3 && (
             <div className="animate-in zoom-in-95 duration-700 flex flex-col items-center text-center py-12">
               <div className="w-32 h-32 bg-emerald-500/20 rounded-full flex items-center justify-center mb-8 border border-emerald-500/50 relative shadow-[0_0_50px_rgba(16,185,129,0.4)]">
                 <div className="absolute inset-0 bg-emerald-400/20 rounded-full animate-ping duration-1000" />
@@ -583,15 +637,53 @@ export default function ServiceBookingFlow() {
                 </div>
               </div>
 
-              <button 
-                onClick={generatePDF}
-                className="bg-white text-black hover:bg-gray-100 px-12 py-5 rounded-2xl font-black transition-all flex items-center gap-3 group text-xl shadow-[0_10px_40px_rgba(255,255,255,0.3)] hover:-translate-y-1"
-              >
-                Download Official E-Ticket
-                <Download className="w-6 h-6 group-hover:translate-y-1 transition-transform" />
-              </button>
+              <div className="flex flex-col sm:flex-row gap-4 mt-8">
+                <button 
+                  onClick={generatePDF}
+                  className="bg-white text-black hover:bg-gray-100 px-8 py-4 rounded-2xl font-black transition-all flex items-center justify-center gap-3 group text-lg shadow-[0_10px_40px_rgba(255,255,255,0.3)] hover:-translate-y-1"
+                >
+                  Download E-Ticket
+                  <Download className="w-5 h-5 group-hover:translate-y-1 transition-transform" />
+                </button>
+                <button 
+                  onClick={() => router.push('/profile')}
+                  className="bg-black/50 text-white hover:bg-black/70 px-8 py-4 rounded-2xl font-black transition-all border border-white/20 backdrop-blur-md flex items-center justify-center text-lg"
+                >
+                  Go to Profile
+                </button>
+              </div>
+
+              {showReturnPrompt && journeyDetails.to && (
+                <div className="bg-gradient-to-br from-indigo-900/60 to-purple-900/60 border border-indigo-500/40 rounded-3xl p-8 mt-12 w-full max-w-2xl mx-auto shadow-[0_15px_40px_rgba(79,70,229,0.3)] backdrop-blur-2xl animate-in slide-in-from-bottom-8 duration-700">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="bg-indigo-500/20 p-3 rounded-full mb-4">
+                      <ArrowRightLeft className="w-8 h-8 text-indigo-400" />
+                    </div>
+                    <h3 className="text-2xl font-black text-white mb-2 tracking-wide">Book Your Return Journey?</h3>
+                    <p className="text-indigo-200 text-lg mb-8 max-w-md">
+                      Planning to head back? Book your return ticket from <span className="font-bold text-white">{journeyDetails.to}</span> to <span className="font-bold text-white">{journeyDetails.from}</span> now to secure the best seats.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
+                      <button 
+                        onClick={() => {
+                          router.push(`/search?source=${encodeURIComponent(journeyDetails.to)}&destination=${encodeURIComponent(journeyDetails.from)}&type=${encodeURIComponent(title)}`);
+                        }} 
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-indigo-500/50 hover:-translate-y-1"
+                      >
+                        Book Return Ticket
+                      </button>
+                      <button 
+                        onClick={() => setShowReturnPrompt(false)} 
+                        className="bg-white/10 hover:bg-white/20 text-white/80 hover:text-white px-8 py-3 rounded-xl font-bold transition-colors border border-white/10"
+                      >
+                        Ignore
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               
-              <p className="text-white/60 font-medium text-sm mt-8 bg-black/40 px-6 py-3 rounded-full backdrop-blur-md">
+              <p className="text-white/60 font-medium text-sm mt-12 bg-black/40 px-6 py-3 rounded-full backdrop-blur-md">
                 A copy of this ticket has also been sent to <span className="text-white">{contactInfo.email}</span>
               </p>
             </div>
@@ -600,5 +692,16 @@ export default function ServiceBookingFlow() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function ServiceBookingFlow() {
+  return (
+    <>
+      <Navbar />
+      <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center text-white">Loading booking flow...</div>}>
+        <BookingFlowInner />
+      </Suspense>
+    </>
   );
 }

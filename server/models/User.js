@@ -11,13 +11,13 @@ const userSchema = new mongoose.Schema({
     age: { type: Number },
     gender: { type: String, enum: ['Male', 'Female', 'Other'] },
     travelHabits: { type: String }
-  }
+  },
+  loyaltyPoints: { type: Number, default: 150 } // Give new users 150 points bonus
 }, { timestamps: true });
 
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+userSchema.pre('save', async function() {
+  if (!this.isModified('password')) return;
   this.password = await bcrypt.hash(this.password, 10);
-  next();
 });
 
 userSchema.methods.comparePassword = async function(candidatePassword) {

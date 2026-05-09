@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import { useRouter } from 'next/navigation';
-import { Calendar, Train, Plane, Hotel, Ticket, XCircle, CheckCircle2, Clock, Loader2 } from 'lucide-react';
+import { Calendar, Train, Plane, Hotel, Ticket, XCircle, CheckCircle2, Clock, Loader2, Home } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function BookingHistory() {
@@ -63,14 +63,23 @@ export default function BookingHistory() {
   return (
     <main className="min-h-screen bg-[#050505] text-white pt-24 pb-12 px-4 selection:bg-purple-500/30">
       <div className="max-w-5xl mx-auto">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center border border-blue-500/30">
-            <Clock className="w-6 h-6 text-blue-400" />
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center border border-blue-500/30">
+              <Clock className="w-6 h-6 text-blue-400" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Booking History</h1>
+              <p className="text-gray-400 text-sm">View your past and upcoming journeys (3 Months)</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Booking History</h1>
-            <p className="text-gray-400 text-sm">View your past and upcoming journeys (3 Months)</p>
-          </div>
+          <button 
+            onClick={() => router.push('/dashboard')} 
+            className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-5 py-2.5 rounded-xl transition-all border border-white/10 font-bold text-sm shadow-lg hover:-translate-y-0.5"
+          >
+            <Home className="w-4 h-4" />
+            Back to Home
+          </button>
         </div>
 
         {isLoading ? (

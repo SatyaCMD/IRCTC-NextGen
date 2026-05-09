@@ -4,6 +4,7 @@ import { Train, Menu, ShieldAlert, LogOut } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import Cookies from 'js-cookie';
 import { useRouter } from 'next/navigation';
+import SessionTimer from './SessionTimer';
 
 export default function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -51,12 +52,18 @@ export default function Navbar() {
               <ShieldAlert className="w-4 h-4" /> Admin
             </Link>
             {isLoggedIn ? (
-              <button 
-                onClick={handleLogout}
-                className="bg-red-500/10 text-red-400 hover:bg-red-500/20 px-4 py-2 rounded-lg transition-all text-sm font-bold flex items-center gap-2 ml-4"
-              >
-                <LogOut className="w-4 h-4" /> Logout
-              </button>
+              <div className="flex items-center gap-4 ml-4">
+                <Link href="/dashboard?tab=profile" className="text-gray-300 hover:text-white font-medium text-sm transition-colors">
+                  My Profile
+                </Link>
+                <SessionTimer />
+                <button 
+                  onClick={handleLogout}
+                  className="bg-red-500/10 text-red-400 hover:bg-red-500/20 px-4 py-2 rounded-lg transition-all text-sm font-bold flex items-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" /> Logout
+                </button>
+              </div>
             ) : (
               <>
                 <Link href="/login" className="text-gray-300 hover:text-white font-medium ml-2">Register</Link>

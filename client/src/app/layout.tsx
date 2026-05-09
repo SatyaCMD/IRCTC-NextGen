@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Toaster } from "react-hot-toast";
 import "./globals.css";
 import DishaAI from "@/components/DishaAI";
-import SessionTimer from "@/components/SessionTimer";
 
 export const metadata: Metadata = {
   title: "IRCTC 2.0 - Next Gen Indian Railways",
@@ -42,7 +41,6 @@ export default function RootLayout({
           }}
         />
         {children}
-        <SessionTimer />
         <DishaAI />
       </body>
     </html>
