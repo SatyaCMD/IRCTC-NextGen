@@ -7,6 +7,7 @@ router.use(authMiddleware);
 
 router.post('/', bookingController.createBooking);
 router.put('/:id/payment', bookingController.confirmBookingPayment);
+router.put('/:id/cancel', bookingController.cancelBooking);
 router.get('/history', bookingController.getUserBookings);
 
 module.exports = router;

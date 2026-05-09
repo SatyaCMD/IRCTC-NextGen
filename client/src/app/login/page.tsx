@@ -1,95 +1,174 @@
 'use client';
 
-import { useState } from 'react';
-import Navbar from '@/components/Navbar';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
+import Link from 'next/link';
+import { Eye, EyeOff, Train, Shield, ArrowRight } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function LoginPage() {
-  const [isLogin, setIsLogin] = useState(true);
-  const [formData, setFormData] = useState({ name: '', email: '', password: '' });
-  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({ email: '', password: '', captcha: '' });
+  const [showPassword, setShowPassword] = useState(false);
+  const [captchaAnswer, setCaptchaAnswer] = useState(0);
+  const [captchaQuestion, setCaptchaQuestion] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    generateCaptcha();
+  }, []);
+
+  const generateCaptcha = () => {
+    const num1 = Math.floor(Math.random() * 10) + 1;
+    const num2 = Math.floor(Math.random() * 10) + 1;
+    setCaptchaQuestion(`${num1} + ${num2}`);
+    setCaptchaAnswer(num1 + num2);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-    
+
+    if (parseInt(formData.captcha) !== captchaAnswer) {
+      toast.error('Incorrect CAPTCHA answer. Please try again.');
+      generateCaptcha();
+      setFormData({ ...formData, captcha: '' });
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
-      const res = await axios.post(`http://localhost:5000${endpoint}`, formData);
+      const res = await axios.post(`http://localhost:5000/api/auth/login`, {
+        email: formData.email,
+        password: formData.password
+      });
       Cookies.set('token', res.data.token, { expires: 7 });
+      toast.success('Successfully logged in!');
       router.push('/');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Something went wrong');
+      toast.error(err.response?.data?.error || 'Invalid credentials');
+      setIsLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-[var(--background)] pt-24 pb-12 flex items-center justify-center relative">
-      <Navbar />
+    <main className="min-h-screen flex bg-[#050505] text-white selection:bg-blue-500/30">
       
-      <div className="absolute inset-0 z-0 bg-[url('https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=2069&auto=format&fit=crop')] bg-cover bg-center opacity-20" />
-      
-      <div className="relative z-10 w-full max-w-md">
-        <div className="glass-card p-8">
-          <h2 className="text-3xl font-bold text-white mb-6 text-center">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
-          </h2>
-          
-          {error && <div className="mb-4 p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-100 text-sm">{error}</div>}
+      {/* Left side - Branding & Image */}
+      <div className="hidden lg:flex w-1/2 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1474487548417-781cb71495f3?q=80&w=2184&auto=format&fit=crop')] bg-cover bg-center transition-transform duration-10000 hover:scale-110" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+        <div className="absolute inset-0 bg-blue-900/20 mix-blend-multiply" />
+        
+        <div className="relative z-10 flex flex-col justify-between p-16 w-full">
+          <Link href="/" className="flex items-center gap-3 w-fit group">
+            <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 group-hover:bg-white/20 transition-all">
+              <Train className="w-6 h-6 text-white" />
+            </div>
+            <span className="text-2xl font-bold tracking-tight">IRCTC 2.0</span>
+          </Link>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
-              <div>
-                <label className="text-sm text-gray-400 mb-1 block">Full Name</label>
-                <input 
-                  type="text" 
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
-                  className="input-field"
-                  placeholder="John Doe"
-                />
-              </div>
-            )}
-            <div>
-              <label className="text-sm text-gray-400 mb-1 block">Email</label>
+          <div className="max-w-md">
+            <h1 className="text-5xl font-bold leading-tight mb-6 tracking-tight">
+              Your journey starts here.
+            </h1>
+            <p className="text-lg text-gray-300 font-light">
+              Experience the next generation of train travel with seamless bookings, AI-powered insights, and premium services.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Right side - Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12 lg:p-16 relative">
+        <div className="absolute top-8 right-8 text-sm text-gray-400 font-medium">
+          Don't have an account?{' '}
+          <Link href="/signup" className="text-white hover:text-blue-400 transition-colors ml-1 border-b border-transparent hover:border-blue-400 pb-0.5">
+            Register now
+          </Link>
+        </div>
+
+        <div className="w-full max-w-md mt-12 lg:mt-0">
+          <div className="mb-10">
+            <h2 className="text-3xl font-semibold mb-2">Sign in to IRCTC</h2>
+            <p className="text-gray-400 text-sm">Welcome back! Please enter your details.</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-400 uppercase tracking-wider ml-1">Email</label>
               <input 
                 type="email" 
                 required
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
-                className="input-field"
-                placeholder="john@example.com"
-              />
-            </div>
-            <div>
-              <label className="text-sm text-gray-400 mb-1 block">Password</label>
-              <input 
-                type="password" 
-                required
-                value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
-                className="input-field"
-                placeholder="••••••••"
+                className="w-full bg-[#111111] border border-[#222] rounded-xl px-4 py-3.5 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                placeholder="Enter your email"
               />
             </div>
             
-            <button type="submit" className="btn-primary w-full mt-6">
-              {isLogin ? 'Sign In' : 'Register'}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-400 uppercase tracking-wider ml-1">Password</label>
+              <div className="relative">
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  required
+                  value={formData.password}
+                  onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  className="w-full bg-[#111111] border border-[#222] rounded-xl px-4 py-3.5 pr-12 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                  placeholder="••••••••"
+                />
+                <button 
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between ml-1">
+                <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Security Question</label>
+                <button type="button" onClick={generateCaptcha} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">Reload</button>
+              </div>
+              <div className="flex gap-3">
+                <div className="bg-[#111111] border border-[#222] rounded-xl px-4 py-3.5 flex-1 flex items-center justify-center font-mono text-gray-300">
+                  {captchaQuestion} = ?
+                </div>
+                <input 
+                  type="number" 
+                  required
+                  value={formData.captcha}
+                  onChange={(e) => setFormData({...formData, captcha: e.target.value})}
+                  className="w-1/2 bg-[#111111] border border-[#222] rounded-xl px-4 py-3.5 text-center text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-mono"
+                  placeholder="Answer"
+                />
+              </div>
+            </div>
+            
+            <button 
+              type="submit" 
+              disabled={isLoading}
+              className="w-full bg-white text-black hover:bg-gray-100 font-semibold py-4 rounded-xl transition-all duration-300 mt-4 flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  Authenticating...
+                </span>
+              ) : (
+                <>
+                  Sign In
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <button 
-              onClick={() => setIsLogin(!isLogin)} 
-              className="text-blue-400 hover:text-blue-300 text-sm transition-colors"
-            >
-              {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
-            </button>
-          </div>
         </div>
       </div>
     </main>

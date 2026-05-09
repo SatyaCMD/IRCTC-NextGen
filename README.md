@@ -1,6 +1,6 @@
-# 🚂 RailAI - Next Generation Ticket Booking (IRCTC Clone)
+# 🚂 IRCTC 2.0 - Next Generation Ticket Booking (IRCTC Clone)
 
-Welcome to RailAI, a full-stack AI-powered train ticket booking platform with a modern, responsive Glassmorphism UI styling inspired by modern IRCTC redesign concepts.
+Welcome to IRCTC 2.0, a full-stack AI-powered train ticket booking platform with a modern, responsive Glassmorphism UI styling inspired by modern IRCTC redesign concepts.
 
 ## 🌟 Features
 - **Modern UI**: Full Dark-mode, glassmorphism design with responsive TailwindCSS layout.

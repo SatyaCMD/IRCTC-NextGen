@@ -1,15 +1,17 @@
 import { Plane, Hotel, Utensils, Bus, Bed, Train } from 'lucide-react';
 
+import Link from 'next/link';
+
 const services = [
-  { name: 'Flights', icon: Plane },
-  { name: 'Hotels', icon: Hotel },
-  { name: 'Retiring Room', icon: Bed },
-  { name: 'E-catering', icon: Utensils },
-  { name: 'Bus', icon: Bus },
-  { name: 'Holiday packs', icon: Plane },
-  { name: 'Tourist Train', icon: Train },
-  { name: 'Hill Railways', icon: Train },
-  { name: 'Charter Train', icon: Train }
+  { name: 'Flights', icon: Plane, path: '/services/flights' },
+  { name: 'Hotels', icon: Hotel, path: '/services/hotels' },
+  { name: 'Retiring Room', icon: Bed, path: '/services/retiring-room' },
+  { name: 'E-catering', icon: Utensils, path: '/services/e-catering' },
+  { name: 'Bus', icon: Bus, path: '/services/bus' },
+  { name: 'Holiday packs', icon: Plane, path: '/services/holiday-packs' },
+  { name: 'Tourist Train', icon: Train, path: '/services/tourist-train' },
+  { name: 'Hill Railways', icon: Train, path: '/services/hill-railways' },
+  { name: 'Charter Train', icon: Train, path: '/services/charter-train' }
 ];
 
 export default function ServicesSection() {
@@ -22,15 +24,16 @@ export default function ServicesSection() {
           {services.map((service, idx) => {
             const Icon = service.icon;
             return (
-              <div 
-                key={idx} 
-                className="w-40 h-40 glass-card flex flex-col items-center justify-center p-6 cursor-pointer hover:-translate-y-2 hover:bg-[#1f222a] transition-all duration-300"
+              <Link 
+                key={idx}
+                href={service.path}
+                className="w-36 h-36 bg-[#131418] border border-[#272a31] rounded-2xl flex flex-col items-center justify-center p-6 cursor-pointer hover:border-gray-500 hover:-translate-y-1 transition-all duration-300 shadow-xl"
               >
-                <div className="w-12 h-12 flex items-center justify-center rounded-full bg-blue-500/10 mb-4">
-                   <Icon className="w-6 h-6 text-gray-300" />
+                <div className="mb-4">
+                   <Icon className="w-8 h-8 text-blue-400 font-light" strokeWidth={1} />
                 </div>
-                <span className="text-sm font-medium text-gray-300 text-center">{service.name}</span>
-              </div>
+                <span className="text-[13px] font-medium text-gray-300 text-center tracking-wide">{service.name}</span>
+              </Link>
             );
           })}
         </div>

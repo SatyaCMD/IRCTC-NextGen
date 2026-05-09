@@ -5,7 +5,7 @@ export default function Hero() {
     <div className="relative min-h-[90vh] flex items-center justify-center pt-20">
       {/* Background Image with Overlay */}
       <div 
-        className="absolute inset-0 z-0 bg-[url('https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=2069&auto=format&fit=crop')] bg-cover bg-center"
+        className="absolute inset-0 z-0 bg-[url('https://images.unsplash.com/photo-1518098268026-4e89f1a2cd8e?q=80&w=2074&auto=format&fit=crop')] bg-cover bg-center"
       >
         <div className="absolute inset-0 bg-gradient-to-b from-[#0f1115]/90 via-[#0f1115]/60 to-[#0f1115]"></div>
       </div>

@@ -11,10 +11,16 @@ app.use(express.json());
 const authRoutes = require('./routes/authRoutes');
 const trainRoutes = require('./routes/trainRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const serviceRoutes = require('./routes/serviceRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/trains', trainRoutes);
 app.use('/api/bookings', bookingRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/services', serviceRoutes);
+app.use('/api/ai', aiRoutes);
 
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/irctc-clone';

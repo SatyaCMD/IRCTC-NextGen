@@ -5,7 +5,9 @@ import Navbar from '@/components/Navbar';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import { useRouter } from 'next/navigation';
-import { Ticket, LogOut } from 'lucide-react';
+import { Ticket, LogOut, Download } from 'lucide-react';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
@@ -35,6 +37,48 @@ export default function Dashboard() {
   const handleLogout = () => {
     Cookies.remove('token');
     router.push('/');
+  };
+
+  const downloadTicket = (booking: any) => {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(22);
+    doc.setTextColor(43, 108, 176);
+    doc.text('IRCTC 2.0 E-Ticket', 105, 20, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`PNR No: ${Math.floor(Math.random()*10000000000)}`, 14, 35);
+    doc.text(`Train: ${booking.trainId?.name} (${booking.trainId?.trainNumber})`, 14, 45);
+    doc.text(`Class: ${booking.trainClass}`, 14, 55);
+    doc.text(`Status: ${booking.status}`, 14, 65);
+    doc.text(`From: ${booking.trainId?.source}`, 14, 75);
+    doc.text(`To: ${booking.trainId?.destination}`, 110, 75);
+
+    const tableColumn = ["Passenger Name", "Age", "Gender", "Seat"];
+    const tableRows = booking.passengers.map((p: any, idx: number) => [
+      p.name, p.age, p.gender, booking.seatNumbers[idx] || 'Pending'
+    ]);
+
+    // @ts-ignore
+    doc.autoTable({
+      startY: 85,
+      head: [tableColumn],
+      body: tableRows,
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: { fillColor: [43, 108, 176] }
+    });
+
+    // @ts-ignore
+    const finalY = doc.lastAutoTable.finalY || 100;
+    doc.setFontSize(12);
+    doc.text(`Total Fare: Rs. ${booking.totalPrice}`, 14, finalY + 15);
+    doc.setFontSize(10);
+    doc.setTextColor(150);
+    doc.text('This is a computer generated test IRCTC ticket.', 105, finalY + 30, { align: 'center' });
+    
+    doc.save(`IRCTC_Ticket_${booking.trainId?.trainNumber}.pdf`);
   };
 
   if (!user) return <div className="min-h-screen flex items-center justify-center text-white bg-[var(--background)]">Loading profile...</div>;
@@ -89,10 +133,18 @@ export default function Dashboard() {
                         {booking.trainId?.source} → {booking.trainId?.destination} | Class: {booking.trainClass}
                       </p>
                     </div>
-                    <div className="mt-4 md:mt-0 text-right">
+                    <div className="mt-4 md:mt-0 text-right flex flex-col items-end">
                        <p className="text-sm text-gray-400 mb-1">Passengers: {booking.passengers.length}</p>
                        <p className="text-sm text-gray-400 mb-1">Seats: {booking.seatNumbers.join(', ')}</p>
-                       <p className="text-xl font-bold text-white font-mono">₹{booking.totalPrice}</p>
+                       <p className="text-xl font-bold text-white font-mono mb-4">₹{booking.totalPrice}</p>
+                       {booking.status === 'Confirmed' && (
+                         <button 
+                           onClick={() => downloadTicket(booking)}
+                           className="flex items-center text-sm bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg transition-colors"
+                         >
+                           <Download className="w-4 h-4 mr-2" /> Download Ticket
+                         </button>
+                       )}
                     </div>
                  </div>
                ))
