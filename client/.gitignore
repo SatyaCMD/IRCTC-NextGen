@@ -58,3 +58,24 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# nextjs
+.next/
+client/.next/
+
+# env
+.env
+server/.env
+client/.env
+
+# logs
+*.log
+
+# build
+dist/
+build/
