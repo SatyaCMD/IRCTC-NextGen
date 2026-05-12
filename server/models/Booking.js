@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 const passengerSchema = new mongoose.Schema({
   name: { type: String, required: true },
   age: { type: Number, required: true },
-  gender: { type: String, required: true }
+  gender: { type: String, required: true },
+  seatPreference: { type: String }
 }, { _id: false });
 
 const bookingSchema = new mongoose.Schema({
@@ -12,10 +13,11 @@ const bookingSchema = new mongoose.Schema({
   trainId: { type: mongoose.Schema.Types.ObjectId, ref: 'Train' }, // Legacy/trains
   serviceType: { type: String, default: 'Train' }, // 'Train', 'Flight', 'Hotel', etc
   serviceClass: { type: String, required: true }, // TrainClass or RoomType or FlightClass
+  quota: { type: String, default: 'General' },
   passengers: [passengerSchema],
   seatNumbers: [{ type: String }],
   totalPrice: { type: Number, required: true },
-  status: { type: String, enum: ['Pending', 'Confirmed', 'Cancelled', 'WL', 'RAC'], default: 'Pending' },
+  status: { type: String, enum: ['Pending', 'Confirmed', 'Cancelled', 'WL', 'RAC', 'Verification Pending'], default: 'Pending' },
   paymentId: { type: String },
   pnr: { type: String },
   bookingRef: { type: String },

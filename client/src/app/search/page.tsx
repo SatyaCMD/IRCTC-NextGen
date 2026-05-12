@@ -13,6 +13,7 @@ function SearchResults() {
   const destination = searchParams.get('destination') || '';
   const searchDate = searchParams.get('date') || '';
   const requestedType = searchParams.get('type') || 'Train';
+  const requestedQuota = searchParams.get('quota') || 'General';
   
   const [trains, setTrains] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -97,14 +98,24 @@ function SearchResults() {
                 ];
               }
               
-              return {
-                _id: `mock_${idStr}`,
-                name: name,
-                trainNumber: `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`,
-                serviceType: type,
-                source: source || 'Any Source',
-                destination: destination || 'Any Destination',
-                daysOfRun: ['Daily'],
+                const runSchedules = [
+                  ['Daily'], ['Daily'], ['Daily'], 
+                  ['Mon', 'Wed', 'Fri'], 
+                  ['Tue', 'Thu', 'Sat'], 
+                  ['Sun', 'Mon'], 
+                  ['Wed Only'], 
+                  ['Sat', 'Sun']
+                ];
+                const daysOfRun = runSchedules[Math.floor(Math.random() * runSchedules.length)];
+
+                return {
+                  _id: `mock_${idStr}`,
+                  name: name,
+                  trainNumber: `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`,
+                  serviceType: type,
+                  source: source || 'Any Source',
+                  destination: destination || 'Any Destination',
+                  daysOfRun: daysOfRun,
                 timings: {
                   departure: `${Math.floor(Math.random() * 24).toString().padStart(2, '0')}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}`,
                   arrival: `${Math.floor(Math.random() * 24).toString().padStart(2, '0')}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}`,
@@ -199,7 +210,7 @@ function SearchResults() {
 
               const handleBook = (clsType: string, price?: number) => {
                 const typeSlug = type.toLowerCase().replace(/\s+/g, '-');
-                router.push(`/services/${typeSlug}?trainId=${train._id}&class=${encodeURIComponent(clsType)}&price=${price || ''}&source=${encodeURIComponent(source)}&destination=${encodeURIComponent(destination)}&date=${encodeURIComponent(searchDate)}&departureTime=${encodeURIComponent(train.timings?.departure || '10:00')}`);
+                router.push(`/services/${typeSlug}?trainId=${train._id}&class=${encodeURIComponent(clsType)}&price=${price || ''}&source=${encodeURIComponent(source)}&destination=${encodeURIComponent(destination)}&date=${encodeURIComponent(searchDate)}&departureTime=${encodeURIComponent(train.timings?.departure || '10:00')}&quota=${encodeURIComponent(requestedQuota)}`);
               };
 
               // Determine if train has already departed today

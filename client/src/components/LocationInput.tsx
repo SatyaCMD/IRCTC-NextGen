@@ -2,16 +2,14 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { MapPin } from 'lucide-react';
-import { stations, airports, cities } from '@/lib/locations';
-
-type LocationType = 'Train' | 'Flight' | 'City';
+import { stations, airports, cities, busStands, hillStations, touristStations } from '@/lib/locations';
 
 interface LocationInputProps {
   value: string;
   onChange: (val: string) => void;
   label: string;
   placeholder?: string;
-  type?: LocationType;
+  type?: string;
 }
 
 export default function LocationInput({ value, onChange, label, placeholder, type = 'Train' }: LocationInputProps) {
@@ -19,7 +17,12 @@ export default function LocationInput({ value, onChange, label, placeholder, typ
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Select the appropriate dataset
-  const dataset = type === 'Train' ? stations : type === 'Flight' ? airports : cities;
+  let dataset = stations;
+  if (type === 'Flights') dataset = airports;
+  else if (type === 'Bus') dataset = busStands;
+  else if (type === 'Hill Railways') dataset = hillStations;
+  else if (type === 'Charter Train' || type === 'Tourist Train') dataset = touristStations;
+  else if (type === 'City') dataset = cities;
   
   // Filter based on input
   const filteredOptions = dataset.filter(option => 
@@ -41,9 +44,9 @@ export default function LocationInput({ value, onChange, label, placeholder, typ
     <div className="w-full relative" ref={wrapperRef}>
       <label className="text-xs text-gray-400 mb-1 block">{label}</label>
       <div className="relative">
-        {/* If type is train and value matches format "CODE - Name", show CODE floating */}
-        {type === 'Train' && value.includes(' - ') && (
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-300 w-8 z-10 pointer-events-none">
+        {/* Show CODE floating if available */}
+        {type !== 'Bus' && type !== 'City' && value.includes(' - ') && (
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-300 w-10 z-10 pointer-events-none text-xs">
             {value.split(' - ')[0]}
           </span>
         )}
@@ -55,7 +58,7 @@ export default function LocationInput({ value, onChange, label, placeholder, typ
             setIsOpen(true);
           }}
           onFocus={() => setIsOpen(true)}
-          className={`input-field w-full ${type === 'Train' && value.includes(' - ') ? 'pl-16' : 'pl-4'}`}
+          className={`input-field w-full ${type !== 'Bus' && type !== 'City' && value.includes(' - ') ? 'pl-16' : 'pl-4'}`}
           placeholder={placeholder || "Enter location..."}
         />
         <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 w-5 h-5 pointer-events-none" />

@@ -118,3 +118,42 @@ export const cities = [
   "Chandigarh",
   "Solapur, Maharashtra"
 ];
+
+export const busStands = [
+  "ISBT Kashmiri Gate - Delhi",
+  "Kempegowda Bus Station (Majestic) - Bengaluru",
+  "Koyambedu Bus Terminus (CMBT) - Chennai",
+  "Swargate Bus Stand - Pune",
+  "Geeta Mandir Bus Stand - Ahmedabad",
+  "Mahatma Gandhi Bus Station - Hyderabad",
+  "Anand Vihar ISBT - Delhi",
+  "Shivajinagar Bus Station - Pune",
+  "Arapalayam Bus Stand - Madurai",
+  "Alambagh Bus Stand - Lucknow"
+];
+
+export const hillStations = [
+  "SML - Shimla (KSR)",
+  "KLK - Kalka (KSR)",
+  "DJ - Darjeeling (DHR)",
+  "NJP - New Jalpaiguri (DHR)",
+  "UAM - Udagamandalam (NMR)",
+  "MTP - Mettupalayam (NMR)",
+  "NRL - Neral (Matheran)",
+  "MAE - Matheran",
+  "PTK - Pathankot (KVR)",
+  "JDNX - Joginder Nagar (KVR)"
+];
+
+export const touristStations = [
+  "DSJ - Delhi Safdarjung (Maharaja)",
+  "JP - Jaipur Jn (Palace on Wheels)",
+  "CSMT - Mumbai CSMT (Deccan Odyssey)",
+  "YPR - Yesvantpur (Golden Chariot)",
+  "AGC - Agra Cantt",
+  "BSB - Varanasi Jn",
+  "UDA - Udaipur City",
+  "JSM - Jaisalmer",
+  "HWH - Howrah (Buddhist Circuit)",
+  "GAYA - Gaya Jn"
+];
