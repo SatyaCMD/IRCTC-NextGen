@@ -144,11 +144,13 @@ function SearchResults() {
     try {
       const res = await axios.post('http://localhost:5000/api/trains/recommend', {
         source, destination,
-        age: 30, gender: "Male", budget: "Medium", preferences: "Speed and comfort" // mock user pref
+        age: 30, gender: "Male", budget: "Medium", preferences: "Speed and comfort", // mock user pref
+        trainData: trainData.slice(0, 5) // send the mock/fetched trains
       });
       setAiRecommendation(res.data);
     } catch (err) {
       console.error(err);
+      setAiRecommendation(null);
     } finally {
       setAiLoading(false);
     }

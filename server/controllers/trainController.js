@@ -77,13 +77,18 @@ exports.getTrainById = async (req, res) => {
 
 exports.getSmartRecommendation = async (req, res) => {
   try {
-    const { source, destination, age, gender, budget, preferences } = req.body;
+    const { source, destination, age, gender, budget, preferences, trainData } = req.body;
     
-    // Find trains matching the route
-    const filters = {};
-    if (source) filters.source = new RegExp(source, 'i');
-    if (destination) filters.destination = new RegExp(destination, 'i');
-    const trains = await Train.find(filters).select('trainNumber name timings classes');
+    let trains = [];
+    if (trainData && trainData.length > 0) {
+      trains = trainData.slice(0, 5); // Take top 5 to avoid token limit
+    } else {
+      // Fallback: Find trains matching the route in DB
+      const filters = {};
+      if (source) filters.source = new RegExp(source, 'i');
+      if (destination) filters.destination = new RegExp(destination, 'i');
+      trains = await Train.find(filters).select('trainNumber name timings classes').limit(5);
+    }
     
     if (trains.length === 0) {
       return res.status(404).json({ error: 'No trains found for this route.' });

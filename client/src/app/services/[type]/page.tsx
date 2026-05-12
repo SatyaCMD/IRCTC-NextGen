@@ -41,6 +41,7 @@ function BookingFlowInner() {
   // Step 1: Passengers, Step 2: Payment, Step 3: Ticket
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
 
   const getBackgroundImage = () => {
     if (isFlight) return 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=2074&auto=format&fit=crop';
@@ -160,16 +161,7 @@ function BookingFlowInner() {
       setStep(3);
       
       if (finalStatus === 'Verification Pending') {
-         toast.custom((t) => (
-           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-             <div className="bg-[#1a1c23] border border-yellow-500/30 p-8 rounded-3xl text-center shadow-2xl max-w-md w-[90%] animate-in zoom-in-90 duration-300">
-                <ShieldCheck className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold text-white mb-2">Verification Pending</h3>
-                <p className="text-yellow-200/80 mb-6">Your ticket is temporarily booked. Please wait while we verify your ID proof.</p>
-                <button onClick={() => toast.dismiss(t.id)} className="bg-yellow-500 hover:bg-yellow-400 text-black px-8 py-3 rounded-xl font-bold transition-colors">Got it</button>
-             </div>
-           </div>
-         ), { duration: 15000 });
+         setShowVerificationModal(true);
          
          const pnrToPoll = confirmRes.data.pnr;
          if (pnrToPoll) {
@@ -1016,6 +1008,17 @@ function BookingFlowInner() {
 
         </div>
       </div>
+
+      {showVerificationModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#1a1c23] border border-yellow-500/30 p-8 rounded-3xl text-center shadow-[0_0_50px_rgba(234,179,8,0.2)] max-w-md w-[90%] animate-in zoom-in-90 duration-300">
+             <ShieldCheck className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
+             <h3 className="text-2xl font-bold text-white mb-2">Verification Pending</h3>
+             <p className="text-yellow-200/80 mb-6">Your ticket is temporarily booked. Please wait while we verify your ID proof.</p>
+             <button onClick={() => setShowVerificationModal(false)} className="bg-yellow-500 hover:bg-yellow-400 text-black px-8 py-3 rounded-xl font-bold transition-colors">Got it</button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
