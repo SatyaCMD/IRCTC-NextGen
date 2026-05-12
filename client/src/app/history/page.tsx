@@ -74,7 +74,7 @@ export default function BookingHistory() {
             </div>
           </div>
           <button 
-            onClick={() => router.push('/dashboard')} 
+            onClick={() => router.push('/')} 
             className="flex items-center gap-2 bg-white/5 hover:bg-white/10 text-white px-5 py-2.5 rounded-xl transition-all border border-white/10 font-bold text-sm shadow-lg hover:-translate-y-0.5"
           >
             <Home className="w-4 h-4" />

@@ -13,37 +13,40 @@ export default function SessionTimer() {
   const pathname = usePathname();
 
   useEffect(() => {
-    const checkAuth = () => {
+    const checkAuthAndTimer = () => {
       const token = Cookies.get('token');
-      setIsLoggedIn(!!token);
-      if (!token) {
-        setTimeLeft(30 * 60); // Reset timer if logged out
+      if (token) {
+        setIsLoggedIn(true);
+        // Ensure expiration is set securely in localStorage
+        let expiry = localStorage.getItem('sessionExpiresAt');
+        if (!expiry) {
+          expiry = (Date.now() + 30 * 60 * 1000).toString();
+          localStorage.setItem('sessionExpiresAt', expiry);
+        }
+        
+        const remaining = Math.max(0, Math.floor((parseInt(expiry) - Date.now()) / 1000));
+        setTimeLeft(remaining);
+
+        if (remaining === 0) {
+          Cookies.remove('token');
+          localStorage.removeItem('sessionExpiresAt');
+          setIsLoggedIn(false);
+          toast.error('Session Expired. Please log in again.');
+          router.push('/login');
+        }
+      } else {
+        setIsLoggedIn(false);
+        localStorage.removeItem('sessionExpiresAt');
+        setTimeLeft(30 * 60); // Visual reset when logged out
       }
     };
-    checkAuth();
-    
-    // Check every second for auth state changes
-    const authInterval = setInterval(checkAuth, 1000);
-    return () => clearInterval(authInterval);
-  }, [pathname]);
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
+    checkAuthAndTimer();
     
-    if (isLoggedIn && timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (isLoggedIn && timeLeft <= 0) {
-      // Session expired
-      Cookies.remove('token');
-      setIsLoggedIn(false);
-      toast.error('Session Expired. Please log in again.');
-      router.push('/login');
-    }
-
-    return () => clearInterval(timer);
-  }, [isLoggedIn, timeLeft, router]);
+    // Single absolute-time driven interval
+    const interval = setInterval(checkAuthAndTimer, 1000);
+    return () => clearInterval(interval);
+  }, [pathname, router]);
 
   // Removed activity listeners to enforce strict 30-minute session
   if (!isLoggedIn) return null;

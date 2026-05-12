@@ -87,8 +87,9 @@ export default function OTPPage() {
         const tempToken = sessionStorage.getItem('temp_token');
         if (tempToken) {
           import('js-cookie').then((Cookies) => {
-            Cookies.default.set('token', tempToken, { expires: 7 });
+            Cookies.default.set('token', tempToken); // Removed 'expires' to make it a Session Cookie
             sessionStorage.removeItem('temp_token');
+            localStorage.removeItem('sessionExpiresAt'); // Force timer to reset for new login
           });
         }
         toast.success('Successfully logged in!');
