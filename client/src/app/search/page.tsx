@@ -21,110 +21,15 @@ function SearchResults() {
   const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
-    // Seed and fetch mock trains
+    // Seed and fetch real/generated multi-modal services from the DB
     axios.post('http://localhost:5000/api/trains/seed').then(() => {
       axios.get(`http://localhost:5000/api/trains?source=${source}&destination=${destination}`)
         .then(res => {
-          // If requestedType is Train, use API results, else ignore API trains
-          let results = requestedType === 'Train' ? (res.data || []) : [];
+          let results = res.data;
           
-          // Generate 18-25 mock services of the SPECIFIC requested type
-          const targetCount = Math.floor(18 + Math.random() * 8);
-          if (results.length < targetCount) {
-            const mockServices = Array.from({ length: targetCount - results.length }).map((_, i) => {
-              const type = requestedType;
-              const idStr = Math.random().toString(36).substring(2, 8).toUpperCase();
-              
-              let prefix = 'TR';
-              let name = '';
-              let classes = [];
-
-              const isRegretRoute = source.toLowerCase().includes('delhi') && destination.toLowerCase().includes('bhubanes');
-              const getSeats = (base: number) => {
-                 if (isRegretRoute) return -Math.floor(60 + Math.random() * 50); // -60 to -110 (Regret)
-                 const random = Math.floor(Math.random() * 100);
-                 if (random < 20) return -Math.floor(1 + Math.random() * 40); // 20% chance of Waitlist (-1 to -40)
-                 return Math.floor(1 + Math.random() * base); // Available
-              };
-
-              if (type === 'Flight' || type === 'Flights') {
-                prefix = 'FL';
-                const airlines = ['IndiGo', 'Air India', 'Vistara', 'SpiceJet', 'Akasa Air', 'AirAsia India'];
-                name = `${airlines[Math.floor(Math.random() * airlines.length)]} Express`;
-                classes = [
-                  { type: 'Economy', price: Math.floor(2500 + Math.random() * 3000), availableSeats: getSeats(50) },
-                  { type: 'Premium Economy', price: Math.floor(4500 + Math.random() * 3000), availableSeats: getSeats(30) },
-                  { type: 'Business', price: Math.floor(8000 + Math.random() * 10000), availableSeats: getSeats(15) },
-                  { type: 'First Class', price: Math.floor(15000 + Math.random() * 20000), availableSeats: getSeats(5) }
-                ];
-              } else if (type === 'Bus') {
-                prefix = 'BS';
-                const busOperators = ['RedBus Express', 'VRL Travels', 'SRS Travels', 'IntrCity SmartBus', 'Orange Tours', 'Zingbus'];
-                name = `${busOperators[Math.floor(Math.random() * busOperators.length)]}`;
-                classes = [
-                  { type: 'Non-AC Seater', price: Math.floor(300 + Math.random() * 400), availableSeats: getSeats(40) },
-                  { type: 'AC Seater', price: Math.floor(600 + Math.random() * 500), availableSeats: getSeats(30) },
-                  { type: 'Non-AC Sleeper', price: Math.floor(800 + Math.random() * 600), availableSeats: getSeats(20) },
-                  { type: 'Volvo AC Sleeper', price: Math.floor(1200 + Math.random() * 1000), availableSeats: getSeats(15) }
-                ];
-              } else if (type === 'Hill Railways' || type === 'Hill Railway') {
-                prefix = 'HR';
-                const hillTrains = ['Himalayan Queen', 'Darjeeling Mail', 'Nilgiri Express', 'Kangra Valley Toy Train', 'Kalka Shatabdi'];
-                name = `${hillTrains[Math.floor(Math.random() * hillTrains.length)]}`;
-                classes = [
-                  { type: 'Second Class (2S)', price: Math.floor(100 + Math.random() * 200), availableSeats: getSeats(50) },
-                  { type: 'First Class (FC)', price: Math.floor(500 + Math.random() * 800), availableSeats: getSeats(20) },
-                  { type: 'Vistadome', price: Math.floor(1200 + Math.random() * 1000), availableSeats: getSeats(10) }
-                ];
-              } else if (type === 'Charter Train' || type === 'Tourist Train') {
-                prefix = type === 'Charter Train' ? 'CT' : 'TT';
-                const specialTrains = ['Maharaja Express', 'Golden Chariot', 'Deccan Odyssey', 'Palace on Wheels', 'Fairy Queen', 'Bharat Gaurav'];
-                name = `${specialTrains[Math.floor(Math.random() * specialTrains.length)]}`;
-                classes = [
-                  { type: 'Deluxe Cabin', price: Math.floor(50000 + Math.random() * 20000), availableSeats: getSeats(10) },
-                  { type: 'Junior Suite', price: Math.floor(80000 + Math.random() * 30000), availableSeats: getSeats(5) },
-                  { type: 'Presidential Suite', price: Math.floor(150000 + Math.random() * 50000), availableSeats: getSeats(2) }
-                ];
-              } else {
-                // Standard Train
-                const trainsList = ['Rajdhani Express', 'Shatabdi Express', 'Vande Bharat Express', 'Duronto Express', 'Garib Rath', 'Jan Shatabdi', 'Sampark Kranti', 'Humsafar Express'];
-                name = `${trainsList[Math.floor(Math.random() * trainsList.length)]}`;
-                classes = [
-                  { type: '2S', price: Math.floor(150 + Math.random() * 150), availableSeats: getSeats(150) },
-                  { type: 'SL', price: Math.floor(300 + Math.random() * 200), availableSeats: getSeats(200) },
-                  { type: '3A', price: Math.floor(800 + Math.random() * 600), availableSeats: getSeats(100) },
-                  { type: '2A', price: Math.floor(1200 + Math.random() * 800), availableSeats: getSeats(50) },
-                  { type: '1A', price: Math.floor(2500 + Math.random() * 1500), availableSeats: getSeats(20) }
-                ];
-              }
-              
-                const runSchedules = [
-                  ['Daily'], ['Daily'], ['Daily'], 
-                  ['Mon', 'Wed', 'Fri'], 
-                  ['Tue', 'Thu', 'Sat'], 
-                  ['Sun', 'Mon'], 
-                  ['Wed Only'], 
-                  ['Sat', 'Sun']
-                ];
-                const daysOfRun = runSchedules[Math.floor(Math.random() * runSchedules.length)];
-
-                return {
-                  _id: `mock_${idStr}`,
-                  name: name,
-                  trainNumber: `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`,
-                  serviceType: type,
-                  source: source || 'Any Source',
-                  destination: destination || 'Any Destination',
-                  daysOfRun: daysOfRun,
-                timings: {
-                  departure: `${Math.floor(Math.random() * 24).toString().padStart(2, '0')}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}`,
-                  arrival: `${Math.floor(Math.random() * 24).toString().padStart(2, '0')}:${Math.floor(Math.random() * 60).toString().padStart(2, '0')}`,
-                  duration: `${Math.floor(1 + Math.random() * 20)}h ${Math.floor(Math.random() * 60)}m`
-                },
-                classes: classes
-              };
-            });
-            results = [...results, ...mockServices];
+          // Optionally filter by requestedType if needed, or just show all
+          if (requestedType && requestedType !== 'Train') {
+             results = results.filter((r: any) => r.serviceType === requestedType);
           }
           
           setTrains(results);
@@ -132,11 +37,12 @@ function SearchResults() {
           fetchAIRecommendation(results);
         })
         .catch(err => {
+          console.error(err);
           setLoading(false);
         });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source, destination]);
+  }, [source, destination, requestedType]);
 
   const fetchAIRecommendation = async (trainData: any) => {
     if (trainData.length === 0) return;

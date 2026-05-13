@@ -72,7 +72,7 @@ function BookingFlowInner() {
   const [paymentDetails, setPaymentDetails] = useState({
     cardNumber: '', expiry: '', cvv: '', nameOnCard: ''
   });
-  const [bookingResult, setBookingResult] = useState({ bookingId: '', pnr: '', status: '', serviceClass: '', seatNumbers: [] as string[] });
+  const [bookingResult, setBookingResult] = useState({ bookingId: '', pnr: '', status: '', serviceClass: '', seatNumbers: [] as string[], trainId: null as any });
   const [showReturnPrompt, setShowReturnPrompt] = useState(true);
   const [idProofFile, setIdProofFile] = useState<File | null>(null);
   const [showSeatMapForPassenger, setShowSeatMapForPassenger] = useState<number | null>(null);
@@ -125,8 +125,7 @@ function BookingFlowInner() {
     try {
       const token = Cookies.get('token');
       const bookingRes = await axios.post('http://localhost:5000/api/bookings', {
-        trainId: urlTrainId.startsWith('mock_') ? null : urlTrainId,
-        mockTrainId: urlTrainId,
+        trainId: urlTrainId,
         serviceType: isHotel ? 'Hotel' : isFlight ? 'Flight' : isBus ? 'Bus' : isFood ? 'Food' : 'Train',
         serviceClass: journeyDetails.travelClass || 'Standard',
         passengers: passengers.map(p => ({
@@ -156,7 +155,8 @@ function BookingFlowInner() {
         pnr: confirmRes.data.pnr || `${Math.floor(1000000000 + Math.random() * 9000000000)}`,
         status: confirmRes.data.status || (finalStatus === 'success' ? 'Confirmed' : finalStatus),
         serviceClass: confirmRes.data.serviceClass || journeyDetails.travelClass,
-        seatNumbers: confirmRes.data.seatNumbers || []
+        seatNumbers: confirmRes.data.seatNumbers || [],
+        trainId: createdBooking.trainId
       });
       setStep(3);
       
@@ -346,8 +346,8 @@ function BookingFlowInner() {
     const pnrStr = bookingResult.pnr || 'N/A';
     doc.text(pnrStr, 35, 62, { align: 'center' });
 
-    const trainName = isHotel ? title.toUpperCase() : (journeyDetails.from ? `${journeyDetails.from.split(' ')[0]} ${isFlight ? 'AIRLINES' : isBus ? 'TRAVELS' : 'EXPRESS'}` : 'KAMRUP EXPRESS');
-    const trainNum = urlTrainId.startsWith('mock_') ? urlTrainId.substring(urlTrainId.length - 5).toUpperCase() : urlTrainId;
+    const trainName = bookingResult?.trainId?.name || (isHotel ? title.toUpperCase() : (journeyDetails.from ? `${journeyDetails.from.split(' ')[0]} ${isFlight ? 'AIRLINES' : isBus ? 'TRAVELS' : 'EXPRESS'}` : 'KAMRUP EXPRESS'));
+    const trainNum = bookingResult?.trainId?.trainNumber || (urlTrainId.startsWith('mock_') ? urlTrainId.substring(urlTrainId.length - 5).toUpperCase() : urlTrainId);
     
     const trainDesc = `${trainNum} / ${trainName}`.toUpperCase();
     doc.text(trainDesc.length > 25 ? trainDesc.substring(0, 23) + '...' : trainDesc, 105, 62, { align: 'center' });
@@ -377,7 +377,17 @@ function BookingFlowInner() {
     // Passenger autoTable
     const passCols = ["#", "Name", "Age", "Gender", "Booking Status", "Current Status"];
     const passRows = passengers.map((p: any, idx: number) => {
-      const seat = bookingResult.seatNumbers && bookingResult.seatNumbers[idx] ? bookingResult.seatNumbers[idx] : `S6/${60 + idx}/MIDDLE`;
+      let seat = bookingResult.seatNumbers && bookingResult.seatNumbers[idx] ? bookingResult.seatNumbers[idx] : '';
+      if (!seat) {
+         if (isFlight) seat = `${idx + 1}A (WINDOW)`;
+         else if (isBus) seat = `${idx + 1}W (WINDOW)`;
+         else seat = `S6/${60 + idx}/MIDDLE`;
+      } else {
+         if (isFlight || isBus) {
+             const parts = seat.split('/');
+             seat = parts[parts.length - 1]; // Removes 'S4/70/' part
+         }
+      }
       const bStatus = `CNF / ${seat}`;
       const cStatus = bookingResult.status === 'Confirmed' ? bStatus : (bookingResult.status === 'Verification Pending' ? 'Pending' : bookingResult.status);
       return [(idx + 1).toString(), p.name.toUpperCase(), p.age.toString(), p.gender.charAt(0).toUpperCase(), bStatus, cStatus];

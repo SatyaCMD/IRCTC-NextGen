@@ -58,7 +58,58 @@ exports.searchTrains = async (req, res) => {
     if (source) filters.source = new RegExp(source, 'i');
     if (destination) filters.destination = new RegExp(destination, 'i');
     
-    const trains = await Train.find(filters);
+    let trains = await Train.find(filters);
+    
+    // Auto-generate and persist multi-modal services for new routes so seats decrement globally
+    if (trains.length === 0 && source && destination) {
+      const getSeats = (max) => Math.floor(Math.random() * max) + 10;
+      
+      const newServices = [
+        {
+          trainNumber: `FL-${Math.floor(1000 + Math.random() * 9000)}`,
+          name: "IndiGo Airlines",
+          serviceType: "Flight",
+          source: source,
+          destination: destination,
+          timings: { departure: "06:00", arrival: "08:30", duration: "2h 30m" },
+          classes: [
+            { type: 'Economy', price: 3500, availableSeats: getSeats(50) },
+            { type: 'Business', price: 12000, availableSeats: getSeats(15) }
+          ],
+          daysOfRun: ["Daily"]
+        },
+        {
+          trainNumber: `BS-${Math.floor(1000 + Math.random() * 9000)}`,
+          name: "Zingbus Travels",
+          serviceType: "Bus",
+          source: source,
+          destination: destination,
+          timings: { departure: "22:00", arrival: "06:00", duration: "8h 00m" },
+          classes: [
+            { type: 'AC Seater', price: 800, availableSeats: getSeats(30) },
+            { type: 'Volvo AC Sleeper', price: 1500, availableSeats: getSeats(20) }
+          ],
+          daysOfRun: ["Daily"]
+        },
+        {
+          trainNumber: `1${Math.floor(1000 + Math.random() * 9000)}`,
+          name: "Vande Bharat Express",
+          serviceType: "Train",
+          source: source,
+          destination: destination,
+          timings: { departure: "05:45", arrival: "13:15", duration: "7h 30m" },
+          classes: [
+            { type: 'CC', price: 1200, availableSeats: getSeats(100) },
+            { type: 'EC', price: 2400, availableSeats: getSeats(25) }
+          ],
+          daysOfRun: ["Daily"]
+        }
+      ];
+      
+      await Train.insertMany(newServices);
+      trains = await Train.find(filters);
+    }
+    
     res.json(trains);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });

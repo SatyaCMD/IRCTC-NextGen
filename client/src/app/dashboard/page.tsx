@@ -59,8 +59,14 @@ export default function Dashboard() {
       }
     };
 
+    const isFlight = booking.serviceType?.toLowerCase() === 'flight' || booking.serviceType?.toLowerCase() === 'flights';
+    const isBus = booking.serviceType?.toLowerCase() === 'bus';
+
     const g20Base64 = await getBase64ImageFromUrl('/g20-logo.jpg');
-    const irBase64 = await getBase64ImageFromUrl('/ir-logo.png');
+    let logoPath = '/ir-logo.png';
+    if (isFlight) logoPath = '/flight_logo.png';
+    if (isBus) logoPath = '/bus_logo.png';
+    const serviceLogoBase64 = await getBase64ImageFromUrl(logoPath);
 
     const doc = new jsPDF('p', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -71,12 +77,12 @@ export default function Dashboard() {
     doc.text('Electronic Reservation Slip (ERS)', pageWidth / 2, 15, { align: 'center' });
 
     // Header Logos
-    if (irBase64) {
-      doc.addImage(irBase64, 'PNG', 15, 8, 14, 14);
+    if (serviceLogoBase64) {
+      doc.addImage(serviceLogoBase64, 'PNG', 15, 8, 14, 14);
     } else {
       doc.setFontSize(16);
       doc.setTextColor(0, 51, 153);
-      doc.text("IRCTC", 15, 20);
+      doc.text(isFlight ? "AVIATION" : isBus ? "BUS" : "IRCTC", 15, 20);
     }
 
     if (g20Base64) {
@@ -138,7 +144,8 @@ export default function Dashboard() {
     const trainName = rawTrainName === 'TRAIN' ? (booking.from ? `${booking.from.split(' ')[0]} EXPRESS` : 'KAMRUP EXPRESS') : rawTrainName;
     const trainNum = booking.trainId?.trainNumber || (!booking.from ? '15959' : booking.mockTrainId?.substring(booking.mockTrainId.length - 5) || '12345');
     
-    doc.text(`${trainNum} / ${trainName}`, 105, 62, { align: 'center' });
+    const trainDesc = `${trainNum} / ${trainName}`.toUpperCase();
+    doc.text(trainDesc.length > 25 ? trainDesc.substring(0, 23) + '...' : trainDesc, 105, 62, { align: 'center' });
 
     doc.text(booking.serviceClass || booking.trainClass || 'SL', 175, 62, { align: 'center' });
     doc.setTextColor(0, 0, 0);
@@ -165,9 +172,19 @@ export default function Dashboard() {
     // Passenger autoTable
     const passCols = ["#", "Name", "Age", "Gender", "Booking Status", "Current Status"];
     const passRows = booking.passengers.map((p: any, idx: number) => {
-      const seat = booking.seatNumbers && booking.seatNumbers[idx] ? booking.seatNumbers[idx] : `S6/${60 + idx}/MIDDLE`;
+      let seat = booking.seatNumbers && booking.seatNumbers[idx] ? booking.seatNumbers[idx] : '';
+      if (!seat) {
+         if (isFlight) seat = `${idx + 1}A (WINDOW)`;
+         else if (isBus) seat = `${idx + 1}W (WINDOW)`;
+         else seat = `S6/${60 + idx}/MIDDLE`;
+      } else {
+         if (isFlight || isBus) {
+             const parts = seat.split('/');
+             seat = parts[parts.length - 1]; // Removes 'S4/70/' part
+         }
+      }
       const bStatus = `CNF / ${seat}`;
-      const cStatus = booking.status === 'Confirmed' ? bStatus : booking.status;
+      const cStatus = booking.status === 'Confirmed' ? bStatus : (booking.status === 'Verification Pending' ? 'Pending' : booking.status);
       return [(idx + 1).toString(), p.name.toUpperCase(), p.age.toString(), p.gender.charAt(0).toUpperCase(), bStatus, cStatus];
     });
 

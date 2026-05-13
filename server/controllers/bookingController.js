@@ -73,7 +73,10 @@ exports.createBooking = async (req, res) => {
     });
 
     await booking.save();
-    res.status(201).json(booking);
+    
+    // Populate train details so the frontend has accurate name/number for immediate PDF generation
+    const populatedBooking = await Booking.findById(booking._id).populate('trainId');
+    res.status(201).json(populatedBooking);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }

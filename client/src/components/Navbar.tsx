@@ -24,8 +24,9 @@ export default function Navbar() {
 
   const handleLogout = () => {
     Cookies.remove('token');
+    localStorage.removeItem('sessionExpiresAt');
     setIsLoggedIn(false);
-    router.push('/');
+    router.push('/login');
   };
   return (
     <nav className="fixed top-0 w-full z-50 bg-[#0f1115]/80 backdrop-blur-md border-b border-[#272a31]">
