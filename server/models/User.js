@@ -12,7 +12,15 @@ const userSchema = new mongoose.Schema({
     gender: { type: String, enum: ['Male', 'Female', 'Other'] },
     travelHabits: { type: String }
   },
-  loyaltyPoints: { type: Number, default: 150 } // Give new users 150 points bonus
+  loyaltyPoints: { type: Number, default: 150 }, // Give new users 150 points bonus
+  walletBalance: { type: Number, default: 0 },
+  walletTransactions: [{
+    amount: Number,
+    type: { type: String, enum: ['Credit', 'Debit'] },
+    description: String,
+    date: { type: Date, default: Date.now },
+    referenceId: String
+  }]
 }, { timestamps: true });
 
 userSchema.pre('save', async function() {

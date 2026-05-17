@@ -5,7 +5,7 @@ const User = require('../models/User');
 
 exports.createBooking = async (req, res) => {
   try {
-    const { trainId, serviceId, serviceType, trainClass, serviceClass, quota, passengers, totalPrice, bookingRef, journeyDate, from, to, departureTime } = req.body;
+    const { trainId, serviceId, serviceType, trainClass, serviceClass, quota, passengers, totalPrice, walletAmountUsed, bookingRef, journeyDate, from, to, departureTime, pantryItems } = req.body;
     
     const cls = serviceClass || trainClass || 'SL';
     const qta = quota || 'General';
@@ -27,11 +27,12 @@ exports.createBooking = async (req, res) => {
     }
 
     const seatNumbers = passengers.map((p, i) => {
+      const pref = p.seatPreference || p.pref;
+      if (pref && pref.includes('/')) return pref.toUpperCase(); // Respect exact train seat selection from frontend
+      if (pref && pref.match(/^\d+[A-F]\b/)) return pref.toUpperCase();
       const coachNum = isSpecialCoach ? 1 : Math.floor(Math.random() * (coachPrefix === 'GEN' ? 2 : 5)) + 1;
       const seatNum = Math.floor(Math.random() * capacity) + 1;
       let seatType = 'MIDDLE';
-      
-      const pref = p.seatPreference || p.pref;
       if (pref && pref !== 'No Preference') {
          if (pref.includes('Lower')) seatType = 'LOWER';
          else if (pref.includes('Upper')) seatType = 'UPPER';
@@ -51,7 +52,37 @@ exports.createBooking = async (req, res) => {
       return `${coachPrefix}${coachNum}/${seatNum}/${seatType}`;
     });
 
+    let isRunningOnDate = true;
+    let notRunningMsg = '';
+    if (trainId) {
+      const train = await Train.findById(trainId);
+      if (train && train.daysOfRun && train.daysOfRun.length > 0) {
+         if (!train.daysOfRun.includes('Daily')) {
+            const dateObj = new Date(journeyDate);
+            const daysMap = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+            const fullDayMap = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            const shortDay = daysMap[dateObj.getDay()];
+            const longDay = fullDayMap[dateObj.getDay()];
+            
+            const runsToday = train.daysOfRun.some(d => d.includes(shortDay) || d.includes(longDay));
+            if (!runsToday) {
+                isRunningOnDate = false;
+                notRunningMsg = `Not available. This service does not run on ${longDay}s. Booking automatically cancelled and transaction reversed.`;
+            }
+         }
+      }
+    }
+
     const pnr = Math.floor(1000000000 + Math.random() * 9000000000).toString(); // 10 digit PNR
+
+    if (!isRunningOnDate) {
+      const cancelledBooking = new Booking({
+        userId: req.user.userId, trainId, serviceId, serviceType: serviceType || 'Train', serviceClass: cls, quota: qta, passengers, seatNumbers: [], totalPrice,
+        status: 'Cancelled', refundAmount: totalPrice, refundStatus: 'Completed', pnr, bookingRef: bookingRef || `REF${Date.now()}`, journeyDate, from, to, departureTime
+      });
+      await cancelledBooking.save();
+      return res.status(400).json({ error: notRunningMsg });
+    }
 
     const booking = new Booking({
       userId: req.user.userId,
@@ -69,10 +100,25 @@ exports.createBooking = async (req, res) => {
       journeyDate,
       from,
       to,
-      departureTime
+      departureTime,
+      pantryItems
     });
 
     await booking.save();
+    
+    if (walletAmountUsed && walletAmountUsed > 0) {
+       const user = await User.findById(req.user.userId);
+       if (user && user.walletBalance >= walletAmountUsed) {
+           user.walletBalance -= walletAmountUsed;
+           user.walletTransactions.push({
+             amount: walletAmountUsed,
+             type: 'Debit',
+             description: `Booking Payment for ${serviceType || 'Train'}`,
+             referenceId: pnr
+           });
+           await user.save();
+       }
+    }
     
     // Populate train details so the frontend has accurate name/number for immediate PDF generation
     const populatedBooking = await Booking.findById(booking._id).populate('trainId');
@@ -203,7 +249,23 @@ exports.cancelBooking = async (req, res) => {
 
     const prevStatus = booking.status;
     booking.status = 'Cancelled';
+    booking.refundAmount = refundAmount;
+    booking.refundStatus = 'Completed';
     await booking.save();
+    
+    if (refundAmount > 0) {
+      const user = await User.findById(booking.userId);
+      if (user) {
+         user.walletBalance = (user.walletBalance || 0) + refundAmount;
+         user.walletTransactions.push({
+           amount: refundAmount,
+           type: 'Credit',
+           description: 'Ticket Cancellation Refund',
+           referenceId: booking.pnr || booking.bookingRef
+         });
+         await user.save();
+      }
+    }
     
     // Seat recovery and WL -> RAC promotion
     if (booking.trainId && (prevStatus === 'Confirmed' || prevStatus === 'RAC')) {

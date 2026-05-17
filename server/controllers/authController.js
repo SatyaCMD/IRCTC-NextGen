@@ -61,3 +61,26 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({ error: 'Server error during password reset' });
   }
 };
+
+exports.addMoneyToWallet = async (req, res) => {
+  try {
+    const { amount, referenceId } = req.body;
+    if (!amount || amount <= 0) return res.status(400).json({ error: 'Invalid amount' });
+
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    user.walletBalance = (user.walletBalance || 0) + amount;
+    user.walletTransactions.push({
+      amount,
+      type: 'Credit',
+      description: 'Wallet Recharge',
+      referenceId: referenceId || `RECH${Date.now()}`
+    });
+
+    await user.save();
+    res.json({ message: 'Wallet recharged successfully', walletBalance: user.walletBalance, transactions: user.walletTransactions });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};

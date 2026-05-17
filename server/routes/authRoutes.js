@@ -7,5 +7,6 @@ router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/reset-password', authController.resetPassword);
 router.get('/me', authMiddleware, authController.getMe);
+router.post('/wallet/add', authMiddleware, authController.addMoneyToWallet);
 
 module.exports = router;

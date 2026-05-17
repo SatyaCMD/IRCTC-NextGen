@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import { useRouter } from 'next/navigation';
-import { User, Mail, Calendar, Shield, CreditCard, Clock, Train, CheckCircle2, Ticket } from 'lucide-react';
+import { User, Mail, Calendar, Shield, CreditCard, Clock, Train, CheckCircle2, Ticket, X, Loader2 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import toast from 'react-hot-toast';
 
@@ -12,6 +12,9 @@ export default function ProfilePage() {
   const [user, setUser] = useState<any>(null);
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showWalletModal, setShowWalletModal] = useState(false);
+  const [walletAmount, setWalletAmount] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -94,10 +97,22 @@ export default function ProfilePage() {
             </div>
 
             {/* Loyalty Points Badge */}
-            <div className="bg-gradient-to-b from-yellow-500/20 to-yellow-600/10 border border-yellow-500/30 p-6 rounded-2xl flex flex-col items-center justify-center min-w-[200px] shadow-lg shadow-yellow-500/5">
+            <div className="bg-gradient-to-b from-yellow-500/20 to-yellow-600/10 border border-yellow-500/30 p-6 rounded-2xl flex flex-col items-center justify-center min-w-[150px] shadow-lg shadow-yellow-500/5">
               <Ticket className="w-8 h-8 text-yellow-500 mb-2" />
               <div className="text-4xl font-bold text-yellow-500 mb-1">{user?.loyaltyPoints || 150}</div>
               <div className="text-xs text-yellow-500/70 uppercase tracking-widest font-semibold">Loyalty Points</div>
+            </div>
+
+            {/* Wallet Balance Badge */}
+            <div className="bg-gradient-to-b from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30 p-6 rounded-2xl flex flex-col items-center justify-center min-w-[180px] shadow-lg shadow-emerald-500/5">
+              <CreditCard className="w-8 h-8 text-emerald-500 mb-2" />
+              <div className="text-4xl font-bold text-emerald-500 mb-1">₹{user?.walletBalance || 0}</div>
+              <div className="text-xs text-emerald-500/70 uppercase tracking-widest font-semibold">IRCTC Wallet</div>
+              <button 
+                 onClick={() => setShowWalletModal(true)}
+                 className="mt-3 text-[10px] bg-emerald-500 hover:bg-emerald-400 transition-colors text-white px-3 py-1.5 rounded-full uppercase tracking-wider font-bold cursor-pointer relative z-20">
+                 + Add Money
+              </button>
             </div>
           </div>
         </div>
@@ -205,6 +220,76 @@ export default function ProfilePage() {
         </div>
 
       </div>
+
+      {/* Interactive Wallet Modal */}
+      {showWalletModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#111] border border-white/10 rounded-2xl max-w-sm w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-emerald-400" /> Top Up Wallet
+              </h3>
+              <button onClick={() => setShowWalletModal(false)} className="text-gray-400 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <p className="text-sm text-gray-400 mb-4">Enter the amount you wish to add to your IRCTC Wallet.</p>
+            
+            <div className="relative mb-6">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <span className="text-gray-400 font-bold">₹</span>
+              </div>
+              <input 
+                type="number" 
+                value={walletAmount}
+                onChange={(e) => setWalletAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-8 pr-4 text-white focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 transition-all text-xl font-mono"
+              />
+            </div>
+            
+            <div className="flex gap-3">
+              {[500, 1000, 5000].map(amt => (
+                <button 
+                  key={amt}
+                  onClick={() => setWalletAmount(amt.toString())}
+                  className="flex-1 py-2 rounded-lg border border-white/10 text-xs font-bold text-gray-300 hover:bg-white/5 hover:border-white/20 transition-all"
+                >
+                  +₹{amt}
+                </button>
+              ))}
+            </div>
+
+            <button 
+              onClick={async () => {
+                if (!walletAmount || isNaN(Number(walletAmount)) || Number(walletAmount) <= 0) {
+                  toast.error('Please enter a valid amount');
+                  return;
+                }
+                setIsProcessing(true);
+                try {
+                  await axios.post('http://localhost:5000/api/auth/wallet/add', 
+                    { amount: Number(walletAmount) }, 
+                    { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
+                  );
+                  toast.success('Successfully added to wallet!');
+                  setShowWalletModal(false);
+                  window.location.reload();
+                } catch (err) {
+                  toast.error('Failed to add money');
+                } finally {
+                  setIsProcessing(false);
+                }
+              }}
+              disabled={isProcessing || !walletAmount}
+              className="w-full mt-6 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold transition-all shadow-lg shadow-emerald-900/20 flex justify-center items-center gap-2"
+            >
+              {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Proceed to Add'}
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

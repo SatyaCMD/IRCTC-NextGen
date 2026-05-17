@@ -44,7 +44,10 @@ export default function Navbar() {
             <Link href="/pnr-status" className="text-gray-300 hover:text-white transition-colors">PNR Status</Link>
             <Link href="/train-status" className="text-gray-300 hover:text-white transition-colors">Running Status</Link>
             {isLoggedIn && (
-              <Link href="/history" className="text-gray-300 hover:text-white transition-colors">My Bookings</Link>
+              <>
+                <Link href="/history" className="text-gray-300 hover:text-white transition-colors">My Bookings</Link>
+                <Link href="/refund-history" className="text-gray-300 hover:text-white transition-colors">Refund History</Link>
+              </>
             )}
           </div>
 

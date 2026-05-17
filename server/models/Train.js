@@ -19,6 +19,10 @@ const trainSchema = new mongoose.Schema({
   },
   classes: [classSchema],
   daysOfRun: [{ type: String }],
+  image: { type: String },
+  description: { type: String },
+  rating: { type: Number },
+  reviews: { type: Number },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Train', trainSchema);

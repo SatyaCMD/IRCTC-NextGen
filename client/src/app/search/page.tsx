@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import axios from 'axios';
-import { Sparkles, Train as TrainIcon, Clock, MoveRight, Plane, Bus, Mountain, Star, Calendar } from 'lucide-react';
+import { Sparkles, Train as TrainIcon, Clock, MoveRight, Plane, Bus, Mountain, Star, Calendar, Hotel, Utensils } from 'lucide-react';
 
 function SearchResults() {
   const router = useRouter();
@@ -21,15 +21,17 @@ function SearchResults() {
   const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
-    // Seed and fetch real/generated multi-modal services from the DB
     axios.post('http://localhost:5000/api/trains/seed').then(() => {
-      axios.get(`http://localhost:5000/api/trains?source=${source}&destination=${destination}`)
+      axios.get(`http://localhost:5000/api/trains?source=${source}&destination=${destination}&type=${requestedType}`)
         .then(res => {
           let results = res.data;
           
-          // Optionally filter by requestedType if needed, or just show all
-          if (requestedType && requestedType !== 'Train') {
-             results = results.filter((r: any) => r.serviceType === requestedType);
+          if (requestedType) {
+             const rt = requestedType.toLowerCase();
+             results = results.filter((r: any) => {
+               const st = (r.serviceType || 'Train').toLowerCase();
+               return st === rt || st + 's' === rt || st === rt + 's' || st + 'es' === rt || st === rt + 'es' || (st === 'bus' && rt === 'busses');
+             });
           }
           
           setTrains(results);
@@ -115,6 +117,8 @@ function SearchResults() {
               else if (type === 'Hill Railways' || type === 'Hill Railway') { Icon = Mountain; iconColor = "text-green-500"; }
               else if (type === 'Charter Train') { Icon = Star; iconColor = "text-yellow-400"; }
               else if (type === 'Tourist Train') { Icon = Calendar; iconColor = "text-pink-400"; }
+              else if (type === 'Hotels' || type === 'Retiring Room') { Icon = Hotel; iconColor = "text-teal-400"; }
+              else if (type === 'E Catering') { Icon = Utensils; iconColor = "text-orange-400"; }
 
               const handleBook = (clsType: string, price?: number) => {
                 const typeSlug = type.toLowerCase().replace(/\s+/g, '-');
@@ -153,21 +157,53 @@ function SearchResults() {
                       Runs On: {train.daysOfRun?.join(', ') || 'Daily'}
                     </p>
                   </div>
-                  <div className="flex items-center space-x-6 mt-4 md:mt-0 text-center">
-                    <div>
-                      <p className="text-lg font-bold text-white">{train.timings?.departure || '10:00'}</p>
-                      <p className="text-xs text-gray-400">{train.source}</p>
+                  {type === 'Hotels' || type === 'Retiring Room' ? (
+                    <div className="mt-4 md:mt-0 text-right">
+                       <p className="text-sm font-bold text-white max-w-[200px] md:max-w-xs">{train.destination}</p>
+                       <p className="text-xs text-blue-400 mt-1">Check-in: {train.timings?.departure} | Check-out: {train.timings?.arrival}</p>
                     </div>
-                    <div className="flex flex-col items-center">
-                       <Clock className="w-4 h-4 text-gray-500 mb-1" />
-                       <p className="text-xs text-gray-400">{train.timings?.duration || '2h 30m'}</p>
+                  ) : type === 'E Catering' ? (
+                    <div className="mt-4 md:mt-0 text-right">
+                       <p className="text-sm font-bold text-white max-w-[200px] md:max-w-xs">{train.destination}</p>
+                       <p className="text-xs text-orange-400 mt-1">Delivery: {train.timings?.arrival} | {train.timings?.duration}</p>
                     </div>
-                    <div>
-                      <p className="text-lg font-bold text-white">{train.timings?.arrival || '12:30'}</p>
-                      <p className="text-xs text-gray-400">{train.destination}</p>
+                  ) : (
+                    <div className="flex items-center space-x-6 mt-4 md:mt-0 text-center">
+                      <div>
+                        <p className="text-lg font-bold text-white">{train.timings?.departure || '10:00'}</p>
+                        <p className="text-xs text-gray-400">{train.source}</p>
+                      </div>
+                      <div className="flex flex-col items-center">
+                         <Clock className="w-4 h-4 text-gray-500 mb-1" />
+                         <p className="text-xs text-gray-400">{train.timings?.duration || '2h 30m'}</p>
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold text-white">{train.timings?.arrival || '12:30'}</p>
+                        <p className="text-xs text-gray-400">{train.destination}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {train.image && train.description && (
+                  <div className="flex flex-col md:flex-row gap-6 mb-6 mt-4 p-4 bg-[#131418] border border-[#272a31] rounded-2xl hover:border-blue-500/50 transition-colors cursor-pointer group">
+                    <div className="relative overflow-hidden rounded-xl w-full md:w-56 h-40 border border-white/5">
+                      <img src={train.image} alt={train.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                    </div>
+                    <div className="flex-1 flex flex-col justify-center">
+                      <p className="text-sm text-gray-300 leading-relaxed mb-4">{train.description}</p>
+                      {train.rating && (
+                        <div className="flex items-center gap-3">
+                           <div className="flex items-center bg-green-500/20 text-green-400 px-2 py-1 rounded-lg text-sm font-bold border border-green-500/30">
+                              <Star className="w-4 h-4 fill-current mr-1" /> {train.rating.toFixed(1)}
+                           </div>
+                           <span className="text-sm text-blue-400 font-medium underline cursor-pointer hover:text-blue-300 transition-colors">See {train.reviews} Reviews</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
+                )}
 
                 <div className="flex flex-wrap gap-4">
                   {train.classes?.map((cls: any) => {

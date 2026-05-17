@@ -24,7 +24,13 @@ const bookingSchema = new mongoose.Schema({
   journeyDate: { type: String },
   from: { type: String },
   to: { type: String },
-  departureTime: { type: String }
+  departureTime: { type: String },
+  pantryItems: {
+    meal: { type: String },
+    price: { type: Number }
+  },
+  refundAmount: { type: Number, default: 0 },
+  refundStatus: { type: String, enum: ['None', 'Initiated', 'Completed'], default: 'None' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Booking', bookingSchema);

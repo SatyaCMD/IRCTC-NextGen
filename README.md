@@ -17,11 +17,20 @@ Welcome to **IRCTC 2.0**, a full-stack AI-powered travel and hospitality booking
 - Configured specifically to act as an IRCTC customer support agent, answering queries about PNR status, service bookings, routing, and travel rules.
 - Features real-time typing indicators and intelligent scroll behavior.
 
-### 3. Professional Ticket Generation (PDF)
-- Simulates the official **IRCTC Electronic Reservation Slip (ERS)** format.
-- Uses `jsPDF` to dynamically compile PNRs, Transaction IDs, passenger details, strict grid layouts, and an 18% convenience fee breakdown into a downloadable, professional ticket.
+### 3. Dual-Format Professional Ticket Generation (PDF)
+- **Transit Services (Trains/Flights/Buses)**: Generates the classic **IRCTC Electronic Reservation Slip (ERS)** format with PNRs, Coach/Seat details, Waitlist Acronyms, and an 18% convenience fee breakdown.
+- **Specialized Services (Hotels/Retiring Rooms/Catering/Holiday Packs)**: Dynamically switches to generate a professional **Booking Confirmation Voucher** featuring Booking IDs, Service Fare summaries, Check-in/Delivery timelines, and explicit presentation instructions.
 
-### 4. Admin Dashboard & Real-Time Tracking
+### 4. Integrated IRCTC Wallet & Instant Refunds
+- **Wallet System**: Users have a dedicated IRCTC Wallet visible on their Profile dashboard, allowing them to explicitly recharge funds.
+- **Split Payments**: On the checkout screen, the platform automatically detects wallet balances and allows users to deduct wallet funds directly against the total payable amount, leaving only the remainder for Card/UPI processing.
+- **Instant Refunds**: Any ticket cancellation instantly calculates the eligible refund amount (based on time to departure) and credits it directly to the IRCTC Wallet with a secure transaction history logged on the backend.
+
+### 5. Rich UI Metadata & Dynamic Service Generation
+- Advanced interactive UI for specialized services. Searching for Hotels or E-Catering automatically generates localized, randomized metadata including **premium interactive images, context-aware descriptions, ratings, and review counts** to replicate a highly polished booking experience.
+- The platform enforces strict mandatory form validation across passenger and contact details to ensure data integrity during checkout.
+
+### 6. Admin Dashboard & Real-Time Tracking
 - Dedicated **`/admin`** panel protected by unique credentials and OTP verification.
   - **Demo Admin ID**: `admin`
   - **Demo Password**: `admin123`
@@ -29,7 +38,7 @@ Welcome to **IRCTC 2.0**, a full-stack AI-powered travel and hospitality booking
 - **Total Revenue Tracking**: Tracks all incoming revenue. If a user cancels a confirmed booking, the backend intelligently reverses the revenue from the dashboard to maintain financial consistency.
 - Full CRUD access to manage the 480+ seeded location services dynamically.
 
-### 5. Security & Session Management
+### 7. Security & Session Management
 - **JWT Authentication**: Secured routing. Users must be logged in to proceed past the initial search step on any booking flow.
 - **30-Minute Session Timer**: A strict inactivity timer sits globally in the bottom corner. It resets upon user interaction (mouse move, keypress) but immediately drops the session token and forces logout if inactivity reaches 00:00. 
 

@@ -77,24 +77,68 @@ function BookingFlowInner() {
   const [idProofFile, setIdProofFile] = useState<File | null>(null);
   const [showSeatMapForPassenger, setShowSeatMapForPassenger] = useState<number | null>(null);
   const [bookedSeats, setBookedSeats] = useState<Set<string>>(new Set());
+  const [wantsPantry, setWantsPantry] = useState(false);
+  const [pantryQuantity, setPantryQuantity] = useState(1);
+  const [pantryCategory, setPantryCategory] = useState('Veg');
+  const [pantryMeal, setPantryMeal] = useState('Standard Veg Thali');
+  const [selectedCoach, setSelectedCoach] = useState('S1');
+
+  const pantryMenus: Record<string, {name: string, price: number}[]> = {
+    'Veg': [
+      { name: 'Standard Veg Thali', price: 150 },
+      { name: 'Deluxe Veg Thali', price: 200 },
+      { name: 'Paneer Biryani', price: 180 },
+      { name: 'Veg Fried Rice with Manchurian', price: 160 },
+      { name: 'Chole Bhature', price: 120 }
+    ],
+    'Non-Veg': [
+      { name: 'Standard Non-Veg Thali', price: 250 },
+      { name: 'Chicken Biryani', price: 280 },
+      { name: 'Egg Curry with Rice', price: 180 },
+      { name: 'Chicken Fried Rice', price: 220 },
+      { name: 'Butter Chicken with Naan', price: 300 }
+    ]
+  };
+
+  const currentPantryMenu = pantryCategory === 'Veg' ? pantryMenus['Veg'] : pantryMenus['Non-Veg'];
+  const selectedPantryMeal = currentPantryMenu.find(m => m.name === pantryMeal) || currentPantryMenu[0];
 
   useEffect(() => {
-    // Generate some random booked seats depending on the class layout
+    // Generate some random booked seats depending on the class layout and selected coach
     const generated = new Set<string>();
     const rows = 15; // Max possible rows
     const cols = ['A','B','C','D','E','F'];
+    
+    const seed = selectedCoach.charCodeAt(0) + (selectedCoach.charCodeAt(1) || 0) + (selectedCoach.charCodeAt(2) || 0);
+    const random = (seedIdx: number) => {
+      const x = Math.sin(seed + seedIdx) * 10000;
+      return x - Math.floor(x);
+    };
+
+    let idx = 0;
     for(let r = 1; r <= rows; r++) {
       cols.forEach(c => {
-         if (Math.random() < 0.35) generated.add(`${r}${c}`); // 35% booked
+         idx++;
+         if (random(idx) < 0.35) generated.add(`${r}${c}`); // 35% booked
       });
     }
     setBookedSeats(generated);
-  }, []);
+  }, [selectedCoach]);
 
-  // Payment states
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [upiId, setUpiId] = useState('');
   const [bank, setBank] = useState('');
+  const [userWalletBalance, setUserWalletBalance] = useState(0);
+  const [useWallet, setUseWallet] = useState(false);
+
+  useEffect(() => {
+    const token = Cookies.get('token');
+    if (token) {
+      axios.get('http://localhost:5000/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => setUserWalletBalance(res.data.walletBalance || 0))
+        .catch(err => console.error(err));
+    }
+  }, []);
 
   const getIcon = () => {
     if (isFlight) return <Plane className="w-8 h-8" />;
@@ -112,6 +156,14 @@ function BookingFlowInner() {
       router.push('/login?redirect=auth-required');
       return;
     }
+    
+    // Explicit mandatory validation
+    const hasEmptyPassenger = passengers.some(p => !p.name || !p.age);
+    if (hasEmptyPassenger || !contactInfo.email || !contactInfo.phone) {
+      toast.error('Please fill in all mandatory details before proceeding.');
+      return;
+    }
+
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
@@ -139,14 +191,19 @@ function BookingFlowInner() {
         from: journeyDetails.from,
         to: journeyDetails.to,
         departureTime: urlDepartureTime,
-        quota: journeyDetails.quota
+        quota: journeyDetails.quota,
+        walletAmountUsed: useWallet ? Math.min(Math.round(totalPrice + (totalPrice * 0.18)), userWalletBalance) : 0
       }, { headers: { Authorization: `Bearer ${token}` } });
 
       const createdBooking = bookingRes.data;
 
       const finalStatus = (journeyDetails.quota === 'Student' || journeyDetails.quota === 'Armed Forces') ? 'Verification Pending' : 'success';
       const confirmRes = await axios.put(`http://localhost:5000/api/bookings/${createdBooking._id}/payment`, {
-        paymentId: `PAY${Math.random().toString(36).substr(2, 8).toUpperCase()}`,
+        passengers,
+        contactInfo,
+        totalAmount: totalPrice,
+        paymentStatus: 'Completed',
+        pantryItems: wantsPantry ? { meal: selectedPantryMeal.name, price: selectedPantryMeal.price * pantryQuantity } : null,
         status: finalStatus
       }, { headers: { Authorization: `Bearer ${token}` } });
 
@@ -190,16 +247,25 @@ function BookingFlowInner() {
       } else {
          toast.success('Payment successful! Booking confirmed.', { duration: 5000 });
       }
-    } catch (err) {
-      toast.error('Payment processing failed. Please try again.');
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error;
+      if (errorMsg && errorMsg.includes("cancelled")) {
+        toast.error(errorMsg, { duration: 6000 });
+        setStep(1);
+      } else {
+        toast.error('Payment processing failed. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
+  const maxMembers = isHotel ? 2 : 6;
   const addPassenger = () => {
-    if (passengers.length < 6) {
+    if (passengers.length < maxMembers) {
       setPassengers([...passengers, { name: '', age: '', gender: 'Male', pref: 'No Preference' }]);
+    } else {
+      toast.error(`Maximum ${maxMembers} members allowed per booking for ${title}.`);
     }
   };
   const removePassenger = (index: number) => {
@@ -248,6 +314,10 @@ function BookingFlowInner() {
     baseTotal += price;
   });
   
+  if (!isHotel && !isFood && wantsPantry) {
+    baseTotal += (selectedPantryMeal.price * pantryQuantity);
+  }
+  
   const totalPrice = chartPrepared ? baseTotal * 1.25 : baseTotal;
 
   const generatePDF = async () => {
@@ -266,14 +336,221 @@ function BookingFlowInner() {
       }
     };
 
+    const isSpecialService = isHotel || isFood || type.toLowerCase().includes('holiday') || type.toLowerCase().includes('retiring');
     const g20Base64 = await getBase64ImageFromUrl('/g20-logo.jpg');
     let serviceLogoUrl = '/ir-logo.png';
     if (isFlight) serviceLogoUrl = '/flight_logo.png';
     if (isBus) serviceLogoUrl = '/bus_logo.png';
+    if (isSpecialService) serviceLogoUrl = '/hotel_logo.png';
     const mainLogoBase64 = await getBase64ImageFromUrl(serviceLogoUrl);
 
     const doc = new jsPDF('p', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
+
+    if (isSpecialService) {
+      // Specialized PDF for Hotels, Retiring Room, E-Catering
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text('Booking Confirmation Voucher', pageWidth / 2, 15, { align: 'center' });
+
+      // Header Logos
+      if (mainLogoBase64) {
+        doc.addImage(mainLogoBase64, 'PNG', 10, 4, 26, 26);
+      } else {
+        doc.setFontSize(16);
+        doc.setTextColor(0, 51, 153);
+        doc.text("IRCTC", 15, 20);
+      }
+
+      if (g20Base64) {
+        doc.addImage(g20Base64, 'JPEG', pageWidth - 42, 6, 28, 18);
+      } else {
+        doc.setTextColor(255, 153, 51);
+        doc.setFontSize(16);
+        doc.text("G20", pageWidth - 35, 20);
+      }
+
+      doc.setTextColor(0, 0, 0);
+
+      // Banner for Location
+      doc.setFillColor(153, 204, 255);
+      doc.rect(70, 32, 70, 6, 'F');
+      
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text(isFood ? "Delivery Station" : "City/Location", 35, 30, { align: 'center' });
+      doc.text("Service Details", 105, 36, { align: 'center' });
+      doc.text(isFood ? "Delivery Station" : "City/Location", 175, 30, { align: 'center' });
+
+      doc.setFont("helvetica", "normal");
+      const dest = journeyDetails.to || 'MUMBAI';
+      const formatStationName = (name: string, maxLen = 20) => name.length > maxLen ? name.substring(0, maxLen - 2) + '...' : name;
+      doc.text(formatStationName(dest.toUpperCase()), 35, 42, { align: 'center' });
+      doc.text(formatStationName(dest.toUpperCase(), 30), 105, 42, { align: 'center' });
+      doc.text(formatStationName(dest.toUpperCase()), 175, 42, { align: 'center' });
+
+      // Date / Time
+      const dateStr = journeyDetails.date1 || new Date().toISOString().split('T')[0];
+      const timeStr = urlDepartureTime || '12:00';
+      const arrTimeStr = '08:45';
+
+      doc.text(isFood ? `Delivery Date: ${dateStr}` : `Check-in Date: ${dateStr}`, 35, 48, { align: 'center' });
+      doc.setFont("helvetica", "bold");
+      doc.text(isFood ? `Time: ${timeStr} | ${dateStr}` : `Check-in: ${timeStr} | ${dateStr}`, 105, 48, { align: 'center' });
+      doc.setFont("helvetica", "normal");
+      doc.text(isFood ? `Delivery: ${arrTimeStr}` : `Check-out: ${arrTimeStr}`, 175, 48, { align: 'center' });
+
+      // Main Details Grid
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.5);
+      doc.line(10, 52, 200, 52);
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("Booking ID", 35, 57, { align: 'center' });
+      doc.text(isFood ? "Restaurant/Vendor" : "Hotel/Room Name", 105, 57, { align: 'center' });
+      doc.text("Type", 160, 57, { align: 'center' });
+      doc.text("Booking Date", 190, 57, { align: 'center' });
+
+      doc.setTextColor(0, 51, 153);
+      doc.text(bookingResult.bookingId || 'N/A', 35, 62, { align: 'center' });
+
+      const serviceName = bookingResult?.trainId?.name || title.toUpperCase();
+      doc.text(serviceName.length > 25 ? serviceName.substring(0, 23) + '...' : serviceName, 105, 62, { align: 'center' });
+
+      doc.text(journeyDetails.travelClass || 'Standard', 160, 62, { align: 'center' });
+      doc.setFontSize(8);
+      doc.text(new Date().toLocaleDateString(), 190, 62, { align: 'center' });
+      doc.setFontSize(9);
+      doc.setTextColor(0, 0, 0);
+
+      doc.line(10, 66, 200, 66);
+
+      // Passenger / Guest Details Header
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(isFood ? "Order/Customer Details" : "Guest Details", 12, 71);
+
+      // autoTable
+      const passCols = ["#", "Name", "Age", "Gender", "Status"];
+      const passRows = passengers.map((p: any, idx: number) => {
+        return [(idx + 1).toString(), p.name.toUpperCase(), p.age.toString(), p.gender.charAt(0).toUpperCase(), 'CONFIRMED'];
+      });
+
+      autoTable(doc, {
+        startY: 73,
+        head: [passCols],
+        body: passRows,
+        theme: 'plain',
+        styles: { fontSize: 8, cellPadding: 1, textColor: [0, 0, 0] },
+        headStyles: { fontStyle: 'bold' }
+      });
+
+      const py = (doc as any).lastAutoTable?.finalY || 100;
+      doc.line(10, py + 2, 200, py + 2);
+
+      // Contact Details
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text(`Contact Details:     Email: ${contactInfo.email}                 Mobile: ${contactInfo.phone || 'N/A'}`, 12, py + 8);
+
+      // Payment Details
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Payment Details", 12, py + 16);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+
+      const tPrice = Math.round(totalPrice + (totalPrice * 0.18));
+      const baseFare = tPrice / 1.18;
+      const tax = tPrice - baseFare;
+      doc.text("Service Fare", 12, py + 22); doc.text(`Rs. ${baseFare.toFixed(2)}`, 100, py + 22);
+      doc.text("Taxes & Fees (Incl. of GST)", 12, py + 27); doc.text(`Rs. ${tax.toFixed(2)}`, 100, py + 27);
+      doc.setFont("helvetica", "bold");
+      doc.text("Total Paid (all inclusive)", 12, py + 32); doc.text(`Rs. ${tPrice.toFixed(2)}`, 100, py + 32);
+
+      // QR Code simulation block
+      doc.setFillColor(0, 0, 0);
+      const qrSize = 30;
+      const px = 150;
+      const pY = py + 14;
+
+      doc.rect(px, pY, 7, 7, 'F'); doc.setFillColor(255, 255, 255); doc.rect(px + 1, pY + 1, 5, 5, 'F'); doc.setFillColor(0, 0, 0); doc.rect(px + 2, pY + 2, 3, 3, 'F');
+      doc.rect(px + qrSize - 7, pY, 7, 7, 'F'); doc.setFillColor(255, 255, 255); doc.rect(px + qrSize - 6, pY + 1, 5, 5, 'F'); doc.setFillColor(0, 0, 0); doc.rect(px + qrSize - 5, pY + 2, 3, 3, 'F');
+      doc.rect(px, pY + qrSize - 7, 7, 7, 'F'); doc.setFillColor(255, 255, 255); doc.rect(px + 1, pY + qrSize - 6, 5, 5, 'F'); doc.setFillColor(0, 0, 0); doc.rect(px + 2, pY + qrSize - 5, 3, 3, 'F');
+      for (let x = 0; x < qrSize; x += 1.5) {
+        for (let y = 0; y < qrSize; y += 1.5) {
+          if ((x < 8 && y < 8) || (x > qrSize - 8 && y < 8) || (x < 8 && y > qrSize - 8)) continue;
+          if (Math.random() > 0.5) doc.rect(px + x, pY + y, 1.5, 1.5, 'F');
+        }
+      }
+
+      doc.line(10, py + 46, 200, py + 46);
+
+      // Amenities & Inclusions
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Inclusions & Amenities", 12, py + 52);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      if (isHotel || type.toLowerCase().includes('retiring')) {
+        doc.text("• Complimentary Wi-Fi Internet Access", 15, py + 58);
+        doc.text("• Air Conditioned Room with standard furnishing", 15, py + 62);
+        doc.text("• 24/7 Room Service & Housekeeping available", 15, py + 66);
+        doc.text("• Breakfast included (If explicitly stated in your booking package)", 15, py + 70);
+      } else if (isFood) {
+        doc.text("• Freshly prepared meal from certified vendor", 15, py + 58);
+        doc.text("• Delivery directly to your seat/berth as scheduled", 15, py + 62);
+        doc.text("• Cutlery and napkins included in standard packaging", 15, py + 66);
+      } else {
+        doc.text("• Complete travel package as per itinerary", 15, py + 58);
+        doc.text("• Dedicated customer support during transit", 15, py + 62);
+      }
+
+      // Important Policies
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Important Policies", 12, py + 80);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text("• This voucher must be presented at the time of check-in / delivery along with a valid Govt. ID.", 15, py + 86);
+      doc.text("• Standard Check-in is at 12:00 PM and Check-out is at 11:00 AM unless otherwise specified.", 15, py + 90);
+      doc.text("• Cancellation policies apply as per the service provider's terms and conditions. Refunds processed within 5-7 days.", 15, py + 94);
+      doc.text("• The Service Provider reserves the right to deny admission / delivery if the ID proof is mismatched.", 15, py + 98);
+
+      // Customer Support
+      doc.setFillColor(240, 248, 255);
+      doc.rect(10, py + 105, 190, 20, 'F');
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("24/7 Customer Support", 15, py + 112);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text("For any queries, please contact our dedicated helpdesk at 1800-111-139 or email us at support@irctchospitality.co.in", 15, py + 118);
+
+      // Advertising Banner
+      doc.setFillColor(255, 230, 153);
+      doc.rect(10, py + 132, 190, 15, 'F');
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 150);
+      doc.text("EXPLORE INDIA WITH IRCTC TOURISM - VISIT IRCTC2.0.SATYACMD.DEV", pageWidth / 2, py + 141, { align: 'center' });
+
+      // Footer
+      doc.setTextColor(0, 0, 0);
+      doc.line(10, py + 155, 200, py + 155);
+      doc.setFont("helvetica", "bolditalic");
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(7);
+      doc.text(`VOUCHER GENERATED BY: IRCTC 2.0 PORTAL  |  ISSUED ON: ${new Date().toLocaleString()}  |  IP: SECURED`, 12, py + 160);
+
+      doc.save(`IRCTC_VOUCHER_${bookingResult.bookingId}.pdf`);
+      toast.success('Booking Voucher downloaded successfully!');
+      return;
+    }
+
+    // ORIGINAL PDF LOGIC FOR TRAINS, FLIGHTS, BUSES
+
 
     // Header section
     doc.setFontSize(14);
@@ -306,29 +583,29 @@ function BookingFlowInner() {
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    doc.text("Booked From", 35, 30, { align: 'center' });
-    doc.text("Boarding At", 105, 36, { align: 'center' });
-    doc.text("To", 175, 30, { align: 'center' });
+    doc.text(isHotel ? "City/Location" : "Booked From", 35, 30, { align: 'center' });
+    doc.text(isHotel ? "Address Details" : "Boarding At", 105, 36, { align: 'center' });
+    doc.text(isHotel ? "City/Location" : "To", 175, 30, { align: 'center' });
 
     // Stations
     doc.setFont("helvetica", "normal");
     const source = journeyDetails.from || 'HOWRAH JN (HWH)';
     const dest = journeyDetails.to || 'NEW DELHI (NDLS)';
-    const formatStationName = (name: string) => name.length > 20 ? name.substring(0, 18) + '...' : name;
+    const formatStationName = (name: string, maxLen = 20) => name.length > maxLen ? name.substring(0, maxLen - 2) + '...' : name;
     doc.text(formatStationName(source.toUpperCase()), 35, 42, { align: 'center' });
-    doc.text(formatStationName(source.toUpperCase()), 105, 42, { align: 'center' });
-    doc.text(formatStationName(dest.toUpperCase()), 175, 42, { align: 'center' });
+    doc.text(formatStationName(isHotel ? dest.toUpperCase() : source.toUpperCase(), 30), 105, 42, { align: 'center' });
+    doc.text(formatStationName(isHotel ? source.toUpperCase() : dest.toUpperCase()), 175, 42, { align: 'center' });
 
     // Date / Time
     const dateStr = journeyDetails.date1 || new Date().toISOString().split('T')[0];
     const timeStr = urlDepartureTime || '18:30';
     const arrTimeStr = '08:45';
 
-    doc.text(`Start Date: ${dateStr}`, 35, 48, { align: 'center' });
+    doc.text(isHotel ? `Check-in Date: ${dateStr}` : `Start Date: ${dateStr}`, 35, 48, { align: 'center' });
     doc.setFont("helvetica", "bold");
-    doc.text(`Departure: ${timeStr} | ${dateStr}`, 105, 48, { align: 'center' });
+    doc.text(isHotel ? `Check-in: ${timeStr} | ${dateStr}` : `Departure: ${timeStr} | ${dateStr}`, 105, 48, { align: 'center' });
     doc.setFont("helvetica", "normal");
-    doc.text(`Arrival: ${arrTimeStr} | ${dateStr}`, 175, 48, { align: 'center' });
+    doc.text(isHotel ? `Check-out: ${arrTimeStr}` : `Arrival: ${arrTimeStr} | ${dateStr}`, 175, 48, { align: 'center' });
 
     // Main Details Grid
     doc.setDrawColor(0, 0, 0);
@@ -340,7 +617,8 @@ function BookingFlowInner() {
     doc.text("PNR", 35, 57, { align: 'center' });
     const serviceNameHeader = isHotel ? "Hotel Name" : `${title} No./Name`;
     doc.text(serviceNameHeader, 105, 57, { align: 'center' });
-    doc.text("Class", 175, 57, { align: 'center' });
+    doc.text("Class", 160, 57, { align: 'center' });
+    doc.text("Pantry", 190, 57, { align: 'center' });
 
     doc.setTextColor(0, 51, 153);
     const pnrStr = bookingResult.pnr || 'N/A';
@@ -352,7 +630,11 @@ function BookingFlowInner() {
     const trainDesc = `${trainNum} / ${trainName}`.toUpperCase();
     doc.text(trainDesc.length > 25 ? trainDesc.substring(0, 23) + '...' : trainDesc, 105, 62, { align: 'center' });
 
-    doc.text(journeyDetails.travelClass || 'SL', 175, 62, { align: 'center' });
+    doc.text(journeyDetails.travelClass || 'SL', 160, 62, { align: 'center' });
+    doc.setFontSize(7);
+    const pantryText = wantsPantry ? (pantryCategory === 'Veg' ? 'VEG' : 'NON-VEG') : 'N/A';
+    doc.text(pantryText, 190, 62, { align: 'center' });
+    doc.setFontSize(9);
     doc.setTextColor(0, 0, 0);
 
     doc.setFont("helvetica", "bold");
@@ -362,8 +644,8 @@ function BookingFlowInner() {
 
     doc.setFont("helvetica", "normal");
     const quotaStr = journeyDetails.quota ? journeyDetails.quota.toUpperCase() : 'GENERAL (GN)';
-    const distanceStr = `${Math.floor(1200 + Math.random() * 800)} KM`;
-    doc.text(quotaStr, 35, 73, { align: 'center' });
+    const distanceStr = isHotel ? 'N/A' : `${Math.floor(1200 + Math.random() * 800)} KM`;
+    doc.text(isHotel ? 'N/A' : quotaStr, 35, 73, { align: 'center' });
     doc.text(distanceStr, 105, 73, { align: 'center' });
     doc.text(new Date().toLocaleString(), 175, 73, { align: 'center' });
 
@@ -557,7 +839,11 @@ function BookingFlowInner() {
             {title} Booking
           </h1>
           <p className="text-white/90 text-lg font-medium max-w-2xl drop-shadow-md">
-            Journey selected: <span className="font-bold text-white">{journeyDetails.from}</span> to <span className="font-bold text-white">{journeyDetails.to}</span>
+            {isHotel ? (
+              <>Location: <span className="font-bold text-white">{journeyDetails.from}</span> | Address: <span className="font-bold text-white text-sm">{journeyDetails.to}</span></>
+            ) : (
+              <>Journey selected: <span className="font-bold text-white">{journeyDetails.from}</span> to <span className="font-bold text-white">{journeyDetails.to}</span></>
+            )}
           </p>
           <div className="mt-2 inline-flex items-center gap-2 bg-white/10 px-4 py-1.5 rounded-full border border-white/20 backdrop-blur-md">
             <span className="text-sm font-bold text-white">{journeyDetails.travelClass}</span>
@@ -634,7 +920,7 @@ function BookingFlowInner() {
                       </div>
                       <div className="md:col-span-3 space-y-2">
                         <label className="text-[10px] font-bold text-white/60 uppercase tracking-widest ml-1">{isHotel ? 'Room Pref' : 'Seat Pref'}</label>
-                        {(isFlight || isBus) ? (
+                        {(!isHotel && !isFood) ? (
                           <button 
                             type="button" 
                             onClick={() => setShowSeatMapForPassenger(idx)}
@@ -684,6 +970,40 @@ function BookingFlowInner() {
                     </div>
                     <input type="file" required className="hidden" accept="image/*,.pdf" onChange={e => setIdProofFile(e.target.files?.[0] || null)} />
                   </label>
+                </div>
+              )}
+
+              {(!isHotel && !isFood) && (
+                <div className="mb-10 bg-orange-500/10 border border-orange-500/20 p-6 rounded-3xl animate-in fade-in duration-500">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="bg-orange-500/20 p-2 rounded-lg text-orange-400 border border-orange-500/30"><Utensils className="w-5 h-5" /></div>
+                    <h3 className="text-xl font-bold text-white tracking-wide">Pantry Car Food Services</h3>
+                  </div>
+                  <div className="flex items-center gap-4 mb-4">
+                    <input type="checkbox" id="pantryCheck" checked={wantsPantry} onChange={(e) => setWantsPantry(e.target.checked)} className="w-5 h-5 accent-orange-500" />
+                    <label htmlFor="pantryCheck" className="text-white font-bold cursor-pointer">Yes, I want food from Pantry Car</label>
+                  </div>
+                  {wantsPantry && (
+                    <div className="flex flex-col md:flex-row gap-4 mt-4">
+                      <select value={pantryCategory} onChange={(e) => {
+                          setPantryCategory(e.target.value);
+                          setPantryMeal(e.target.value === 'Veg' ? 'Standard Veg Thali' : 'Standard Non-Veg Thali');
+                        }} className="bg-black/40 border border-orange-500/30 rounded-xl px-4 py-3 text-white font-medium focus:ring-2 focus:ring-orange-500/50 outline-none flex-1">
+                        <option value="Veg">Vegetarian Menu</option>
+                        <option value="Non-Veg">Non-Vegetarian Menu</option>
+                      </select>
+                      <select value={pantryMeal} onChange={(e) => setPantryMeal(e.target.value)} className="bg-black/40 border border-orange-500/30 rounded-xl px-4 py-3 text-white font-medium focus:ring-2 focus:ring-orange-500/50 outline-none flex-2 w-full md:w-1/2">
+                        {currentPantryMenu.map(item => (
+                          <option key={item.name} value={item.name}>{item.name} - ₹{item.price}</option>
+                        ))}
+                      </select>
+                      <select value={pantryQuantity} onChange={(e) => setPantryQuantity(Number(e.target.value))} className="bg-black/40 border border-orange-500/30 rounded-xl px-4 py-3 text-white font-medium focus:ring-2 focus:ring-orange-500/50 outline-none flex-1">
+                        {[1,2,3,4,5,6].map(q => (
+                          <option key={q} value={q}>Qty: {q}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -799,12 +1119,33 @@ function BookingFlowInner() {
                       {chartPrepared && (
                         <div className="flex justify-between text-red-400 font-bold text-sm"><span>Late Booking (Chart Prepared)</span><span>+ ₹{(baseTotal * 0.25).toLocaleString()}</span></div>
                       )}
+                      {wantsPantry && (
+                        <div className="flex justify-between text-orange-400 font-bold text-sm"><span>Pantry Car ({selectedPantryMeal.name} x{pantryQuantity})</span><span>+ ₹{(selectedPantryMeal.price * pantryQuantity).toLocaleString()}</span></div>
+                      )}
                       <div className="flex justify-between text-blue-100/90 text-sm"><span>Taxes & Fees (18%)</span><span>₹{Math.round(totalPrice * 0.18).toLocaleString()}</span></div>
                     </div>
 
+                    {userWalletBalance > 0 && (
+                      <div className="mb-6 bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-xl flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <input type="checkbox" id="walletCheck" checked={useWallet} onChange={e => setUseWallet(e.target.checked)} className="w-5 h-5 accent-emerald-500" />
+                          <label htmlFor="walletCheck" className="text-emerald-400 font-bold cursor-pointer">Use IRCTC Wallet</label>
+                        </div>
+                        <span className="text-emerald-400 font-bold">Bal: ₹{userWalletBalance.toLocaleString()}</span>
+                      </div>
+                    )}
+
                     <div className="border-t border-white/30 pt-6 flex flex-col gap-2">
-                      <span className="text-blue-300 text-[11px] uppercase tracking-widest font-black">Total Amount Due</span>
-                      <span className="text-4xl font-black text-white drop-shadow-md">₹{Math.round(totalPrice + (totalPrice * 0.18)).toLocaleString()}</span>
+                      {useWallet && (
+                         <div className="flex justify-between text-emerald-400 text-sm font-bold mb-2">
+                            <span>Wallet Deduction</span>
+                            <span>- ₹{Math.min(Math.round(totalPrice + (totalPrice * 0.18)), userWalletBalance).toLocaleString()}</span>
+                         </div>
+                      )}
+                      <span className="text-blue-300 text-[11px] uppercase tracking-widest font-black">Total Amount Payable</span>
+                      <span className="text-4xl font-black text-white drop-shadow-md">
+                        ₹{Math.max(0, Math.round(totalPrice + (totalPrice * 0.18)) - (useWallet ? Math.min(Math.round(totalPrice + (totalPrice * 0.18)), userWalletBalance) : 0)).toLocaleString()}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -814,7 +1155,7 @@ function BookingFlowInner() {
                 <button type="button" onClick={() => setStep(1)} className="text-white/60 hover:text-white px-6 py-3 font-bold transition-colors">Back to details</button>
                 <button type="submit" disabled={isLoading} className="bg-emerald-500 hover:bg-emerald-400 text-white px-10 py-4 rounded-2xl font-bold text-lg transition-all flex items-center gap-3 disabled:opacity-70 group shadow-[0_10px_30px_rgba(16,185,129,0.4)] hover:shadow-[0_10px_40px_rgba(16,185,129,0.6)] hover:-translate-y-1">
                   {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <ShieldCheck className="w-6 h-6" />}
-                  {isLoading ? 'Processing securely...' : `Pay ₹${Math.round(totalPrice + (totalPrice * 0.18)).toLocaleString()}`}
+                  {isLoading ? 'Processing securely...' : `Pay ₹${Math.max(0, Math.round(totalPrice + (totalPrice * 0.18)) - (useWallet ? Math.min(Math.round(totalPrice + (totalPrice * 0.18)), userWalletBalance) : 0)).toLocaleString()}`}
                 </button>
               </div>
             </form>
@@ -844,7 +1185,7 @@ function BookingFlowInner() {
                     <span className="text-white font-mono font-black text-4xl tracking-wider drop-shadow-md">{bookingResult.bookingId}</span>
                   </div>
                   <div className="flex flex-col items-center justify-center p-4">
-                    <span className="text-white/70 text-[11px] uppercase tracking-widest font-black mb-2">PNR Number</span>
+                    <span className="text-white/70 text-[11px] uppercase tracking-widest font-black mb-2">{(isHotel || isFood || type.includes('holiday')) ? 'Booking Number' : 'PNR Number'}</span>
                     <span className={`${bookingResult.status === 'Verification Pending' ? 'text-orange-400' : 'text-emerald-400'} font-mono font-black text-4xl tracking-wider drop-shadow-md`}>{bookingResult.pnr}</span>
                   </div>
                 </div>
@@ -878,9 +1219,12 @@ function BookingFlowInner() {
                         <div className="bg-indigo-500/20 p-3 rounded-full mb-4">
                           <ArrowRightLeft className="w-8 h-8 text-indigo-400" />
                         </div>
-                        <h3 className="text-2xl font-black text-white mb-2 tracking-wide">Book Your Return Journey?</h3>
+                        <h3 className="text-2xl font-black text-white mb-2 tracking-wide">{(isHotel || isFood || type.toLowerCase().includes('holiday') || type.toLowerCase().includes('tourist') || type.toLowerCase().includes('charter') || type.toLowerCase().includes('hill')) ? 'Book Your Next Journey?' : 'Book Your Return Journey?'}</h3>
                         <p className="text-indigo-200 text-lg mb-8 max-w-md">
-                          Planning to head back? Book your return ticket from <span className="font-bold text-white">{journeyDetails.to}</span> to <span className="font-bold text-white">{journeyDetails.from}</span> now to secure the best seats.
+                          {(isHotel || isFood || type.toLowerCase().includes('holiday') || type.toLowerCase().includes('tourist') || type.toLowerCase().includes('charter') || type.toLowerCase().includes('hill')) ? 
+                            'Planning your next move? Book your onward journey ticket now to secure the best seats.' : 
+                            `Planning to head back? Book your return ticket from ${journeyDetails.to} to ${journeyDetails.from} now to secure the best seats.`
+                          }
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
                           <button 
@@ -889,7 +1233,7 @@ function BookingFlowInner() {
                             }} 
                             className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-indigo-500/50 hover:-translate-y-1"
                           >
-                            Book Return Ticket
+                            {(isHotel || isFood || type.toLowerCase().includes('holiday') || type.toLowerCase().includes('tourist') || type.toLowerCase().includes('charter') || type.toLowerCase().includes('hill')) ? 'Book Next Journey' : 'Book Return Ticket'}
                           </button>
                           <button 
                             onClick={() => setShowReturnPrompt(false)} 
@@ -919,6 +1263,18 @@ function BookingFlowInner() {
                   <h3 className="text-xl font-bold text-white">Select Seat for {passengers[showSeatMapForPassenger].name || `Passenger ${showSeatMapForPassenger + 1}`}</h3>
                   <button onClick={() => setShowSeatMapForPassenger(null)} className="text-white/50 hover:text-white p-2">✕</button>
                 </div>
+
+                {(!isFlight && !isBus && !isHotel && !isFood) && (
+                  <div className="flex gap-4 justify-center mb-4 border-b border-white/10 pb-4">
+                     <label className="text-white/60 text-sm font-bold uppercase tracking-widest mt-2">Coach:</label>
+                     <select value={selectedCoach} onChange={(e) => setSelectedCoach(e.target.value)} className="bg-black/40 border border-white/20 rounded-lg px-3 py-1 text-white font-medium outline-none">
+                       {Array.from({length: 6}).map((_, i) => {
+                         const prefix = journeyDetails.travelClass.includes('1A') ? 'H' : journeyDetails.travelClass.includes('2A') ? 'A' : journeyDetails.travelClass.includes('3A') ? 'B' : 'S';
+                         return <option key={i} value={`${prefix}${i+1}`}>{prefix}{i+1}</option>;
+                       })}
+                     </select>
+                  </div>
+                )}
                 
                 <div className="flex gap-4 justify-center mb-6 text-xs font-bold uppercase tracking-widest text-white/60">
                   <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-blue-600/20 border border-blue-500/50"></div> Window (+10%)</div>
@@ -956,13 +1312,19 @@ function BookingFlowInner() {
                             const isWindow = col === 'A';
                             const isMiddle = col === 'B' && !isBus;
                             const seatType = isWindow ? 'Window Seat' : isMiddle ? 'Middle Seat' : 'Aisle Seat';
-                            const isSelected = passengers[showSeatMapForPassenger].pref === `${seatId} (${seatType})`;
+                            
+                            const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').toUpperCase()}`;
+                            const isSelected = (!isFlight && !isBus && !isHotel && !isFood) 
+                               ? passengers[showSeatMapForPassenger].pref === trainPrefStr 
+                               : passengers[showSeatMapForPassenger].pref === `${seatId} (${seatType})`;
+
                             return (
                               <button 
                                 key={col}
                                 disabled={isBlocked}
                                 onClick={() => {
-                                  updatePassenger(showSeatMapForPassenger, 'pref', `${seatId} (${seatType})`);
+                                  const newPref = (!isFlight && !isBus && !isHotel && !isFood) ? trainPrefStr : `${seatId} (${seatType})`;
+                                  updatePassenger(showSeatMapForPassenger, 'pref', newPref);
                                   setShowSeatMapForPassenger(null);
                                 }}
                                 className={`w-10 h-10 rounded-lg font-bold text-xs flex items-center justify-center transition-all ${
@@ -986,13 +1348,19 @@ function BookingFlowInner() {
                             const isWindow = col === 'F' || (isBus && col === 'D') || (isBus && col === 'C' && seatRight.length === 1);
                             const isMiddle = col === 'E';
                             const seatType = isWindow ? 'Window Seat' : isMiddle ? 'Middle Seat' : 'Aisle Seat';
-                            const isSelected = passengers[showSeatMapForPassenger].pref === `${seatId} (${seatType})`;
+                            
+                            const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').toUpperCase()}`;
+                            const isSelected = (!isFlight && !isBus && !isHotel && !isFood) 
+                               ? passengers[showSeatMapForPassenger].pref === trainPrefStr 
+                               : passengers[showSeatMapForPassenger].pref === `${seatId} (${seatType})`;
+
                             return (
                               <button 
                                 key={col}
                                 disabled={isBlocked}
                                 onClick={() => {
-                                  updatePassenger(showSeatMapForPassenger, 'pref', `${seatId} (${seatType})`);
+                                  const newPref = (!isFlight && !isBus && !isHotel && !isFood) ? trainPrefStr : `${seatId} (${seatType})`;
+                                  updatePassenger(showSeatMapForPassenger, 'pref', newPref);
                                   setShowSeatMapForPassenger(null);
                                 }}
                                 className={`w-10 h-10 rounded-lg font-bold text-xs flex items-center justify-center transition-all ${

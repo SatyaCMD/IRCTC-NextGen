@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, Train, Shield, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, Train, Shield, ArrowRight, CheckCircle2, XCircle } from 'lucide-react';
 
 import toast from 'react-hot-toast';
 
@@ -60,8 +60,16 @@ export default function SignupPage() {
       toast.success('Registration initiated. Please verify OTP.');
       router.push(`/otp?email=${encodeURIComponent(formData.email)}`);
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Registration failed');
-      setIsLoading(false);
+      const errorMessage = err.response?.data?.error || 'Registration failed';
+      if (errorMessage === 'User already exists') {
+        toast.error('This account already exists. Continuing to login...', { duration: 3000 });
+        setTimeout(() => {
+          router.push('/login');
+        }, 2000);
+      } else {
+        toast.error(errorMessage);
+        setIsLoading(false);
+      }
     }
   };
 
@@ -156,6 +164,22 @@ export default function SignupPage() {
                 </div>
               </div>
             </div>
+
+            {formData.password && formData.retypePassword && (
+              <div className={`text-xs font-medium ml-1 flex items-center gap-1.5 ${formData.password === formData.retypePassword ? 'text-emerald-400' : 'text-red-400'}`}>
+                {formData.password === formData.retypePassword ? (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Passwords match
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-3.5 h-3.5" />
+                    Passwords do not match, please recheck and retype
+                  </>
+                )}
+              </div>
+            )}
 
             <div className="space-y-1.5 pt-2">
               <div className="flex items-center justify-between ml-1">
