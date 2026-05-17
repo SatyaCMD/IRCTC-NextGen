@@ -8,5 +8,6 @@ router.post('/login', authController.login);
 router.post('/reset-password', authController.resetPassword);
 router.get('/me', authMiddleware, authController.getMe);
 router.post('/wallet/add', authMiddleware, authController.addMoneyToWallet);
+router.delete('/delete', authMiddleware, authController.deleteAccount);
 
 module.exports = router;

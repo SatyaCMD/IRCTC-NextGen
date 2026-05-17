@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const Booking = require('../models/Booking');
 const jwt = require('jsonwebtoken');
 
 exports.register = async (req, res) => {
@@ -82,5 +83,31 @@ exports.addMoneyToWallet = async (req, res) => {
     res.json({ message: 'Wallet recharged successfully', walletBalance: user.walletBalance, transactions: user.walletTransactions });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    // Check if user has active/future confirmed bookings
+    const activeBookings = await Booking.find({ 
+      userId, 
+      status: 'Confirmed' 
+    });
+
+    if (activeBookings && activeBookings.length > 0) {
+      return res.status(400).json({ 
+        error: 'You are having some active bookings. After completion or cancellation of those, your account will be deleted.' 
+      });
+    }
+
+    // Delete User
+    await User.findByIdAndDelete(userId);
+    res.json({ message: 'Account deleted permanently.' });
+
+  } catch (error) {
+    console.error('Delete Account Error:', error);
+    res.status(500).json({ error: 'Server error during account deletion' });
   }
 };

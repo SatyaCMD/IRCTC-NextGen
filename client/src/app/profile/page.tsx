@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import { useRouter } from 'next/navigation';
-import { User, Mail, Calendar, Shield, CreditCard, Clock, Train, CheckCircle2, Ticket, X, Loader2 } from 'lucide-react';
+import { User, Mail, Calendar, Shield, CreditCard, Clock, Train, CheckCircle2, Ticket, X, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import toast from 'react-hot-toast';
 
@@ -13,8 +13,10 @@ export default function ProfilePage() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [walletAmount, setWalletAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -147,6 +149,21 @@ export default function ProfilePage() {
               <div className="text-sm text-gray-400 bg-black/40 p-4 rounded-xl border border-white/5">
                 No saved payment methods. Book a ticket to save your card securely.
               </div>
+            </div>
+
+            <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6 backdrop-blur-sm mt-6">
+              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2 text-red-400">
+                <Shield className="w-5 h-5" /> Danger Zone
+              </h3>
+              <p className="text-sm text-gray-400 mb-4">
+                Permanently delete your account and all associated personal data.
+              </p>
+              <button 
+                onClick={() => setShowDeleteModal(true)}
+                className="w-full flex justify-center items-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl transition-colors border border-red-500/30 font-bold text-sm"
+              >
+                <Trash2 className="w-4 h-4" /> Delete Account
+              </button>
             </div>
           </div>
 
@@ -287,6 +304,65 @@ export default function ProfilePage() {
             >
               {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Proceed to Add'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#111] border border-white/10 rounded-2xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200 text-center">
+            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/30">
+              <AlertTriangle className="w-8 h-8 text-red-500" />
+            </div>
+            <h3 className="text-2xl font-bold mb-2">Delete Account Permanently?</h3>
+            <p className="text-gray-400 mb-6 text-sm">
+              Are you sure you want to delete your account? This action is irreversible. All your wallet data and history will be lost.
+              <br /><br />
+              <span className="text-amber-500 font-semibold bg-amber-500/10 px-3 py-2 rounded-lg block">
+                Note: If you have active confirmed bookings, your account cannot be deleted until they are completed or cancelled.
+              </span>
+            </p>
+            
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold transition-colors border border-white/10"
+              >
+                No, Keep It
+              </button>
+              <button 
+                onClick={async () => {
+                  setIsDeleting(true);
+                  try {
+                    await axios.delete('http://localhost:5000/api/auth/delete', {
+                      headers: { Authorization: `Bearer ${Cookies.get('token')}` }
+                    });
+                    toast.success('Account deleted permanently.');
+                    Cookies.remove('token');
+                    Cookies.remove('user');
+                    setTimeout(() => {
+                      router.push('/');
+                      window.location.reload();
+                    }, 1500);
+                  } catch (err: any) {
+                    if (err.response && err.response.data && err.response.data.error) {
+                      toast.error(err.response.data.error, { duration: 5000 });
+                    } else {
+                      toast.error('Failed to delete account. Please try again later.');
+                    }
+                    setShowDeleteModal(false);
+                  } finally {
+                    setIsDeleting(false);
+                  }
+                }}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold transition-colors flex justify-center items-center gap-2"
+              >
+                {isDeleting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Yes, Delete'}
+              </button>
+            </div>
           </div>
         </div>
       )}
