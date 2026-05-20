@@ -122,6 +122,11 @@ function BookingFlowInner() {
          if (random(idx) < 0.35) generated.add(`${r}${c}`); // 35% booked
       });
     }
+    // Generate for numeric standard layouts (1-80)
+    for(let s = 1; s <= 80; s++) {
+       idx++;
+       if (random(idx) < 0.35) generated.add(`${s}`);
+    }
     setBookedSeats(generated);
   }, [selectedCoach]);
 
@@ -162,6 +167,19 @@ function BookingFlowInner() {
     if (hasEmptyPassenger || !contactInfo.email || !contactInfo.phone) {
       toast.error('Please fill in all mandatory details before proceeding.');
       return;
+    }
+
+    if (journeyDetails.travelClass.includes('1A')) {
+      if (passengers.length !== 2) {
+        toast.error('1A Class bookings require exactly 2 passengers per ticket (Couples only).');
+        return;
+      }
+      const hasMale = passengers.some(p => p.gender === 'Male');
+      const hasFemale = passengers.some(p => p.gender === 'Female');
+      if (!hasMale || !hasFemale) {
+        toast.error('1A Class is strictly for couples (1 Male and 1 Female).');
+        return;
+      }
     }
 
     if (journeyDetails.quota === 'Tatkal') {
@@ -1317,8 +1335,16 @@ function BookingFlowInner() {
                     } else if (!isHotel && !isFood) {
                        if (journeyDetails.travelClass.includes('CC') || journeyDetails.travelClass.includes('EC') || journeyDetails.travelClass.includes('2S')) {
                          seatRows = 12; seatLeft = ['A', 'B', 'C']; seatRight = ['D', 'E', 'F'];
+                       } else if (journeyDetails.travelClass.includes('1A')) {
+                         seatRows = 10; 
+                         seatLeft = ['L1']; 
+                         seatRight = ['U1'];
+                       } else if (journeyDetails.travelClass.includes('2A')) {
+                         seatRows = 10; 
+                         seatLeft = ['SL', 'SU']; 
+                         seatRight = ['L1', 'U1', 'L2', 'U2'];
                        } else {
-                         seatRows = 9; 
+                         seatRows = 10; 
                          seatLeft = ['SL', 'SU']; 
                          seatRight = ['L1', 'M1', 'U1', 'L2', 'M2', 'U2'];
                        }
@@ -1329,7 +1355,25 @@ function BookingFlowInner() {
                         <div className="w-6 text-center text-white/30 text-xs font-bold">{rowIdx + 1}</div>
                         <div className="flex gap-2">
                           {seatLeft.map(col => {
-                            const seatId = `${rowIdx + 1}${col}`;
+                            let displayCol = col;
+                            let seatId = `${rowIdx + 1}${col}`;
+                            
+                            if (journeyDetails.travelClass.includes('1A')) {
+                               const base = rowIdx * 2;
+                               if (col === 'L1') seatId = (base + 1).toString();
+                               displayCol = `${seatId} ${col.replace(/[0-9]/g, '')}`;
+                            } else if (journeyDetails.travelClass.includes('2A')) {
+                               const base = rowIdx * 6;
+                               if (col === 'SL') seatId = (base + 5).toString();
+                               if (col === 'SU') seatId = (base + 6).toString();
+                               displayCol = `${seatId} ${col.replace(/[0-9]/g, '')}`;
+                            } else if (['SL', '3A'].some(cls => journeyDetails.travelClass.includes(cls))) {
+                               const base = rowIdx * 8;
+                               if (col === 'SL') seatId = (base + 7).toString();
+                               if (col === 'SU') seatId = (base + 8).toString();
+                               displayCol = `${seatId} ${col.replace(/[0-9]/g, '')}`;
+                            }
+
                             const isBlocked = bookedSeats.has(seatId);
                             const isWindow = col === 'A' || col === 'SL' || col === 'L1';
                             const isMiddle = col === 'B' && !isBus;
@@ -1349,7 +1393,7 @@ function BookingFlowInner() {
                                   updatePassenger(showSeatMapForPassenger, 'pref', newPref);
                                   setShowSeatMapForPassenger(null);
                                 }}
-                                className={`w-10 h-10 rounded-lg font-bold text-[10px] sm:text-xs flex items-center justify-center transition-all ${
+                                className={`w-11 h-11 rounded-lg font-bold text-[10px] sm:text-[11px] flex items-center justify-center transition-all ${
                                   isBlocked ? 'bg-red-500/10 text-red-500/50 border border-red-500/20 cursor-not-allowed' :
                                   isSelected ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40 border-emerald-400' :
                                   isWindow ? 'bg-blue-600/20 text-blue-300 border border-blue-500/50 hover:bg-blue-600/40' :
@@ -1357,15 +1401,39 @@ function BookingFlowInner() {
                                   'bg-white/10 text-white/80 border border-white/20 hover:bg-white/30'
                                 }`}
                               >
-                                {isBlocked ? <Lock className="w-4 h-4" /> : col}
+                                {isBlocked ? <Lock className="w-4 h-4" /> : displayCol}
                               </button>
                             );
                           })}
                         </div>
                         <div className="w-4"></div>
-                        <div className="flex gap-2">
+                        <div className={`grid gap-2 ${seatRight.length > 3 ? (seatRight.length === 6 ? 'grid-cols-3' : 'grid-cols-2') : 'flex'}`}>
                           {seatRight.map(col => {
-                            const seatId = `${rowIdx + 1}${col}`;
+                            let displayCol = col;
+                            let seatId = `${rowIdx + 1}${col}`;
+                            
+                            if (journeyDetails.travelClass.includes('1A')) {
+                               const base = rowIdx * 2;
+                               if (col === 'U1') seatId = (base + 2).toString();
+                               displayCol = `${seatId} ${col.replace(/[0-9]/g, '')}`;
+                            } else if (journeyDetails.travelClass.includes('2A')) {
+                               const base = rowIdx * 6;
+                               if (col === 'L1') seatId = (base + 1).toString();
+                               if (col === 'U1') seatId = (base + 2).toString();
+                               if (col === 'L2') seatId = (base + 3).toString();
+                               if (col === 'U2') seatId = (base + 4).toString();
+                               displayCol = `${seatId} ${col.replace(/[0-9]/g, '')}`;
+                            } else if (['SL', '3A'].some(cls => journeyDetails.travelClass.includes(cls))) {
+                               const base = rowIdx * 8;
+                               if (col === 'L1') seatId = (base + 1).toString();
+                               if (col === 'M1') seatId = (base + 2).toString();
+                               if (col === 'U1') seatId = (base + 3).toString();
+                               if (col === 'L2') seatId = (base + 4).toString();
+                               if (col === 'M2') seatId = (base + 5).toString();
+                               if (col === 'U2') seatId = (base + 6).toString();
+                               displayCol = `${seatId} ${col.replace(/[0-9]/g, '')}`;
+                            }
+
                             const isBlocked = bookedSeats.has(seatId);
                             const isWindow = col === 'F' || (isBus && col === 'D') || (isBus && col === 'C' && seatRight.length === 1) || col === 'SU' || col === 'L2';
                             const isMiddle = col === 'E';
@@ -1385,7 +1453,7 @@ function BookingFlowInner() {
                                   updatePassenger(showSeatMapForPassenger, 'pref', newPref);
                                   setShowSeatMapForPassenger(null);
                                 }}
-                                className={`w-10 h-10 rounded-lg font-bold text-[10px] sm:text-xs flex items-center justify-center transition-all ${
+                                className={`w-11 h-11 rounded-lg font-bold text-[10px] sm:text-[11px] flex items-center justify-center transition-all ${
                                   isBlocked ? 'bg-red-500/10 text-red-500/50 border border-red-500/20 cursor-not-allowed' :
                                   isSelected ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40 border-emerald-400' :
                                   isWindow ? 'bg-blue-600/20 text-blue-300 border border-blue-500/50 hover:bg-blue-600/40' :
@@ -1393,7 +1461,7 @@ function BookingFlowInner() {
                                   'bg-white/10 text-white/80 border border-white/20 hover:bg-white/30'
                                 }`}
                               >
-                                {isBlocked ? <Lock className="w-4 h-4" /> : col}
+                                {isBlocked ? <Lock className="w-4 h-4" /> : displayCol}
                               </button>
                             );
                           })}
