@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Navbar from '@/components/Navbar';
 import { Search, Loader2, Train, MapPin, Clock, Calendar, ArrowDown, Activity } from 'lucide-react';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 
 export default function TrainStatusPage() {
   const [trainNo, setTrainNo] = useState('');
@@ -11,7 +12,7 @@ export default function TrainStatusPage() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
 
-  const checkStatus = (e: React.FormEvent) => {
+  const checkStatus = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (trainNo.length < 4) {
@@ -22,12 +23,41 @@ export default function TrainStatusPage() {
     setIsLoading(true);
     setResult(null);
 
-    // Simulate API Call for Live Running Status
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const res = await axios.get('http://localhost:5000/api/services');
+      const trains = res.data.filter((s: any) => s.type === 'Train');
+      
+      const matchedTrain = trains.find((t: any) => t.trainNumber === trainNo);
+      let trainName = trainNo.startsWith('TR-') ? 'SPECIAL CHARTER EXPRESS' : 'VANDE BHARAT EXP';
 
-      const now = new Date();
-      const currentHour = now.getHours();
+      if (matchedTrain) {
+        trainName = matchedTrain.name;
+        const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const shortDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const todayIdx = new Date().getDay();
+        const todayStr = daysOfWeek[todayIdx];
+        const shortTodayStr = shortDays[todayIdx];
+
+        const daysOfRun = matchedTrain.daysOfRun || [];
+        const runsToday = daysOfRun.includes('Daily') || daysOfRun.includes(todayStr) || daysOfRun.includes(shortTodayStr) || daysOfRun.includes(todayStr.substring(0,3));
+
+        if (!runsToday) {
+           toast.error(`Train ${trainNo} (${trainName}) does not operate on ${todayStr}s.`);
+           setIsLoading(false);
+           return;
+        }
+      } else if (trainNo !== 'TR-3101') {
+         toast.error(`Train ${trainNo} not found in schedule database.`);
+         setIsLoading(false);
+         return;
+      }
+
+      // Simulate API Call for Live Running Status
+      setTimeout(() => {
+        setIsLoading(false);
+
+        const now = new Date();
+        const currentHour = now.getHours();
       const currentMinute = now.getMinutes();
       const isLate = Math.random() > 0.4; // 60% chance of being late
       const delayMinutes = isLate ? Math.floor(Math.random() * 120) + 15 : 0; 
@@ -81,7 +111,7 @@ export default function TrainStatusPage() {
 
       setResult({
         trainNo: trainNo,
-        trainName: trainNo.startsWith('TR-') ? 'SPECIAL CHARTER EXPRESS' : 'VANDE BHARAT EXP',
+        trainName: trainName,
         startDate: 'Today',
         currentStation: baseStations[currentIndex].name,
         status: isLate ? 'Delayed' : 'On Time',
@@ -89,7 +119,11 @@ export default function TrainStatusPage() {
         lastUpdated: 'Just now',
         stations
       });
-    }, 1800);
+      }, 1800);
+    } catch (err) {
+      toast.error('Failed to connect to IRCTC Train Database');
+      setIsLoading(false);
+    }
   };
 
   return (
