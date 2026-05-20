@@ -7,6 +7,9 @@ router.post('/chat', async (req, res) => {
     const { message, history } = req.body;
     
     // Initialize the client
+    if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_api_key_here') {
+      return res.status(500).json({ error: 'GEMINI_API_KEY is not configured in the server. Please add a valid key to server/.env' });
+    }
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     
     let chatHistory = [];

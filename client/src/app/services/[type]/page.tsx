@@ -1315,7 +1315,11 @@ function BookingFlowInner() {
                      <label className="text-white/60 text-sm font-bold uppercase tracking-widest mt-2">Coach:</label>
                      <select value={selectedCoach} onChange={(e) => setSelectedCoach(e.target.value)} className="bg-black/40 border border-white/20 rounded-lg px-3 py-1 text-white font-medium outline-none">
                        {Array.from({length: 6}).map((_, i) => {
-                         const prefix = journeyDetails.travelClass.includes('1A') ? 'H' : journeyDetails.travelClass.includes('2A') ? 'A' : journeyDetails.travelClass.includes('3A') ? 'B' : 'S';
+                         const prefix = journeyDetails.travelClass.includes('1A') ? 'H' : 
+                                        journeyDetails.travelClass.includes('2A') ? 'A' : 
+                                        journeyDetails.travelClass.includes('3A') ? 'B' : 
+                                        journeyDetails.travelClass.includes('EC') ? 'E' : 
+                                        journeyDetails.travelClass.includes('CC') ? 'C' : 'S';
                          return <option key={i} value={`${prefix}${i+1}`}>{prefix}{i+1}</option>;
                        })}
                      </select>
@@ -1347,8 +1351,10 @@ function BookingFlowInner() {
                         seatRows = 10; seatLeft = ['A', 'B']; seatRight = ['C', 'D'];
                       }
                     } else if (!isHotel && !isFood) {
-                       if (journeyDetails.travelClass.includes('CC') || journeyDetails.travelClass.includes('EC') || journeyDetails.travelClass.includes('2S')) {
-                         seatRows = 12; seatLeft = ['A', 'B', 'C']; seatRight = ['D', 'E', 'F'];
+                       if (journeyDetails.travelClass.includes('EC')) {
+                         seatRows = 10; seatLeft = ['A', 'B']; seatRight = ['C', 'D'];
+                       } else if (journeyDetails.travelClass.includes('CC') || journeyDetails.travelClass.includes('2S')) {
+                         seatRows = 15; seatLeft = ['A', 'B', 'C']; seatRight = ['D', 'E'];
                        } else if (journeyDetails.travelClass.includes('1A')) {
                          seatRows = 10; 
                          seatLeft = ['U1', 'L1']; 
