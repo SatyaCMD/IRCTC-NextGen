@@ -36,8 +36,8 @@ export default function AdminLogin() {
     }
 
     // Basic client-side validation for demo
-    if (formData.adminId !== 'admin' || formData.password !== 'admin123') {
-      toast.error('Access Denied: Invalid admin credentials. Use admin / admin123');
+    if (formData.adminId !== 'admin' || formData.password !== 'admin@321') {
+      toast.error('Access Denied: Invalid admin credentials. Use admin / admin@321');
       return;
     }
 
@@ -171,7 +171,7 @@ export default function AdminLogin() {
             </button>
             
             <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-xl">
-               <p className="text-xs text-gray-500 font-mono">Demo Credentials:<br/>ID: <span className="text-white">admin</span> | Pass: <span className="text-white">admin123</span></p>
+               <p className="text-xs text-gray-500 font-mono">Demo Credentials:<br/>ID: <span className="text-white">admin</span> | Pass: <span className="text-white">admin@321</span></p>
             </div>
           </form>
 

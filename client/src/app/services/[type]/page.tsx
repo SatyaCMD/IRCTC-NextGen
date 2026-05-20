@@ -164,6 +164,14 @@ function BookingFlowInner() {
       return;
     }
 
+    if (journeyDetails.quota === 'Tatkal') {
+      const currentHour = new Date().getHours();
+      if (currentHour < 11 || currentHour >= 12) {
+        toast.error('Tatkal booking window is only open from 11 AM to 12 PM.');
+        return;
+      }
+    }
+
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
@@ -197,7 +205,10 @@ function BookingFlowInner() {
 
       const createdBooking = bookingRes.data;
 
-      const finalStatus = (journeyDetails.quota === 'Student' || journeyDetails.quota === 'Armed Forces') ? 'Verification Pending' : 'success';
+      let finalStatus = (journeyDetails.quota === 'Student' || journeyDetails.quota === 'Armed Forces') ? 'Verification Pending' : 'success';
+      if (journeyDetails.quota === 'Tatkal' && Math.random() < 0.3) {
+         finalStatus = 'WL';
+      }
       const confirmRes = await axios.put(`http://localhost:5000/api/bookings/${createdBooking._id}/payment`, {
         passengers,
         contactInfo,
@@ -297,7 +308,7 @@ function BookingFlowInner() {
 
   const chartPrepared = isChartPrepared();
   
-  let baseTotal = 0;
+  let passengersFare = 0;
   passengers.forEach(p => {
     let price = getBasePrice();
     // Dynamic pricing for Window / Middle seats in Flights and Buses
@@ -310,15 +321,18 @@ function BookingFlowInner() {
     if (journeyDetails.quota === 'Student') price *= 0.80; // 20% off
     else if (journeyDetails.quota === 'Senior Citizen') price *= 0.75; // 25% off
     else if (journeyDetails.quota === 'Armed Forces') price *= 0.70; // 30% off
+    else if (journeyDetails.quota === 'Tatkal') price *= 1.15; // 15% extra
     
-    baseTotal += price;
+    passengersFare += price;
   });
   
+  let pantryFare = 0;
   if (!isHotel && !isFood && wantsPantry) {
-    baseTotal += (selectedPantryMeal.price * pantryQuantity);
+    pantryFare = (selectedPantryMeal.price * pantryQuantity);
   }
   
-  const totalPrice = chartPrepared ? baseTotal * 1.25 : baseTotal;
+  const baseTotal = chartPrepared ? passengersFare * 1.25 : passengersFare;
+  const totalPrice = baseTotal + pantryFare;
 
   const generatePDF = async () => {
     const getBase64ImageFromUrl = async (imageUrl: string) => {
@@ -1115,12 +1129,12 @@ function BookingFlowInner() {
                     </div>
 
                     <div className="space-y-3 mb-6 font-semibold">
-                      <div className="flex justify-between text-blue-100/90 text-sm"><span>Base Fare (x{passengers.length})</span><span>₹{baseTotal.toLocaleString()}</span></div>
+                      <div className="flex justify-between text-blue-100/90 text-sm"><span>Base Fare (x{passengers.length})</span><span>₹{passengersFare.toLocaleString()}</span></div>
                       {chartPrepared && (
-                        <div className="flex justify-between text-red-400 font-bold text-sm"><span>Late Booking (Chart Prepared)</span><span>+ ₹{(baseTotal * 0.25).toLocaleString()}</span></div>
+                        <div className="flex justify-between text-red-400 font-bold text-sm"><span>Late Booking (Chart Prepared)</span><span>+ ₹{(passengersFare * 0.25).toLocaleString()}</span></div>
                       )}
                       {wantsPantry && (
-                        <div className="flex justify-between text-orange-400 font-bold text-sm"><span>Pantry Car ({selectedPantryMeal.name} x{pantryQuantity})</span><span>+ ₹{(selectedPantryMeal.price * pantryQuantity).toLocaleString()}</span></div>
+                        <div className="flex justify-between text-orange-400 font-bold text-sm"><span>Pantry Car ({selectedPantryMeal.name} x{pantryQuantity})</span><span>+ ₹{pantryFare.toLocaleString()}</span></div>
                       )}
                       <div className="flex justify-between text-blue-100/90 text-sm"><span>Taxes & Fees (18%)</span><span>₹{Math.round(totalPrice * 0.18).toLocaleString()}</span></div>
                     </div>

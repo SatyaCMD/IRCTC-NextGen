@@ -31,7 +31,11 @@ const bookingSchema = new mongoose.Schema({
     price: { type: Number }
   },
   refundAmount: { type: Number, default: 0 },
-  refundStatus: { type: String, enum: ['None', 'Initiated', 'Completed'], default: 'None' }
+  refundStatus: { type: String, enum: ['None', 'Initiated', 'Completed'], default: 'None' },
+  expireAt: { type: Date }
 }, { timestamps: true });
+
+// Auto-delete records 30 days after the journey date
+bookingSchema.index({ expireAt: 1 }, { expireAfterSeconds: 0 });
 
 module.exports = mongoose.model('Booking', bookingSchema);

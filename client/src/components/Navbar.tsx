@@ -8,6 +8,7 @@ import SessionTimer from './SessionTimer';
 
 export default function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -15,6 +16,8 @@ export default function Navbar() {
     const checkAuth = () => {
       const token = Cookies.get('token');
       setIsLoggedIn(!!token);
+      const adminToken = sessionStorage.getItem('admin_token');
+      setIsAdminLoggedIn(!!adminToken);
     };
     checkAuth();
     // Re-check periodically or listen to changes if needed, but for simplicity:
@@ -67,6 +70,10 @@ export default function Navbar() {
                 >
                   <LogOut className="w-4 h-4" /> Logout
                 </button>
+              </div>
+            ) : isAdminLoggedIn ? (
+              <div className="flex items-center gap-4 ml-4">
+                <span className="text-purple-400 font-bold text-sm bg-purple-500/10 px-3 py-1.5 rounded-lg border border-purple-500/30">Super Admin Active</span>
               </div>
             ) : (
               <>

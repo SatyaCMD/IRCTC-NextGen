@@ -80,7 +80,7 @@ router.get('/bookings', async (req, res) => {
 // GET dashboard stats
 router.get('/stats', async (req, res) => {
   try {
-    const totalUsers = await User.countDocuments();
+    const totalUsers = await User.countDocuments({ role: 'User', email: { $not: /demo/i }, name: { $not: /demo/i } });
     const activeServices = await Service.countDocuments({ status: 'Active' });
     const totalBookings = await Booking.countDocuments();
     // Dummy aggregate for revenue

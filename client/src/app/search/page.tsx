@@ -33,6 +33,19 @@ function SearchResults() {
                return st === rt || st + 's' === rt || st === rt + 's' || st + 'es' === rt || st === rt + 'es' || (st === 'bus' && rt === 'busses');
              });
           }
+
+          if (searchDate) {
+             const dateObj = new Date(searchDate);
+             const daysMap = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+             const fullDayMap = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+             const shortDay = daysMap[dateObj.getDay()];
+             const longDay = fullDayMap[dateObj.getDay()];
+             
+             results = results.filter((r: any) => {
+               if (!r.daysOfRun || r.daysOfRun.length === 0 || r.daysOfRun.includes('Daily')) return true;
+               return r.daysOfRun.some((d: string) => d.includes(shortDay) || d.includes(longDay));
+             });
+          }
           
           setTrains(results);
           setLoading(false);
@@ -211,7 +224,18 @@ function SearchResults() {
                     const isRegret = effectiveAvailability < -50;
 
                     return (
-                    <div key={cls.type} className={`border border-[#272a31] bg-[#1f222a] rounded-xl p-4 flex-1 min-w-[200px] transition-colors ${isRegret ? 'opacity-80' : 'cursor-pointer hover:border-blue-500'}`}>
+                    <div key={cls.type} className={`border border-[#272a31] bg-[#1f222a] rounded-xl p-4 flex-1 min-w-[200px] transition-colors ${isRegret ? 'opacity-80' : 'cursor-pointer hover:border-blue-500'} group/cls relative`}>
+                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-xs text-white px-3 py-1.5 rounded-lg opacity-0 group-hover/cls:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none border border-white/10 shadow-xl">
+                        {cls.type === '1A' ? 'First Class AC' : 
+                         cls.type === '2A' ? 'Second AC (2-Tier)' : 
+                         cls.type === '3A' ? 'Third AC (3-Tier)' : 
+                         cls.type === 'SL' ? 'Sleeper Class (Non-AC)' : 
+                         cls.type === '2S' ? 'Second Seater (Non-AC)' : 
+                         cls.type === 'CC' ? 'AC Chair Car' : 
+                         cls.type === 'EC' ? 'Executive Chair Car' : 
+                         cls.type === 'Economy' ? 'Standard Economy' : 
+                         cls.type === 'Business' ? 'Business Class' : `${cls.type} Class`}
+                      </div>
                       <div className="flex justify-between items-center mb-2">
                         <span className="font-bold text-white">{cls.type}</span>
                         <span className="text-blue-400 font-bold">₹{cls.price}</span>

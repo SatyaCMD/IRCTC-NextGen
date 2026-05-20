@@ -14,8 +14,8 @@ export default function TrainStatusPage() {
   const checkStatus = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (trainNo.length < 5) {
-      toast.error('Please enter a valid 5-digit Train Number.');
+    if (trainNo.length < 4) {
+      toast.error('Please enter a valid Train Number (e.g. 12951 or TR-3101).');
       return;
     }
 
@@ -25,22 +25,69 @@ export default function TrainStatusPage() {
     // Simulate API Call for Live Running Status
     setTimeout(() => {
       setIsLoading(false);
+
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      const isLate = Math.random() > 0.4; // 60% chance of being late
+      const delayMinutes = isLate ? Math.floor(Math.random() * 120) + 15 : 0; 
+      
+      const formatTime = (h: number, m: number) => `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+      const addMinutes = (timeStr: string, mins: number) => {
+        const [h, m] = timeStr.split(':').map(Number);
+        const date = new Date();
+        date.setHours(h, m + mins);
+        return formatTime(date.getHours(), date.getMinutes());
+      };
+
+      const baseStations = [
+        { name: 'New Delhi (NDLS)', time: '06:00' },
+        { name: 'Agra Cantt (AGC)', time: '07:50' },
+        { name: 'Gwalior (GWL)', time: '09:15' },
+        { name: 'Bhopal Jn (BPL)', time: '13:10' },
+        { name: 'Nagpur (NGP)', time: '17:30' },
+        { name: 'Secunderabad (SC)', time: '23:45' }
+      ];
+
+      const currentTimeStr = formatTime(currentHour, currentMinute);
+      let currentIndex = 0;
+      
+      for (let i = 0; i < baseStations.length; i++) {
+        if (currentTimeStr >= baseStations[i].time) {
+          currentIndex = i;
+        }
+      }
+
+      const stations = baseStations.map((st, i) => {
+        const actual = addMinutes(st.time, delayMinutes);
+        let status = 'Expected';
+        let isPassed = false;
+        let isCurrent = false;
+
+        if (i < currentIndex) {
+          status = 'Departed';
+          isPassed = true;
+        } else if (i === currentIndex) {
+          status = 'Arrived';
+          isCurrent = true;
+        }
+
+        if (status === 'Expected') {
+          return { ...st, actual: isLate ? actual : '--', status, isCurrent, isPassed };
+        }
+        
+        return { ...st, actual, status, isCurrent, isPassed };
+      });
+
       setResult({
         trainNo: trainNo,
-        trainName: 'VANDE BHARAT EXP',
+        trainName: trainNo.startsWith('TR-') ? 'SPECIAL CHARTER EXPRESS' : 'VANDE BHARAT EXP',
         startDate: 'Today',
-        currentStation: 'Bhopal Jn (BPL)',
-        status: 'On Time',
-        delay: '0 mins',
+        currentStation: baseStations[currentIndex].name,
+        status: isLate ? 'Delayed' : 'On Time',
+        delay: isLate ? `Late by ${delayMinutes > 60 ? Math.floor(delayMinutes/60) + 'hr ' + (delayMinutes%60) + 'm' : delayMinutes + ' mins'}` : '0 mins',
         lastUpdated: 'Just now',
-        stations: [
-          { name: 'New Delhi (NDLS)', time: '06:00', actual: '06:00', status: 'Departed', isCurrent: false, isPassed: true },
-          { name: 'Agra Cantt (AGC)', time: '07:50', actual: '07:53', status: 'Departed', isCurrent: false, isPassed: true },
-          { name: 'Gwalior (GWL)', time: '09:15', actual: '09:16', status: 'Departed', isCurrent: false, isPassed: true },
-          { name: 'Bhopal Jn (BPL)', time: '13:10', actual: '13:10', status: 'Arrived', isCurrent: true, isPassed: false },
-          { name: 'Nagpur (NGP)', time: '17:30', actual: '--', status: 'Expected', isCurrent: false, isPassed: false },
-          { name: 'Secunderabad (SC)', time: '23:45', actual: '--', status: 'Expected', isCurrent: false, isPassed: false }
-        ]
+        stations
       });
     }, 1800);
   };
@@ -71,15 +118,15 @@ export default function TrainStatusPage() {
               <input 
                 type="text" 
                 value={trainNo}
-                onChange={(e) => setTrainNo(e.target.value.replace(/\D/g, ''))}
-                maxLength={5}
-                placeholder="Enter Train Number (e.g. 12951)"
+                onChange={(e) => setTrainNo(e.target.value.toUpperCase())}
+                maxLength={10}
+                placeholder="Enter Train Number (e.g. 12951 or TR-3101)"
                 className="w-full bg-black/50 border border-white/10 rounded-2xl px-6 py-4 md:py-5 text-white text-lg font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-orange-500/50 transition-all placeholder:tracking-normal placeholder:font-sans"
               />
             </div>
             <button 
               type="submit" 
-              disabled={isLoading || trainNo.length < 5}
+              disabled={isLoading || trainNo.length < 4}
               className="bg-orange-600 hover:bg-orange-500 text-white px-8 py-4 md:py-5 rounded-2xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group whitespace-nowrap shadow-[0_0_20px_rgba(234,88,12,0.3)]"
             >
               {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Track Train'}
@@ -104,9 +151,10 @@ export default function TrainStatusPage() {
                 <div className="text-left md:text-right bg-black/40 p-4 rounded-2xl border border-white/5">
                   <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mb-1">Current Status</p>
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-xl font-bold text-emerald-400">{result.status}</span>
+                    <div className={`w-3 h-3 rounded-full ${result.status === 'Delayed' ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`} />
+                    <span className={`text-xl font-bold ${result.status === 'Delayed' ? 'text-red-400' : 'text-emerald-400'}`}>{result.status}</span>
                   </div>
+                  {result.status === 'Delayed' && <p className="text-red-300 text-xs font-bold mt-1">{result.delay}</p>}
                   <p className="text-gray-500 text-xs mt-1">Updated {result.lastUpdated}</p>
                 </div>
               </div>
