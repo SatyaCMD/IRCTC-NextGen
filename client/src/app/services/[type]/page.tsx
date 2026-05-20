@@ -1314,6 +1314,14 @@ function BookingFlowInner() {
                       } else {
                         seatRows = 10; seatLeft = ['A', 'B']; seatRight = ['C', 'D'];
                       }
+                    } else if (!isHotel && !isFood) {
+                       if (journeyDetails.travelClass.includes('CC') || journeyDetails.travelClass.includes('EC') || journeyDetails.travelClass.includes('2S')) {
+                         seatRows = 12; seatLeft = ['A', 'B', 'C']; seatRight = ['D', 'E', 'F'];
+                       } else {
+                         seatRows = 9; 
+                         seatLeft = ['SL', 'SU']; 
+                         seatRight = ['L1', 'M1', 'U1', 'L2', 'M2', 'U2'];
+                       }
                     }
 
                     return Array.from({ length: seatRows }).map((_, rowIdx) => (
@@ -1323,9 +1331,9 @@ function BookingFlowInner() {
                           {seatLeft.map(col => {
                             const seatId = `${rowIdx + 1}${col}`;
                             const isBlocked = bookedSeats.has(seatId);
-                            const isWindow = col === 'A';
+                            const isWindow = col === 'A' || col === 'SL' || col === 'L1';
                             const isMiddle = col === 'B' && !isBus;
-                            const seatType = isWindow ? 'Window Seat' : isMiddle ? 'Middle Seat' : 'Aisle Seat';
+                            const seatType = isWindow ? 'Window Seat' : isMiddle ? 'Middle Seat' : 'Aisle/Berth';
                             
                             const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').toUpperCase()}`;
                             const isSelected = (!isFlight && !isBus && !isHotel && !isFood) 
@@ -1341,7 +1349,7 @@ function BookingFlowInner() {
                                   updatePassenger(showSeatMapForPassenger, 'pref', newPref);
                                   setShowSeatMapForPassenger(null);
                                 }}
-                                className={`w-10 h-10 rounded-lg font-bold text-xs flex items-center justify-center transition-all ${
+                                className={`w-10 h-10 rounded-lg font-bold text-[10px] sm:text-xs flex items-center justify-center transition-all ${
                                   isBlocked ? 'bg-red-500/10 text-red-500/50 border border-red-500/20 cursor-not-allowed' :
                                   isSelected ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40 border-emerald-400' :
                                   isWindow ? 'bg-blue-600/20 text-blue-300 border border-blue-500/50 hover:bg-blue-600/40' :
@@ -1359,9 +1367,9 @@ function BookingFlowInner() {
                           {seatRight.map(col => {
                             const seatId = `${rowIdx + 1}${col}`;
                             const isBlocked = bookedSeats.has(seatId);
-                            const isWindow = col === 'F' || (isBus && col === 'D') || (isBus && col === 'C' && seatRight.length === 1);
+                            const isWindow = col === 'F' || (isBus && col === 'D') || (isBus && col === 'C' && seatRight.length === 1) || col === 'SU' || col === 'L2';
                             const isMiddle = col === 'E';
-                            const seatType = isWindow ? 'Window Seat' : isMiddle ? 'Middle Seat' : 'Aisle Seat';
+                            const seatType = isWindow ? 'Window Seat' : isMiddle ? 'Middle Seat' : 'Aisle/Berth';
                             
                             const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').toUpperCase()}`;
                             const isSelected = (!isFlight && !isBus && !isHotel && !isFood) 
@@ -1377,7 +1385,7 @@ function BookingFlowInner() {
                                   updatePassenger(showSeatMapForPassenger, 'pref', newPref);
                                   setShowSeatMapForPassenger(null);
                                 }}
-                                className={`w-10 h-10 rounded-lg font-bold text-xs flex items-center justify-center transition-all ${
+                                className={`w-10 h-10 rounded-lg font-bold text-[10px] sm:text-xs flex items-center justify-center transition-all ${
                                   isBlocked ? 'bg-red-500/10 text-red-500/50 border border-red-500/20 cursor-not-allowed' :
                                   isSelected ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40 border-emerald-400' :
                                   isWindow ? 'bg-blue-600/20 text-blue-300 border border-blue-500/50 hover:bg-blue-600/40' :
