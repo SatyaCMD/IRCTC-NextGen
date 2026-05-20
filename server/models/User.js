@@ -6,12 +6,21 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['User', 'Admin'], default: 'User' },
+  accountType: { type: String, enum: ['User', 'Employee'], default: 'User' },
+  employeeId: String,
+  employeeImage: String,
+  isEmployeeVerified: { type: Boolean, default: false },
+  employeeSubmittedAt: { type: Date, default: null },
   status: { type: String, enum: ['Active', 'Suspended'], default: 'Active' },
   preferences: {
     age: { type: Number },
     gender: { type: String, enum: ['Male', 'Female', 'Other'] },
     travelHabits: { type: String }
   },
+  dob: String,
+  address: String,
+  state: String,
+  pincode: String,
   loyaltyPoints: { type: Number, default: 150 }, // Give new users 150 points bonus
   walletBalance: { type: Number, default: 0 },
   walletTransactions: [{
@@ -20,7 +29,16 @@ const userSchema = new mongoose.Schema({
     description: String,
     date: { type: Date, default: Date.now },
     referenceId: String
-  }]
+  }],
+  kycStatus: { type: Boolean, default: false },
+  kycSubmittedAt: { type: Date, default: null },
+  kycUpdatedAt: { type: Date, default: null },
+  kycDetails: {
+    documentType: String,
+    documentNumber: String,
+    documentImage: String
+  },
+  phone: String
 }, { timestamps: true });
 
 userSchema.pre('save', async function() {

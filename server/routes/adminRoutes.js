@@ -3,6 +3,7 @@ const router = express.Router();
 const User = require('../models/User');
 const Service = require('../models/Service');
 const Booking = require('../models/Booking');
+const Settings = require('../models/Settings');
 
 // GET all users
 router.get('/users', async (req, res) => {
@@ -66,6 +67,16 @@ router.put('/services/:id', async (req, res) => {
   }
 });
 
+// GET all bookings
+router.get('/bookings', async (req, res) => {
+  try {
+    const bookings = await Booking.find().sort({ createdAt: -1 });
+    res.json(bookings);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch bookings' });
+  }
+});
+
 // GET dashboard stats
 router.get('/stats', async (req, res) => {
   try {
@@ -83,6 +94,35 @@ router.get('/stats', async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
+// GET Settings
+router.get('/settings', async (req, res) => {
+  try {
+    let settings = await Settings.findOne();
+    if (!settings) {
+      settings = new Settings();
+      await settings.save();
+    }
+    res.json(settings);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
+// UPDATE Settings
+router.put('/settings', async (req, res) => {
+  try {
+    let settings = await Settings.findOne();
+    if (!settings) settings = new Settings();
+    if (req.body.maintenanceMode !== undefined) settings.maintenanceMode = req.body.maintenanceMode;
+    if (req.body.aiAssistant !== undefined) settings.aiAssistant = req.body.aiAssistant;
+    if (req.body.bookingCommission !== undefined) settings.bookingCommission = req.body.bookingCommission;
+    await settings.save();
+    res.json(settings);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update settings' });
   }
 });
 

@@ -12,6 +12,7 @@ import autoTable from 'jspdf-autotable';
 export default function BookingHistory() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
   const [expandedBooking, setExpandedBooking] = useState<string | null>(null);
   const [cancelModal, setCancelModal] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -19,7 +20,20 @@ export default function BookingHistory() {
 
   useEffect(() => {
     fetchHistory();
+    fetchUser();
   }, []);
+
+  const fetchUser = async () => {
+    try {
+      const token = Cookies.get('token');
+      if (token) {
+        const res = await axios.get('http://localhost:5000/api/auth/me', { headers: { Authorization: `Bearer ${token}` }});
+        setUser(res.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch user', err);
+    }
+  };
 
   const fetchHistory = async () => {
     try {
@@ -123,10 +137,24 @@ export default function BookingHistory() {
     });
 
     const py = (doc as any).lastAutoTable?.finalY || 100;
+    
+    let offsetY = py + 15;
+    
+    if (user && user.accountType === 'Employee') {
+       doc.setFontSize(9);
+       doc.setFont("helvetica", "bold");
+       doc.setTextColor(0, 51, 153);
+       doc.text(`Employee Booking: ID [${user.employeeId || 'N/A'}] - Status: ${user.isEmployeeVerified ? 'Verified' : 'Pending'} (Staff Booking)`, 15, offsetY);
+       doc.setTextColor(0);
+       offsetY += 10;
+    }
+
+    doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text("Payment Details", 15, py + 15);
+    doc.text("Payment Details", 15, offsetY);
+    doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(`Total Amount Paid: Rs. ${booking.totalPrice.toLocaleString()}`, 15, py + 22);
+    doc.text(`Total Amount Paid: Rs. ${booking.totalPrice.toLocaleString()}`, 15, offsetY + 7);
     
     doc.setFontSize(8);
     doc.setTextColor(150);

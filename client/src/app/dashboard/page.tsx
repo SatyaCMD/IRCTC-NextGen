@@ -5,7 +5,7 @@ import Navbar from '@/components/Navbar';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Ticket, LogOut, Download, User as UserIcon } from 'lucide-react';
+import { Ticket, LogOut, Download, User as UserIcon, Trash2, Edit3, Shield, Loader2, X, AlertTriangle, Phone } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -15,6 +15,19 @@ export default function Dashboard() {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get('tab') === 'profile' ? 'profile' : 'history';
   const [activeTab, setActiveTab] = useState<'history' | 'profile'>(initialTab);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showKYCModal, setShowKYCModal] = useState(false);
+  const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [phoneStep, setPhoneStep] = useState<'phone' | 'otp'>('phone');
+  const [phoneInput, setPhoneInput] = useState('');
+  const [otpInput, setOtpInput] = useState('');
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', phone: '', age: '', gender: '', travelHabits: '', dob: '', address: '', state: '', pincode: '' });
+  const [kycForm, setKycForm] = useState({ documentType: 'Aadhaar', documentNumber: '', documentImage: '' });
   const router = useRouter();
 
   useEffect(() => {
@@ -27,7 +40,24 @@ export default function Dashboard() {
     // Get user Profile
     axios.get('http://localhost:5000/api/auth/me', {
       headers: { Authorization: `Bearer ${token}` }
-    }).then(res => setUser(res.data)).catch(() => router.push('/login'));
+    }).then(res => {
+      const userData = res.data;
+      setUser(userData);
+      setEditForm({
+        name: userData.name || '',
+        phone: userData.phone || '',
+        age: userData.preferences?.age || '',
+        gender: userData.preferences?.gender || 'Male',
+        travelHabits: userData.preferences?.travelHabits || '',
+        dob: userData.dob || '',
+        address: userData.address || '',
+        state: userData.state || '',
+        pincode: userData.pincode || ''
+      });
+      if (!userData.kycStatus && !userData.kycSubmittedAt) {
+        setShowKYCModal(true);
+      }
+    }).catch(() => router.push('/login'));
 
     // Get Booking History
     axios.get('http://localhost:5000/api/bookings/history', {
@@ -204,19 +234,29 @@ export default function Dashboard() {
     doc.setFontSize(6);
     doc.setFont("helvetica", "bold");
     doc.text("Acronyms:             RLWL: REMOTE LOCATION WAITLIST                 PQWL: POOLED QUOTA WAITLIST                 RSWL: ROAD-SIDE WAITLIST", 12, py + 6);
-    doc.text(`Contact Details:     Email: ${user.email}                 Mobile: ${user.phone || 'N/A'}`, 12, py + 10);
+    
+    let offsetY = py + 10;
+    
+    if (user && user.accountType === 'Employee') {
+      doc.setTextColor(0, 51, 153);
+      doc.text(`Employee Details:    ID: ${user.employeeId || 'N/A'}                 Status: Verified (Staff Discount Applied)`, 12, offsetY);
+      doc.setTextColor(0);
+      offsetY += 4;
+    }
+    
+    doc.text(`Contact Details:     Email: ${user.email}                 Mobile: ${user.phone || 'N/A'}`, 12, offsetY);
 
     // Transaction ID
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    doc.text(`Transaction ID: ${booking.bookingRef || booking._id}`, 12, py + 16);
+    doc.text(`Transaction ID: ${booking.bookingRef || booking._id}`, 12, offsetY + 6);
     doc.setFont("helvetica", "normal");
-    doc.text("IR recovers only 57% of cost of travel on an average.", 12, py + 20);
+    doc.text("IR recovers only 57% of cost of travel on an average.", 12, offsetY + 10);
 
     // Payment Details
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("Payment Details", 12, py + 26);
+    doc.text("Payment Details", 12, offsetY + 16);
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
 
@@ -325,7 +365,15 @@ export default function Dashboard() {
                 <Ticket className="w-5 h-5" /> PNR Status
               </button>
               <div className="h-px w-full bg-white/5 my-6"></div>
-              <button onClick={handleLogout} className="w-full flex items-center px-5 py-3.5 text-red-400 hover:bg-red-500/10 rounded-xl transition-all font-bold group">
+              
+              <button onClick={() => setShowEditModal(true)} className="w-full flex items-center px-5 py-3.5 text-gray-300 hover:text-white hover:bg-white/5 rounded-xl transition-all font-bold">
+                <Edit3 className="w-5 h-5 mr-3" /> Edit Profile
+              </button>
+              <button onClick={() => setShowDeleteModal(true)} className="w-full flex items-center px-5 py-3.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-all font-bold">
+                <Trash2 className="w-5 h-5 mr-3" /> Delete Account
+              </button>
+              
+              <button onClick={handleLogout} className="w-full flex items-center px-5 py-3.5 text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all font-bold group mt-2">
                 <LogOut className="w-5 h-5 mr-3 group-hover:-translate-x-1 transition-transform" /> Logout
               </button>
             </div>
@@ -412,15 +460,15 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <label className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 block">Email Address</label>
-                    <div className="bg-black/50 border border-white/10 rounded-xl p-4 text-white font-medium text-lg">
+                    <div className="bg-black/50 border border-white/10 rounded-xl p-4 text-white font-medium text-base break-all">
                       {user.email}
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 block">Mobile Number</label>
+                    <label className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 block flex items-center gap-2">Mobile Number <Edit3 className="w-3 h-3 cursor-pointer text-gray-400 hover:text-white" onClick={() => { setPhoneStep('phone'); setPhoneInput(user.phone || ''); setShowPhoneModal(true); }} /></label>
                     <div className="bg-black/50 border border-white/10 rounded-xl p-4 text-gray-400 font-medium text-lg flex justify-between items-center">
                       <span>{user.phone || '+91 - Not Linked'}</span>
-                      {!user.phone && <span className="text-xs bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full font-bold cursor-pointer hover:bg-blue-500/30">Link Now</span>}
+                      {!user.phone && <span onClick={() => { setPhoneStep('phone'); setPhoneInput(''); setShowPhoneModal(true); }} className="text-xs bg-blue-500/20 text-blue-400 px-3 py-1 rounded-full font-bold cursor-pointer hover:bg-blue-500/30">Link Now</span>}
                     </div>
                   </div>
                 </div>
@@ -430,20 +478,22 @@ export default function Dashboard() {
                   <div>
                     <label className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 block">Aadhaar / KYC</label>
                     <div className="bg-black/50 border border-white/10 rounded-xl p-4 text-gray-400 font-medium text-lg flex justify-between items-center">
-                      <span>{user.aadhaar || 'Unverified'}</span>
-                      {!user.aadhaar && <span className="text-xs bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full font-bold cursor-pointer hover:bg-amber-500/30">Verify KYC</span>}
+                      <span className={user?.kycStatus ? 'text-emerald-400' : user?.kycSubmittedAt ? 'text-amber-400' : 'text-gray-400'}>
+                        {user?.kycStatus ? 'Verified' : user?.kycSubmittedAt ? 'Under Review' : 'Unverified'}
+                      </span>
+                      {!user?.kycStatus && !user?.kycSubmittedAt && <span onClick={() => setShowKYCModal(true)} className="text-xs bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full font-bold cursor-pointer hover:bg-amber-500/30">Verify KYC</span>}
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 block">Date of Birth</label>
+                    <label className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 block flex items-center gap-2">Date of Birth <Edit3 className="w-3 h-3 cursor-pointer text-gray-400 hover:text-white" onClick={() => setShowEditModal(true)} /></label>
                     <div className="bg-black/50 border border-white/10 rounded-xl p-4 text-gray-400 font-medium text-lg">
                       {user.dob || 'DD/MM/YYYY'}
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 block">Gender</label>
+                    <label className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 block flex items-center gap-2">Gender <Edit3 className="w-3 h-3 cursor-pointer text-gray-400 hover:text-white" onClick={() => setShowEditModal(true)} /></label>
                     <div className="bg-black/50 border border-white/10 rounded-xl p-4 text-gray-400 font-medium text-lg">
-                      {user.gender || 'Not Specified'}
+                      {user?.preferences?.gender || 'Not Specified'}
                     </div>
                   </div>
                 </div>
@@ -451,13 +501,13 @@ export default function Dashboard() {
                 {/* Column 3 */}
                 <div className="space-y-6">
                   <div>
-                    <label className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 block">Address</label>
+                    <label className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 block flex items-center gap-2">Address <Edit3 className="w-3 h-3 cursor-pointer text-gray-400 hover:text-white" onClick={() => setShowEditModal(true)} /></label>
                     <div className="bg-black/50 border border-white/10 rounded-xl p-4 text-gray-400 font-medium text-lg">
                       {user.address || 'No Address Added'}
                     </div>
                   </div>
                   <div>
-                    <label className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 block">State & Pincode</label>
+                    <label className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 block flex items-center gap-2">State & Pincode <Edit3 className="w-3 h-3 cursor-pointer text-gray-400 hover:text-white" onClick={() => setShowEditModal(true)} /></label>
                     <div className="bg-black/50 border border-white/10 rounded-xl p-4 text-gray-400 font-medium text-lg">
                       {user.state || 'State'} - {user.pincode || '000000'}
                     </div>
@@ -470,16 +520,394 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-
-              <div className="mt-12 pt-8 border-t border-white/10 flex justify-end">
-                <button className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3.5 rounded-xl font-bold transition-all shadow-[0_5px_15px_rgba(37,99,235,0.3)] hover:shadow-[0_5px_20px_rgba(37,99,235,0.5)] hover:-translate-y-0.5">
-                  Edit Profile
-                </button>
-              </div>
             </div>
           )}
         </div>
       </div>
+      
+      {/* Edit Profile Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-[#111] border border-white/10 rounded-2xl max-w-2xl w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200 my-8">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-blue-400" /> Edit Profile
+              </h3>
+              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">Email (Cannot be changed)</label>
+                  <input 
+                    type="email" 
+                    value={user?.email} 
+                    disabled
+                    className="w-full bg-black/50 border border-white/5 rounded-xl py-2 px-3 text-gray-500 cursor-not-allowed"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">Full Name</label>
+                  <input 
+                    type="text" 
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">Date of Birth</label>
+                  <input 
+                    type="date" 
+                    value={editForm.dob}
+                    onChange={(e) => setEditForm({...editForm, dob: e.target.value})}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50 color-scheme-dark"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">Gender</label>
+                  <select 
+                    value={editForm.gender}
+                    onChange={(e) => setEditForm({...editForm, gender: e.target.value})}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50"
+                  >
+                    <option value="Male" className="bg-[#111]">Male</option>
+                    <option value="Female" className="bg-[#111]">Female</option>
+                    <option value="Other" className="bg-[#111]">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1">Address</label>
+                <input 
+                  type="text" 
+                  value={editForm.address}
+                  onChange={(e) => setEditForm({...editForm, address: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50"
+                  placeholder="Enter full address"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">State</label>
+                  <select 
+                    value={editForm.state}
+                    onChange={(e) => setEditForm({...editForm, state: e.target.value})}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50"
+                  >
+                    <option value="" className="bg-[#111]">Select State</option>
+                    <option value="Andhra Pradesh" className="bg-[#111]">Andhra Pradesh</option>
+                    <option value="Assam" className="bg-[#111]">Assam</option>
+                    <option value="Bihar" className="bg-[#111]">Bihar</option>
+                    <option value="Delhi" className="bg-[#111]">Delhi</option>
+                    <option value="Gujarat" className="bg-[#111]">Gujarat</option>
+                    <option value="Haryana" className="bg-[#111]">Haryana</option>
+                    <option value="Karnataka" className="bg-[#111]">Karnataka</option>
+                    <option value="Kerala" className="bg-[#111]">Kerala</option>
+                    <option value="Maharashtra" className="bg-[#111]">Maharashtra</option>
+                    <option value="Punjab" className="bg-[#111]">Punjab</option>
+                    <option value="Rajasthan" className="bg-[#111]">Rajasthan</option>
+                    <option value="Tamil Nadu" className="bg-[#111]">Tamil Nadu</option>
+                    <option value="Uttar Pradesh" className="bg-[#111]">Uttar Pradesh</option>
+                    <option value="West Bengal" className="bg-[#111]">West Bengal</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">Pincode</label>
+                  <input 
+                    type="text" 
+                    maxLength={6}
+                    value={editForm.pincode}
+                    onChange={(e) => setEditForm({...editForm, pincode: e.target.value})}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50"
+                    placeholder="6-digit Pincode"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1">Travel Habits</label>
+                <input 
+                  type="text" 
+                  value={editForm.travelHabits}
+                  placeholder="e.g. Frequent Flyer, Budget Traveler"
+                  onChange={(e) => setEditForm({...editForm, travelHabits: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50"
+                />
+              </div>
+
+              <button 
+                onClick={async () => {
+                  setIsProcessing(true);
+                  try {
+                    await axios.put('http://localhost:5000/api/auth/profile', 
+                      { ...editForm, age: Number(editForm.age) }, 
+                      { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
+                    );
+                    import('react-hot-toast').then(mod => mod.default.success('Profile updated successfully!'));
+                    window.location.reload();
+                  } catch (err) {
+                    import('react-hot-toast').then(mod => mod.default.error('Failed to update profile'));
+                  } finally {
+                    setIsProcessing(false);
+                  }
+                }}
+                disabled={isProcessing}
+                className="w-full mt-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all flex justify-center items-center gap-2"
+              >
+                {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirm Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Phone OTP Modal */}
+      {showPhoneModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#111] border border-white/10 rounded-2xl max-w-sm w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <Phone className="w-5 h-5 text-blue-400" /> Link Phone
+              </h3>
+              <button onClick={() => setShowPhoneModal(false)} className="text-gray-400 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {phoneStep === 'phone' ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">Mobile Number</label>
+                  <div className="flex bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                    <span className="px-3 py-3 bg-black/50 text-gray-400 border-r border-white/10 font-bold">+91</span>
+                    <input 
+                      type="text" 
+                      maxLength={10}
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value.replace(/\D/g, ''))}
+                      className="w-full py-2 px-3 text-white focus:outline-none bg-transparent"
+                      placeholder="10-digit number"
+                    />
+                  </div>
+                </div>
+                <button 
+                  onClick={() => {
+                    if (phoneInput.length === 10) {
+                      const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
+                      setGeneratedOtp(newOtp);
+                      setPhoneStep('otp');
+                      import('react-hot-toast').then(mod => mod.default.success(`OTP sent! (Debug OTP: ${newOtp})`));
+                    } else {
+                      import('react-hot-toast').then(mod => mod.default.error('Enter valid 10-digit number'));
+                    }
+                  }}
+                  className="w-full mt-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all"
+                >
+                  Send OTP
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-400 text-center mb-4">Enter the 4-digit OTP sent to +91 {phoneInput}</p>
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1 text-center">Enter OTP</label>
+                  <input 
+                    type="text" 
+                    maxLength={4}
+                    value={otpInput}
+                    onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-center text-2xl font-mono tracking-[1em] text-white focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+                <button 
+                  onClick={async () => {
+                    if (otpInput === generatedOtp) {
+                      setIsProcessing(true);
+                      try {
+                        await axios.put('http://localhost:5000/api/auth/profile', 
+                          { phone: phoneInput }, 
+                          { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
+                        );
+                        import('react-hot-toast').then(mod => mod.default.success('Phone number linked successfully!'));
+                        window.location.reload();
+                      } catch (err) {
+                        import('react-hot-toast').then(mod => mod.default.error('Failed to link phone'));
+                      } finally {
+                        setIsProcessing(false);
+                      }
+                    } else {
+                      import('react-hot-toast').then(mod => mod.default.error('Invalid OTP. Please check the debug message.'));
+                    }
+                  }}
+                  disabled={isProcessing}
+                  className="w-full mt-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all flex justify-center items-center gap-2"
+                >
+                  {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Verify & Link'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* KYC Mandatory Modal */}
+      {showKYCModal && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-[#111] border border-blue-500/30 rounded-2xl max-w-md w-full p-8 shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-500/30">
+              <Shield className="w-8 h-8 text-blue-500" />
+            </div>
+            <h3 className="text-2xl font-bold text-center mb-2">Mandatory KYC Verification</h3>
+            <p className="text-gray-400 text-center mb-6 text-sm">
+              As per government regulations, you must complete your KYC to book tickets and use the IRCTC Wallet. This is a one-time process.
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1">Document Type</label>
+                <select 
+                  value={kycForm.documentType}
+                  onChange={(e) => setKycForm({...kycForm, documentType: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-blue-500/50"
+                >
+                  <option value="Aadhaar" className="bg-[#111]">Aadhaar Card</option>
+                  <option value="PAN" className="bg-[#111]">PAN Card</option>
+                  <option value="Passport" className="bg-[#111]">Passport</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1">Document Number</label>
+                <input 
+                  type="text" 
+                  value={kycForm.documentNumber}
+                  onChange={(e) => setKycForm({...kycForm, documentNumber: e.target.value.toUpperCase()})}
+                  placeholder="Enter Document Number"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-blue-500/50 uppercase"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1">Document Image</label>
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onloadend = () => setKycForm({...kycForm, documentImage: reader.result as string});
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-500/20 file:text-blue-400 hover:file:bg-blue-500/30"
+                />
+              </div>
+
+              <button 
+                onClick={async () => {
+                  if (!kycForm.documentNumber || kycForm.documentNumber.length < 5) {
+                    import('react-hot-toast').then(mod => mod.default.error('Please enter a valid document number'));
+                    return;
+                  }
+                  if (!kycForm.documentImage) {
+                    import('react-hot-toast').then(mod => mod.default.error('Please upload an image of the document'));
+                    return;
+                  }
+                  setIsProcessing(true);
+                  try {
+                    const res = await axios.post('http://localhost:5000/api/auth/kyc', 
+                      kycForm, 
+                      { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
+                    );
+                    import('react-hot-toast').then(mod => mod.default.success(res.data.message || 'KYC submitted! Under review for 5 minutes.'));
+                    setShowKYCModal(false);
+                    // Refresh the user data to reflect pending status
+                    window.location.reload();
+                  } catch (err) {
+                    import('react-hot-toast').then(mod => mod.default.error('Failed to complete KYC'));
+                  } finally {
+                    setIsProcessing(false);
+                  }
+                }}
+                disabled={isProcessing}
+                className="w-full mt-6 py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all flex justify-center items-center gap-2"
+              >
+                {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Complete KYC'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#111] border border-white/10 rounded-2xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200 text-center">
+            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/30">
+              <AlertTriangle className="w-8 h-8 text-red-500" />
+            </div>
+            <h3 className="text-2xl font-bold mb-2">Delete Account Permanently?</h3>
+            <p className="text-gray-400 mb-6 text-sm">
+              Are you sure you want to delete your account? This action is irreversible. All your wallet data and history will be lost.
+              <br /><br />
+              <span className="text-amber-500 font-semibold bg-amber-500/10 px-3 py-2 rounded-lg block">
+                Note: If you have active confirmed bookings, your account cannot be deleted until they are completed or cancelled.
+              </span>
+            </p>
+            
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold transition-colors border border-white/10"
+              >
+                No, Keep It
+              </button>
+              <button 
+                onClick={async () => {
+                  setIsDeleting(true);
+                  try {
+                    await axios.delete('http://localhost:5000/api/auth/delete', {
+                      headers: { Authorization: `Bearer ${Cookies.get('token')}` }
+                    });
+                    import('react-hot-toast').then(mod => mod.default.success('Account deleted permanently.'));
+                    Cookies.remove('token');
+                    Cookies.remove('user');
+                    setTimeout(() => {
+                      router.push('/');
+                    }, 1500);
+                  } catch (err: any) {
+                    if (err.response && err.response.data && err.response.data.error) {
+                      import('react-hot-toast').then(mod => mod.default.error(err.response.data.error, { duration: 5000 }));
+                    } else {
+                      import('react-hot-toast').then(mod => mod.default.error('Failed to delete account. Please try again later.'));
+                    }
+                    setShowDeleteModal(false);
+                  } finally {
+                    setIsDeleting(false);
+                  }
+                }}
+                disabled={isDeleting}
+                className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold transition-colors flex justify-center items-center gap-2"
+              >
+                {isDeleting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Yes, Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </main>
   );
 }

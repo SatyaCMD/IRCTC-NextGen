@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import { useRouter } from 'next/navigation';
-import { User, Mail, Calendar, Shield, CreditCard, Clock, Train, CheckCircle2, Ticket, X, Loader2, Trash2, AlertTriangle } from 'lucide-react';
+import { User, Mail, Calendar, Shield, CreditCard, Clock, Train, CheckCircle2, Ticket, X, Loader2, Trash2, AlertTriangle, Edit3, Phone, LogOut } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import toast from 'react-hot-toast';
 
@@ -14,9 +14,13 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showKYCModal, setShowKYCModal] = useState(false);
   const [walletAmount, setWalletAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', phone: '', age: '', gender: '', travelHabits: '' });
+  const [kycForm, setKycForm] = useState({ documentType: 'Aadhaar', documentNumber: '' });
   const router = useRouter();
 
   useEffect(() => {
@@ -37,10 +41,23 @@ export default function ProfilePage() {
           })
         ]);
 
-        setUser(userRes.data);
-        setBookings(bookingsRes.data);
+        const userData = userRes.data;
+        setUser(userData);
+        setBookings(bookingsRes.data || []);
+        setEditForm({
+          name: userData.name || '',
+          phone: userData.phone || '',
+          age: userData.preferences?.age || '',
+          gender: userData.preferences?.gender || 'Male',
+          travelHabits: userData.preferences?.travelHabits || ''
+        });
+
+        if (!userData.kycStatus) {
+          setShowKYCModal(true);
+        }
       } catch (err) {
-        toast.error('Failed to load profile data');
+        toast.error('Failed to load profile');
+        router.push('/login');
       } finally {
         setIsLoading(false);
       }
@@ -57,185 +74,151 @@ export default function ProfilePage() {
     );
   }
 
+  const handleLogout = () => {
+    Cookies.remove('token');
+    router.push('/login');
+  };
+
   return (
-    <main className="min-h-screen bg-[#050505] text-white pt-24 pb-12">
-      <Navbar />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header Section */}
-        <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900/40 via-purple-900/40 to-blue-900/40 border border-white/10 p-8 backdrop-blur-sm">
-          <div className="absolute top-0 right-0 p-12 opacity-10">
-            <User className="w-64 h-64" />
-          </div>
-          
-          <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
-            <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center border-4 border-[#050505] shadow-2xl">
-              <span className="text-5xl font-bold text-white uppercase">{user?.name?.charAt(0) || 'U'}</span>
+    <main className="min-h-screen bg-[#050505] text-white pt-24 pb-12 flex justify-center">
+      <div className="max-w-6xl w-full px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row gap-8">
+        
+        {/* Sidebar */}
+        <div className="w-full md:w-80 shrink-0 bg-[#0a0a0c] border border-white/5 rounded-3xl p-6 flex flex-col shadow-2xl h-fit">
+          <div className="flex flex-col items-center text-center mb-8 mt-4">
+            <div className="w-24 h-24 rounded-full bg-blue-600/20 flex items-center justify-center border-2 border-blue-500 shadow-[0_0_30px_rgba(59,130,246,0.3)] mb-4">
+              <span className="text-4xl font-bold text-white uppercase">{user?.name?.charAt(0) || 'U'}</span>
             </div>
+            <h2 className="text-2xl font-bold">{user?.name || 'Loading...'}</h2>
+            <p className="text-gray-400 text-sm mt-1">{user?.email}</p>
+          </div>
+
+          <div className="flex flex-col gap-2 mt-4 flex-1">
+            <button onClick={() => router.push('/history')} className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:text-white hover:bg-white/5 transition-colors font-medium text-sm text-left">
+              <Ticket className="w-5 h-5" /> Booking History
+            </button>
+            <button className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 transition-colors font-medium text-sm text-left">
+              <User className="w-5 h-5" /> My Profile
+            </button>
+            <button onClick={() => router.push('/pnr-status')} className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:text-white hover:bg-white/5 transition-colors font-medium text-sm text-left">
+              <Train className="w-5 h-5" /> PNR Status
+            </button>
             
-            <div className="flex-1 text-center md:text-left">
-              <div className="flex items-center gap-3 justify-center md:justify-start mb-2">
-                <h1 className="text-4xl font-bold">{user?.name}</h1>
-                {user?.role === 'Admin' && (
-                  <span className="bg-purple-500/20 text-purple-400 border border-purple-500/30 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                    <Shield className="w-3 h-3" /> Admin
-                  </span>
+            <div className="my-4 border-t border-white/5"></div>
+
+            <button onClick={() => setShowEditModal(true)} className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:text-white hover:bg-white/5 transition-colors font-medium text-sm text-left">
+              <Edit3 className="w-5 h-5" /> Edit Profile
+            </button>
+            <button onClick={() => setShowDeleteModal(true)} className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors font-medium text-sm text-left">
+              <Trash2 className="w-5 h-5" /> Delete Account
+            </button>
+            <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:text-red-400 hover:bg-red-500/10 transition-colors font-bold text-sm text-left mt-2">
+              <LogOut className="w-5 h-5" /> Logout
+            </button>
+          </div>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 bg-[#0a0a0c] border border-white/5 rounded-3xl p-8 shadow-2xl">
+          <h2 className="text-2xl font-bold mb-8">Personal Information</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            {/* FULL NAME */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Full Name</label>
+              <div className="bg-[#111113] border border-white/5 rounded-xl px-4 py-3 text-white font-medium min-h-[50px] flex items-center">
+                {user?.name}
+              </div>
+            </div>
+
+            {/* AADHAAR / KYC */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Aadhaar / KYC</label>
+              <div className="bg-[#111113] border border-white/5 rounded-xl px-4 py-3 text-white font-medium min-h-[50px] flex items-center justify-between">
+                <span className={user?.kycStatus ? 'text-emerald-400' : 'text-gray-400'}>
+                  {user?.kycStatus ? 'Verified' : 'Unverified'}
+                </span>
+                {!user?.kycStatus && (
+                  <button 
+                    onClick={() => setShowKYCModal(true)} 
+                    className="bg-yellow-600/20 text-yellow-500 border border-yellow-600/30 px-3 py-1 rounded-lg text-xs font-bold"
+                  >
+                    Verify KYC
+                  </button>
                 )}
               </div>
-              <p className="text-gray-400 flex items-center gap-2 justify-center md:justify-start mb-4">
-                <Mail className="w-4 h-4" /> {user?.email}
-              </p>
-              
-              <div className="flex flex-wrap gap-4 justify-center md:justify-start">
-                <div className="bg-black/50 border border-white/10 px-4 py-2 rounded-xl flex items-center gap-2">
-                  <span className="text-sm text-gray-400">User ID:</span>
-                  <span className="font-mono text-blue-400 font-bold">{user?._id?.substring(0, 8).toUpperCase()}</span>
-                </div>
-                <div className="bg-black/50 border border-white/10 px-4 py-2 rounded-xl flex items-center gap-2">
-                  <span className="text-sm text-gray-400">Joined:</span>
-                  <span className="text-gray-200">{new Date(user?.createdAt).toLocaleDateString()}</span>
-                </div>
+            </div>
+
+            {/* ADDRESS */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Address</label>
+              <div className="bg-[#111113] border border-white/5 rounded-xl px-4 py-3 text-gray-400 font-medium min-h-[50px] flex items-center">
+                No Address Added
               </div>
             </div>
 
-            {/* Loyalty Points Badge */}
-            <div className="bg-gradient-to-b from-yellow-500/20 to-yellow-600/10 border border-yellow-500/30 p-6 rounded-2xl flex flex-col items-center justify-center min-w-[150px] shadow-lg shadow-yellow-500/5">
-              <Ticket className="w-8 h-8 text-yellow-500 mb-2" />
-              <div className="text-4xl font-bold text-yellow-500 mb-1">{user?.loyaltyPoints || 150}</div>
-              <div className="text-xs text-yellow-500/70 uppercase tracking-widest font-semibold">Loyalty Points</div>
-            </div>
-
-            {/* Wallet Balance Badge */}
-            <div className="bg-gradient-to-b from-emerald-500/20 to-emerald-600/10 border border-emerald-500/30 p-6 rounded-2xl flex flex-col items-center justify-center min-w-[180px] shadow-lg shadow-emerald-500/5">
-              <CreditCard className="w-8 h-8 text-emerald-500 mb-2" />
-              <div className="text-4xl font-bold text-emerald-500 mb-1">₹{user?.walletBalance || 0}</div>
-              <div className="text-xs text-emerald-500/70 uppercase tracking-widest font-semibold">IRCTC Wallet</div>
-              <button 
-                 onClick={() => setShowWalletModal(true)}
-                 className="mt-3 text-[10px] bg-emerald-500 hover:bg-emerald-400 transition-colors text-white px-3 py-1.5 rounded-full uppercase tracking-wider font-bold cursor-pointer relative z-20">
-                 + Add Money
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* Left Column - Details */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <User className="w-5 h-5 text-blue-400" /> Personal Info
-              </h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs text-gray-500 uppercase tracking-wider">Account Status</label>
-                  <p className="font-medium text-emerald-400 flex items-center gap-2 mt-1">
-                    <CheckCircle2 className="w-4 h-4" /> {user?.status || 'Active'}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-xs text-gray-500 uppercase tracking-wider">Role</label>
-                  <p className="font-medium text-gray-200 mt-1">{user?.role}</p>
-                </div>
+            {/* EMAIL ADDRESS */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Email Address</label>
+              <div className="bg-[#111113] border border-white/5 rounded-xl px-4 py-3 text-white font-medium min-h-[50px] flex items-center">
+                {user?.email}
               </div>
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-purple-400" /> Payment Methods
-              </h3>
-              <div className="text-sm text-gray-400 bg-black/40 p-4 rounded-xl border border-white/5">
-                No saved payment methods. Book a ticket to save your card securely.
+            {/* DATE OF BIRTH */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Date of Birth</label>
+              <div className="bg-[#111113] border border-white/5 rounded-xl px-4 py-3 text-gray-400 font-medium min-h-[50px] flex items-center">
+                DD/MM/YYYY
               </div>
             </div>
 
-            <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6 backdrop-blur-sm mt-6">
-              <h3 className="text-lg font-semibold mb-2 flex items-center gap-2 text-red-400">
-                <Shield className="w-5 h-5" /> Danger Zone
-              </h3>
-              <p className="text-sm text-gray-400 mb-4">
-                Permanently delete your account and all associated personal data.
-              </p>
-              <button 
-                onClick={() => setShowDeleteModal(true)}
-                className="w-full flex justify-center items-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl transition-colors border border-red-500/30 font-bold text-sm"
-              >
-                <Trash2 className="w-4 h-4" /> Delete Account
-              </button>
-            </div>
-          </div>
-
-          {/* Right Column - Bookings */}
-          <div className="lg:col-span-2">
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm h-full">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold flex items-center gap-2">
-                  <Train className="w-6 h-6 text-blue-500" /> Recent Bookings
-                </h2>
-                <span className="text-sm text-gray-400 bg-white/5 px-3 py-1 rounded-full">{bookings.length} Total</span>
+            {/* STATE & PINCODE */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">State & Pincode</label>
+              <div className="bg-[#111113] border border-white/5 rounded-xl px-4 py-3 text-gray-400 font-medium min-h-[50px] flex items-center">
+                State - 000000
               </div>
+            </div>
 
-              {bookings.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-64 text-gray-500 bg-black/20 rounded-xl border border-dashed border-white/10">
-                  <Calendar className="w-12 h-12 mb-4 opacity-50" />
-                  <p>You haven't made any bookings yet.</p>
+            {/* MOBILE NUMBER */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Mobile Number</label>
+              <div className="bg-[#111113] border border-white/5 rounded-xl px-4 py-3 text-white font-medium min-h-[50px] flex items-center justify-between">
+                <span className={user?.phone ? 'text-white' : 'text-gray-400'}>
+                  {user?.phone ? `+91 - ${user.phone}` : '+91 - Not Linked'}
+                </span>
+                {!user?.phone && (
                   <button 
-                    onClick={() => router.push('/')}
-                    className="mt-4 px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors text-sm font-medium"
+                    onClick={() => setShowEditModal(true)} 
+                    className="bg-blue-600/20 text-blue-400 border border-blue-600/30 px-3 py-1 rounded-lg text-xs font-bold"
                   >
-                    Explore Services
+                    Link Now
                   </button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {bookings.map((booking: any) => (
-                    <div key={booking._id} className="bg-black/40 border border-white/10 p-5 rounded-xl hover:border-blue-500/50 transition-colors group">
-                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
-                            <Train className="w-5 h-5 text-blue-400" />
-                          </div>
-                          <div>
-                            <p className="font-bold text-lg">{booking.service?.name || 'IRCTC Service'}</p>
-                            <p className="text-xs text-gray-400 font-mono">PNR: {booking.pnr || booking._id.substring(0, 10).toUpperCase()}</p>
-                          </div>
-                        </div>
-                        <div className="text-left sm:text-right">
-                          <p className="font-bold text-lg text-emerald-400">₹{booking.totalPrice}</p>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
-                            booking.status === 'Confirmed' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                            booking.status === 'Cancelled' ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
-                            'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                          }`}>
-                            {booking.status}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-white/5">
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1 flex items-center gap-1"><Clock className="w-3 h-3"/> Date</p>
-                          <p className="text-sm font-medium">{booking.journeyDate || 'N/A'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">Passengers</p>
-                          <p className="text-sm font-medium">{booking.passengers?.length || 0}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1">Payment</p>
-                          <p className="text-sm font-medium text-blue-400">{booking.paymentStatus}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                )}
+              </div>
             </div>
+
+            {/* GENDER */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Gender</label>
+              <div className="bg-[#111113] border border-white/5 rounded-xl px-4 py-3 text-gray-400 font-medium min-h-[50px] flex items-center">
+                {user?.preferences?.gender || 'Not Specified'}
+              </div>
+            </div>
+
+            {/* ACCOUNT ROLE */}
+            <div className="flex flex-col">
+              <label className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Account Role</label>
+              <div className="bg-[#111113] border border-white/5 rounded-xl px-4 py-3 text-emerald-400 font-bold min-h-[50px] flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></div>
+                {user?.role || 'User'}
+              </div>
+            </div>
+
           </div>
         </div>
-
       </div>
 
       {/* Interactive Wallet Modal */}
@@ -361,6 +344,179 @@ export default function ProfilePage() {
                 className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold transition-colors flex justify-center items-center gap-2"
               >
                 {isDeleting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Yes, Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Profile Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#111] border border-white/10 rounded-2xl max-w-md w-full p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-blue-400" /> Edit Profile
+              </h3>
+              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-white transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1">Email (Cannot be changed)</label>
+                <input 
+                  type="email" 
+                  value={user?.email} 
+                  disabled
+                  className="w-full bg-black/50 border border-white/5 rounded-xl py-2 px-3 text-gray-500 cursor-not-allowed"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1">Full Name</label>
+                <input 
+                  type="text" 
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1">Phone Number</label>
+                <input 
+                  type="text" 
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">Age</label>
+                  <input 
+                    type="number" 
+                    value={editForm.age}
+                    onChange={(e) => setEditForm({...editForm, age: e.target.value})}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-400 mb-1">Gender</label>
+                  <select 
+                    value={editForm.gender}
+                    onChange={(e) => setEditForm({...editForm, gender: e.target.value})}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50"
+                  >
+                    <option value="Male" className="bg-[#111]">Male</option>
+                    <option value="Female" className="bg-[#111]">Female</option>
+                    <option value="Other" className="bg-[#111]">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1">Travel Habits</label>
+                <input 
+                  type="text" 
+                  value={editForm.travelHabits}
+                  placeholder="e.g. Frequent Flyer, Budget Traveler"
+                  onChange={(e) => setEditForm({...editForm, travelHabits: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50"
+                />
+              </div>
+
+              <button 
+                onClick={async () => {
+                  setIsProcessing(true);
+                  try {
+                    await axios.put('http://localhost:5000/api/auth/profile', 
+                      { ...editForm, age: Number(editForm.age) }, 
+                      { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
+                    );
+                    toast.success('Profile updated successfully!');
+                    window.location.reload();
+                  } catch (err) {
+                    toast.error('Failed to update profile');
+                  } finally {
+                    setIsProcessing(false);
+                  }
+                }}
+                disabled={isProcessing}
+                className="w-full mt-4 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all flex justify-center items-center gap-2"
+              >
+                {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* KYC Mandatory Modal */}
+      {showKYCModal && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-[#111] border border-blue-500/30 rounded-2xl max-w-md w-full p-8 shadow-2xl animate-in zoom-in-95 duration-300">
+            <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-500/30">
+              <Shield className="w-8 h-8 text-blue-500" />
+            </div>
+            <h3 className="text-2xl font-bold text-center mb-2">Mandatory KYC Verification</h3>
+            <p className="text-gray-400 text-center mb-6 text-sm">
+              As per government regulations, you must complete your KYC to book tickets and use the IRCTC Wallet. This is a one-time process.
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1">Document Type</label>
+                <select 
+                  value={kycForm.documentType}
+                  onChange={(e) => setKycForm({...kycForm, documentType: e.target.value})}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-blue-500/50"
+                >
+                  <option value="Aadhaar" className="bg-[#111]">Aadhaar Card</option>
+                  <option value="PAN" className="bg-[#111]">PAN Card</option>
+                  <option value="Passport" className="bg-[#111]">Passport</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1">Document Number</label>
+                <input 
+                  type="text" 
+                  value={kycForm.documentNumber}
+                  onChange={(e) => setKycForm({...kycForm, documentNumber: e.target.value.toUpperCase()})}
+                  placeholder="Enter Document Number"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-blue-500/50 uppercase"
+                />
+              </div>
+
+              <button 
+                onClick={async () => {
+                  if (!kycForm.documentNumber || kycForm.documentNumber.length < 5) {
+                    toast.error('Please enter a valid document number');
+                    return;
+                  }
+                  setIsProcessing(true);
+                  try {
+                    await axios.post('http://localhost:5000/api/auth/kyc', 
+                      kycForm, 
+                      { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
+                    );
+                    toast.success('KYC completed successfully!');
+                    setShowKYCModal(false);
+                    window.location.reload();
+                  } catch (err) {
+                    toast.error('Failed to complete KYC');
+                  } finally {
+                    setIsProcessing(false);
+                  }
+                }}
+                disabled={isProcessing}
+                className="w-full mt-6 py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all flex justify-center items-center gap-2"
+              >
+                {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Complete KYC'}
               </button>
             </div>
           </div>

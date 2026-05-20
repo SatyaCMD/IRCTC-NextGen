@@ -84,8 +84,8 @@ export default function AdminOTPPage() {
     setIsVerifying(true);
 
     setTimeout(() => {
-      // Using a session cookie (no expires attribute) instead of persistent
-      Cookies.set('admin_token', 'secure_admin_session_789');
+      // Using sessionStorage instead of Cookies ensures the session dies when the browser/tab is closed
+      sessionStorage.setItem('admin_token', 'secure_admin_session_789');
       toast.success('Authentication Complete. Welcome Admin.');
       router.push('/admin');
     }, 1500);

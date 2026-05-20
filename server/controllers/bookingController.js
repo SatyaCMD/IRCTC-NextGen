@@ -2,6 +2,7 @@ const Booking = require('../models/Booking');
 const Train = require('../models/Train');
 const Service = require('../models/Service');
 const User = require('../models/User');
+const Settings = require('../models/Settings');
 
 exports.createBooking = async (req, res) => {
   try {
@@ -75,10 +76,37 @@ exports.createBooking = async (req, res) => {
 
     const pnr = Math.floor(1000000000 + Math.random() * 9000000000).toString(); // 10 digit PNR
 
+    let finalPrice = totalPrice;
+    let employeeDiscountApplied = 0;
+    const user = await User.findById(req.user.userId);
+    
+    if (user && user.accountType === 'Employee' && user.isEmployeeVerified) {
+       let discountPercentage = 0;
+       const roll = Math.random();
+       
+       if (roll < 0.05) {
+          discountPercentage = 10; // Very rare (5% chance)
+       } else if (roll < 0.20) {
+          discountPercentage = 5 + (Math.random() * 4.9); // Rare (15% chance for >5 to <10)
+       } else {
+          discountPercentage = 1 + (Math.random() * 4); // Often (80% chance for 1 to 5)
+       }
+       
+       employeeDiscountApplied = Math.round((finalPrice * discountPercentage) / 100);
+       finalPrice = finalPrice - employeeDiscountApplied;
+    }
+    
+    let commissionAmount = 0;
+    const settings = await Settings.findOne();
+    if (settings && settings.bookingCommission > 0) {
+       commissionAmount = Math.round((finalPrice * settings.bookingCommission) / 100);
+       finalPrice = finalPrice + commissionAmount;
+    }
+
     if (!isRunningOnDate) {
       const cancelledBooking = new Booking({
-        userId: req.user.userId, trainId, serviceId, serviceType: serviceType || 'Train', serviceClass: cls, quota: qta, passengers, seatNumbers: [], totalPrice,
-        status: 'Cancelled', refundAmount: totalPrice, refundStatus: 'Completed', pnr, bookingRef: bookingRef || `REF${Date.now()}`, journeyDate, from, to, departureTime
+        userId: req.user.userId, trainId, serviceId, serviceType: serviceType || 'Train', serviceClass: cls, quota: qta, passengers, seatNumbers: [], totalPrice: finalPrice, commissionAmount,
+        status: 'Cancelled', refundAmount: finalPrice, refundStatus: 'Completed', pnr, bookingRef: bookingRef || `REF${Date.now()}`, journeyDate, from, to, departureTime
       });
       await cancelledBooking.save();
       return res.status(400).json({ error: notRunningMsg });
@@ -93,7 +121,8 @@ exports.createBooking = async (req, res) => {
       quota: qta,
       passengers,
       seatNumbers,
-      totalPrice,
+      totalPrice: finalPrice,
+      commissionAmount,
       status: 'Pending',
       pnr,
       bookingRef: bookingRef || `REF${Date.now()}`,
@@ -107,13 +136,15 @@ exports.createBooking = async (req, res) => {
     await booking.save();
     
     if (walletAmountUsed && walletAmountUsed > 0) {
-       const user = await User.findById(req.user.userId);
-       if (user && user.walletBalance >= walletAmountUsed) {
-           user.walletBalance -= walletAmountUsed;
+       let deduction = walletAmountUsed;
+       if (deduction > finalPrice) deduction = finalPrice;
+       
+       if (user && user.walletBalance >= deduction) {
+           user.walletBalance -= deduction;
            user.walletTransactions.push({
-             amount: walletAmountUsed,
+             amount: deduction,
              type: 'Debit',
-             description: `Booking Payment for ${serviceType || 'Train'}`,
+             description: `Booking Payment for ${serviceType || 'Train'}${employeeDiscountApplied > 0 ? ' (Emp. Discount Applied)' : ''}`,
              referenceId: pnr
            });
            await user.save();

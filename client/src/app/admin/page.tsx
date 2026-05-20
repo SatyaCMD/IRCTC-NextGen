@@ -17,8 +17,8 @@ export default function AdminDashboard() {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if admin is authenticated
-    const adminToken = Cookies.get('admin_token');
+    // Check if admin is authenticated via sessionStorage (clears on tab/browser close)
+    const adminToken = sessionStorage.getItem('admin_token');
     if (!adminToken) {
       router.push('/admin/login');
     }
@@ -27,8 +27,13 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [users, setUsers] = useState<any[]>([]);
   const [services, setServices] = useState<any[]>([]);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [bookingSearch, setBookingSearch] = useState('');
   const [dashboardStats, setDashboardStats] = useState<any>({ totalUsers: 0, activeServices: 0, totalBookings: 0, revenue: 0 });
   const [isDataLoading, setIsDataLoading] = useState(true);
+  
+  // Settings State
+  const [systemSettings, setSystemSettings] = useState({ maintenanceMode: false, aiAssistant: true, bookingCommission: 5 });
   
   // Modals state
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
@@ -39,16 +44,27 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     try {
-      const [usersRes, servicesRes, statsRes] = await Promise.all([
+      const [usersRes, servicesRes, statsRes, bookingsRes, settingsRes] = await Promise.all([
         axios.get('http://localhost:5000/api/admin/users'),
         axios.get('http://localhost:5000/api/admin/services'),
-        axios.get('http://localhost:5000/api/admin/stats')
+        axios.get('http://localhost:5000/api/admin/stats'),
+        axios.get('http://localhost:5000/api/admin/bookings'),
+        axios.get('http://localhost:5000/api/admin/settings')
       ]);
       setUsers(usersRes.data);
       setServices(servicesRes.data);
       setDashboardStats(statsRes.data);
-    } catch (err) {
-      toast.error('Failed to load data from database.');
+      setBookings(bookingsRes.data);
+      if (settingsRes.data) {
+        setSystemSettings({
+          maintenanceMode: settingsRes.data.maintenanceMode,
+          aiAssistant: settingsRes.data.aiAssistant,
+          bookingCommission: settingsRes.data.bookingCommission
+        });
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to load data from database: ' + (err.response?.data?.error || err.message));
     } finally {
       setIsDataLoading(false);
     }
@@ -155,7 +171,7 @@ export default function AdminDashboard() {
             <p className="font-bold text-white mb-3">Super Admin</p>
             <button 
               onClick={() => { 
-                Cookies.remove('admin_token'); 
+                sessionStorage.removeItem('admin_token'); 
                 router.push('/admin/login'); 
                 toast.success('Admin logged out.'); 
               }} 
@@ -193,39 +209,66 @@ export default function AdminDashboard() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Recent Activity Mock */}
+                {/* Recent Activity */}
                 <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
                   <h3 className="text-lg font-bold mb-6">Recent Bookings</h3>
                   <div className="space-y-4">
-                    {[1,2,3,4].map((_, i) => (
-                      <div key={i} className="flex items-center justify-between p-4 bg-black/20 rounded-xl border border-white/5">
+                    {bookings.slice(0, 5).map((booking, i) => (
+                      <div key={booking._id || i} className="flex items-center justify-between p-4 bg-black/20 rounded-xl border border-white/5">
                         <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-400"><Train className="w-5 h-5"/></div>
+                          <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center text-blue-400">
+                            {booking.serviceDetails?.type === 'Flight' ? <Plane className="w-5 h-5"/> : <Train className="w-5 h-5"/>}
+                          </div>
                           <div>
-                            <p className="font-bold">Rajdhani Express</p>
-                            <p className="text-xs text-gray-400">PNR: 8472{i}93821</p>
+                            <p className="font-bold">{booking.serviceDetails?.name || 'Booking'}</p>
+                            <p className="text-xs text-gray-400">PNR: {booking.pnr || 'N/A'}</p>
                           </div>
                         </div>
-                        <span className="text-emerald-400 font-bold font-mono">₹3,450</span>
+                        <span className="text-emerald-400 font-bold font-mono">₹{booking.totalPrice?.toLocaleString() || 0}</span>
                       </div>
                     ))}
+                    {bookings.length === 0 && (
+                      <div className="text-center p-4 text-gray-500">No recent bookings found.</div>
+                    )}
                   </div>
                 </div>
 
+                {/* Real System Metrics */}
                 <div className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-xl">
-                  <h3 className="text-lg font-bold mb-6">System Health</h3>
+                  <h3 className="text-lg font-bold mb-6">Platform Activity</h3>
                   <div className="space-y-6">
                     <div>
-                      <div className="flex justify-between text-sm mb-2"><span className="text-gray-400">Server Load</span><span className="text-emerald-400">42%</span></div>
-                      <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden"><div className="bg-emerald-500 h-full w-[42%] rounded-full"/></div>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-gray-400">Confirmed Bookings</span>
+                        <span className="text-emerald-400">
+                          {bookings.length > 0 ? Math.round((bookings.filter(b => b.status === 'Confirmed').length / bookings.length) * 100) : 0}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden">
+                        <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${bookings.length > 0 ? Math.round((bookings.filter(b => b.status === 'Confirmed').length / bookings.length) * 100) : 0}%` }} />
+                      </div>
                     </div>
                     <div>
-                      <div className="flex justify-between text-sm mb-2"><span className="text-gray-400">Database Storage</span><span className="text-orange-400">78%</span></div>
-                      <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden"><div className="bg-orange-500 h-full w-[78%] rounded-full"/></div>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-gray-400">Active Users</span>
+                        <span className="text-blue-400">
+                          {users.length > 0 ? Math.round((users.filter(u => u.status === 'Active').length / users.length) * 100) : 0}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden">
+                        <div className="bg-blue-500 h-full rounded-full" style={{ width: `${users.length > 0 ? Math.round((users.filter(u => u.status === 'Active').length / users.length) * 100) : 0}%` }} />
+                      </div>
                     </div>
                     <div>
-                      <div className="flex justify-between text-sm mb-2"><span className="text-gray-400">API Response Time</span><span className="text-blue-400">124ms</span></div>
-                      <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden"><div className="bg-blue-500 h-full w-[25%] rounded-full"/></div>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-gray-400">Operational Services</span>
+                        <span className="text-orange-400">
+                          {services.length > 0 ? Math.round((services.filter(s => s.status === 'Active').length / services.length) * 100) : 0}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-black/50 h-2 rounded-full overflow-hidden">
+                        <div className="bg-orange-500 h-full rounded-full" style={{ width: `${services.length > 0 ? Math.round((services.filter(s => s.status === 'Active').length / services.length) * 100) : 0}%` }} />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -261,7 +304,9 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {users.map(user => (
+                    {users
+                      .filter(user => user.status === 'Active' && !user.name.toLowerCase().includes('demo') && !user.email.toLowerCase().includes('demo'))
+                      .map(user => (
                       <tr key={user._id} className="hover:bg-white/5 transition-colors">
                         <td className="p-4 font-medium">{user.name}</td>
                         <td className="p-4 text-gray-400">{user.email}</td>
@@ -336,12 +381,136 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Coming soon states for other tabs */}
-          {(activeTab === 'bookings' || activeTab === 'settings') && (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <Settings className="w-16 h-16 text-gray-600 mb-4 animate-spin-slow" />
-              <h2 className="text-2xl font-bold text-white mb-2">Module Under Construction</h2>
-              <p className="text-gray-400">The {activeTab} management module is being developed.</p>
+          {/* BOOKINGS TAB */}
+          {activeTab === 'bookings' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="text-3xl font-bold">Booking Records</h2>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <input 
+                    type="text" 
+                    placeholder="Search by PNR or ID..." 
+                    value={bookingSearch}
+                    onChange={(e) => setBookingSearch(e.target.value)}
+                    className="bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none w-72" 
+                  />
+                </div>
+              </div>
+              <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden backdrop-blur-xl">
+                <table className="w-full text-left">
+                  <thead className="bg-black/40 border-b border-white/10">
+                    <tr>
+                      <th className="p-4 text-xs uppercase tracking-wider text-gray-400 font-bold">Booking ID / PNR</th>
+                      <th className="p-4 text-xs uppercase tracking-wider text-gray-400 font-bold">Journey Details</th>
+                      <th className="p-4 text-xs uppercase tracking-wider text-gray-400 font-bold">Passengers</th>
+                      <th className="p-4 text-xs uppercase tracking-wider text-gray-400 font-bold">Amount</th>
+                      <th className="p-4 text-xs uppercase tracking-wider text-gray-400 font-bold">Status</th>
+                      <th className="p-4 text-xs uppercase tracking-wider text-gray-400 font-bold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {bookings
+                      .filter(b => b._id.toLowerCase().includes(bookingSearch.toLowerCase()) || (b.pnr && b.pnr.toLowerCase().includes(bookingSearch.toLowerCase())))
+                      .map(booking => (
+                      <tr key={booking._id} className="hover:bg-white/5 transition-colors">
+                        <td className="p-4">
+                          <div className="font-mono text-sm text-gray-300">ID: {booking._id.substring(0, 8).toUpperCase()}</div>
+                          {booking.pnr && <div className="text-xs font-bold text-blue-400 mt-1">PNR: {booking.pnr}</div>}
+                        </td>
+                        <td className="p-4">
+                          <div className="font-bold">{booking.serviceDetails?.name || 'Train Ticket'}</div>
+                          <div className="text-xs text-gray-400">{booking.journeyDate ? new Date(booking.journeyDate).toLocaleDateString() : 'N/A'}</div>
+                        </td>
+                        <td className="p-4 text-sm font-medium">{booking.passengers?.length || 1} Person(s)</td>
+                        <td className="p-4 text-emerald-400 font-bold font-mono">₹{booking.totalPrice}</td>
+                        <td className="p-4">
+                          <span className={`px-2 py-1 rounded-md text-xs font-bold ${booking.status === 'Confirmed' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400'}`}>
+                            {booking.status}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right">
+                          <button className="text-blue-400 hover:text-blue-300 text-sm font-bold">View</button>
+                        </td>
+                      </tr>
+                    ))}
+                    {bookings.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-gray-400">No bookings found in the system.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* SETTINGS TAB */}
+          {activeTab === 'settings' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-3xl">
+              <h2 className="text-3xl font-bold mb-8">System Settings</h2>
+              
+              <div className="space-y-6">
+                <div className="bg-white/5 border border-white/10 p-6 rounded-2xl backdrop-blur-xl flex justify-between items-center">
+                  <div>
+                    <h3 className="text-lg font-bold">Maintenance Mode</h3>
+                    <p className="text-sm text-gray-400">Suspend all new bookings and user signups.</p>
+                  </div>
+                  <button 
+                    onClick={async () => { 
+                      const newVal = !systemSettings.maintenanceMode;
+                      setSystemSettings({...systemSettings, maintenanceMode: newVal}); 
+                      try { await axios.put('http://localhost:5000/api/admin/settings', { maintenanceMode: newVal }); toast.success('Maintenance mode saved to DB!'); } catch(e) { toast.error('Failed to save'); }
+                    }}
+                    className={`w-14 h-7 rounded-full transition-colors relative ${systemSettings.maintenanceMode ? 'bg-red-500' : 'bg-gray-600'}`}
+                  >
+                    <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-transform ${systemSettings.maintenanceMode ? 'translate-x-8' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 p-6 rounded-2xl backdrop-blur-xl flex justify-between items-center">
+                  <div>
+                    <h3 className="text-lg font-bold">YatraMind AI Assistant</h3>
+                    <p className="text-sm text-gray-400">Enable or disable the AI chatbot globally.</p>
+                  </div>
+                  <button 
+                    onClick={async () => { 
+                      const newVal = !systemSettings.aiAssistant;
+                      setSystemSettings({...systemSettings, aiAssistant: newVal}); 
+                      try { await axios.put('http://localhost:5000/api/admin/settings', { aiAssistant: newVal }); toast.success('AI settings saved to DB!'); } catch(e) { toast.error('Failed to save'); }
+                    }}
+                    className={`w-14 h-7 rounded-full transition-colors relative ${systemSettings.aiAssistant ? 'bg-emerald-500' : 'bg-gray-600'}`}
+                  >
+                    <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-transform ${systemSettings.aiAssistant ? 'translate-x-8' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 p-6 rounded-2xl backdrop-blur-xl">
+                  <h3 className="text-lg font-bold mb-2">Platform Commission (%)</h3>
+                  <p className="text-sm text-gray-400 mb-4">Set the percentage cut taken from each booking.</p>
+                  <div className="flex gap-4">
+                    <input 
+                      type="number" 
+                      value={systemSettings.bookingCommission} 
+                      onChange={(e) => setSystemSettings({...systemSettings, bookingCommission: Number(e.target.value)})}
+                      className="bg-black/50 border border-white/10 rounded-xl px-4 py-2 text-white outline-none focus:ring-2 focus:ring-blue-500" 
+                    />
+                    <button 
+                      onClick={async () => {
+                        try {
+                          await axios.put('http://localhost:5000/api/admin/settings', { bookingCommission: systemSettings.bookingCommission });
+                          toast.success('Commission rate saved to Database!');
+                        } catch(e) {
+                          toast.error('Failed to save commission rate.');
+                        }
+                      }} 
+                      className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-xl font-bold transition-colors"
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

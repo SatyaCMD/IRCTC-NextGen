@@ -12,9 +12,12 @@ export default function SignupPage() {
   const [formData, setFormData] = useState({ 
     name: '', 
     email: '', 
-    password: '', 
+    password: '',
     retypePassword: '',
-    captcha: '' 
+    captcha: '',
+    accountType: 'User',
+    employeeId: '',
+    employeeImage: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showRetypePassword, setShowRetypePassword] = useState(false);
@@ -55,9 +58,17 @@ export default function SignupPage() {
       await axios.post(`http://localhost:5000/api/auth/register`, {
         name: formData.name,
         email: formData.email,
-        password: formData.password
+        password: formData.password,
+        accountType: formData.accountType,
+        employeeId: formData.employeeId,
+        employeeImage: formData.employeeImage
       });
-      toast.success('Registration initiated. Please verify OTP.');
+      
+      if (formData.accountType === 'Employee') {
+        toast.success('Registration initiated. Employee verification will take 5 minutes.');
+      } else {
+        toast.success('Registration initiated. Please verify OTP.');
+      }
       router.push(`/otp?email=${encodeURIComponent(formData.email)}`);
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || 'Registration failed';
@@ -120,6 +131,53 @@ export default function SignupPage() {
                 placeholder="john@example.com"
               />
             </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-400 uppercase tracking-wider ml-1">Account Type</label>
+              <div className="flex gap-4 p-3 bg-[#111111] border border-[#222] rounded-xl">
+                <label className="flex items-center gap-2 cursor-pointer ml-2">
+                  <input type="radio" name="accountType" value="User" checked={formData.accountType === 'User'} onChange={(e) => setFormData({...formData, accountType: e.target.value})} className="w-4 h-4 accent-blue-500" />
+                  <span className="text-sm font-medium">User</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer ml-4">
+                  <input type="radio" name="accountType" value="Employee" checked={formData.accountType === 'Employee'} onChange={(e) => setFormData({...formData, accountType: e.target.value})} className="w-4 h-4 accent-blue-500" />
+                  <span className="text-sm font-medium">Employee</span>
+                </label>
+              </div>
+            </div>
+
+            {formData.accountType === 'Employee' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-4 bg-blue-900/10 border border-blue-500/20 rounded-xl animate-in fade-in zoom-in-95 duration-300">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-blue-400 uppercase tracking-wider ml-1">Employee ID</label>
+                  <input 
+                    type="text" 
+                    required={formData.accountType === 'Employee'}
+                    value={formData.employeeId}
+                    onChange={(e) => setFormData({...formData, employeeId: e.target.value})}
+                    className="w-full bg-[#111111] border border-blue-500/30 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    placeholder="EMP-12345"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-blue-400 uppercase tracking-wider ml-1">ID Card Image</label>
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    required={formData.accountType === 'Employee'}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => setFormData({...formData, employeeImage: reader.result as string});
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    className="w-full text-sm text-gray-400 file:mr-3 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-500/20 file:text-blue-400 hover:file:bg-blue-500/30 cursor-pointer focus:outline-none"
+                  />
+                </div>
+              </div>
+            )}
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="space-y-1.5">
