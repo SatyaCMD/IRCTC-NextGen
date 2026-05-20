@@ -5,9 +5,10 @@ import Navbar from '@/components/Navbar';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Ticket, LogOut, Download, User as UserIcon, Trash2, Edit3, Shield, Loader2, X, AlertTriangle, Phone } from 'lucide-react';
+import { Ticket, LogOut, Download, User as UserIcon, Trash2, Edit3, Shield, Loader2, X, AlertTriangle, Phone, Wallet, Home, Plus } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import toast from 'react-hot-toast';
 
 export default function Dashboard() {
   const [user, setUser] = useState<any>(null);
@@ -23,6 +24,10 @@ export default function Dashboard() {
   const [phoneInput, setPhoneInput] = useState('');
   const [otpInput, setOtpInput] = useState('');
   const [generatedOtp, setGeneratedOtp] = useState('');
+  
+  const [showTopupModal, setShowTopupModal] = useState(false);
+  const [topupAmount, setTopupAmount] = useState('');
+  const [isToppingUp, setIsToppingUp] = useState(false);
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -70,6 +75,30 @@ export default function Dashboard() {
   const handleLogout = () => {
     Cookies.remove('token');
     router.push('/');
+  };
+
+  const handleTopup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!topupAmount || isNaN(Number(topupAmount)) || Number(topupAmount) <= 0) {
+      toast.error('Please enter a valid amount');
+      return;
+    }
+    
+    setIsToppingUp(true);
+    try {
+      const res = await axios.post('http://localhost:5000/api/auth/wallet/add', 
+        { amount: Number(topupAmount) }, 
+        { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
+      );
+      toast.success('Funds added successfully!');
+      setUser({ ...user, walletBalance: res.data.walletBalance });
+      setShowTopupModal(false);
+      setTopupAmount('');
+    } catch (err) {
+      toast.error('Failed to add funds');
+    } finally {
+      setIsToppingUp(false);
+    }
   };
 
   const downloadTicket = async (booking: any) => {
@@ -365,7 +394,7 @@ export default function Dashboard() {
                 <Ticket className="w-5 h-5" /> PNR Status
               </button>
               <div className="h-px w-full bg-white/5 my-6"></div>
-              
+
               <button onClick={() => setShowEditModal(true)} className="w-full flex items-center px-5 py-3.5 text-gray-300 hover:text-white hover:bg-white/5 rounded-xl transition-all font-bold">
                 <Edit3 className="w-5 h-5 mr-3" /> Edit Profile
               </button>
@@ -446,8 +475,32 @@ export default function Dashboard() {
               </div>
             </>
           ) : (
-            <div className="bg-[#111318] rounded-3xl p-8 border border-white/5 shadow-2xl">
-              <h2 className="text-3xl font-black text-white tracking-tight mb-8">Personal Information</h2>
+            <div className="bg-[#111318] rounded-3xl p-8 border border-white/5 shadow-2xl relative">
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="text-3xl font-black text-white tracking-tight">Personal Information</h2>
+                <button onClick={() => router.push('/')} className="flex items-center px-4 py-2 bg-emerald-500/10 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/20 rounded-xl transition-all font-bold group border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                  <Home className="w-4 h-4 mr-2 group-hover:-translate-y-0.5 transition-transform" /> Back to Home
+                </button>
+              </div>
+
+              {/* IRCTC Wallet Section */}
+              <div className="bg-gradient-to-r from-emerald-900/20 to-blue-900/20 border border-emerald-500/20 rounded-2xl p-6 mb-8 flex items-center justify-between shadow-lg">
+                <div className="flex items-center gap-4">
+                  <div className="bg-emerald-500/20 p-3 rounded-xl border border-emerald-500/30">
+                    <Wallet className="w-8 h-8 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">IRCTC Wallet Balance</h3>
+                    <p className="text-3xl font-black text-white mt-1">₹{(user?.walletBalance || 0).toLocaleString()}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowTopupModal(true)}
+                  className="hidden sm:block bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:-translate-y-0.5"
+                >
+                  Add Funds
+                </button>
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {/* Column 1 */}
@@ -904,6 +957,43 @@ export default function Dashboard() {
                 {isDeleting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Yes, Delete'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Topup Modal */}
+      {showTopupModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#111] border border-white/10 rounded-3xl max-w-sm w-full p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-black text-white">Add Funds</h3>
+              <button onClick={() => setShowTopupModal(false)} className="text-white/50 hover:text-white p-2">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleTopup}>
+              <div className="space-y-2 mb-6">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Amount (₹)</label>
+                <input 
+                  type="number" 
+                  required 
+                  min="1"
+                  value={topupAmount} 
+                  onChange={e => setTopupAmount(e.target.value)} 
+                  placeholder="Enter amount" 
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-medium focus:ring-2 focus:ring-emerald-500/50 outline-none text-xl" 
+                />
+              </div>
+              <button 
+                type="submit" 
+                disabled={isToppingUp} 
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-4 rounded-xl font-bold transition-all flex justify-center items-center gap-2"
+              >
+                {isToppingUp ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+                {isToppingUp ? 'Processing...' : 'Add to Wallet'}
+              </button>
+            </form>
           </div>
         </div>
       )}

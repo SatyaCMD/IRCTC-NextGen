@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, Bot, User, Loader2 } from 'lucide-react';
 import axios from 'axios';
 import { usePathname } from 'next/navigation';
+import Cookies from 'js-cookie';
 
 export default function DishaAI() {
   const pathname = usePathname();
@@ -19,13 +20,25 @@ export default function DishaAI() {
   const hiddenPaths = ['/login', '/signup', '/otp', '/admin/login', '/admin/otp'];
   const isHidden = hiddenPaths.some(path => pathname?.includes(path));
 
+  const [userRole, setUserRole] = useState<string | null>(null);
+
   useEffect(() => {
     if (messagesEndRef.current && !isHidden) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [chatHistory, isOpen, isTyping, isHidden]);
 
-  if (isHidden) return null;
+  useEffect(() => {
+    try {
+      const userStr = Cookies.get('user');
+      if (userStr) {
+        const userObj = JSON.parse(userStr);
+        setUserRole(userObj.role);
+      }
+    } catch(e) {}
+  }, [pathname]);
+
+  if (isHidden || userRole === 'Admin') return null;
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();

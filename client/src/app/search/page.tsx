@@ -238,7 +238,7 @@ function SearchResults() {
                       </div>
                       <div className="flex justify-between items-center mb-2">
                         <span className="font-bold text-white">{cls.type}</span>
-                        <span className="text-blue-400 font-bold">₹{cls.price}</span>
+                        <span className="text-blue-400 font-bold">₹{Math.round(cls.price)}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className={`text-sm font-bold ${effectiveAvailability > 0 ? 'text-green-400' : isRegret ? 'text-red-500' : 'text-orange-400'}`}>

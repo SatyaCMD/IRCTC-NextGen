@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema({
   address: String,
   state: String,
   pincode: String,
-  loyaltyPoints: { type: Number, default: 150 }, // Give new users 150 points bonus
+  loyaltyPoints: { type: Number, default: 0 }, 
   walletBalance: { type: Number, default: 0 },
   walletTransactions: [{
     amount: Number,

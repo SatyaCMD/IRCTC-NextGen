@@ -7,7 +7,7 @@ import autoTable from 'jspdf-autotable';
 import { 
   Download, CheckCircle2, CreditCard, Users, MapPin, 
   ChevronRight, ShieldCheck, Plane, Train, 
-  Hotel, Utensils, Bus, User, Loader2, ArrowRightLeft, Lock
+  Hotel, Utensils, Bus, User, Loader2, ArrowRightLeft, Lock, Wallet
 } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Cookies from 'js-cookie';
@@ -936,7 +936,7 @@ function BookingFlowInner() {
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-5 ml-3">
-                      <div className="md:col-span-5 space-y-2">
+                      <div className="md:col-span-4 space-y-2">
                         <label className="text-[10px] font-bold text-white/60 uppercase tracking-widest ml-1">Full Name</label>
                         <input type="text" required value={p.name} onChange={e => updatePassenger(idx, 'name', e.target.value)} placeholder="As per Govt. ID" className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white font-medium focus:ring-2 focus:ring-blue-500/50" />
                       </div>
@@ -950,7 +950,7 @@ function BookingFlowInner() {
                           <option className="bg-gray-900 text-white">Male</option><option className="bg-gray-900 text-white">Female</option><option className="bg-gray-900 text-white">Other</option>
                         </select>
                       </div>
-                      <div className="md:col-span-3 space-y-2">
+                      <div className="md:col-span-4 space-y-2">
                         <label className="text-[10px] font-bold text-white/60 uppercase tracking-widest ml-1">{isHotel ? 'Room Pref' : 'Seat Pref'}</label>
                         {(!isHotel && !isFood) ? (
                           <button 
@@ -958,8 +958,8 @@ function BookingFlowInner() {
                             onClick={() => setShowSeatMapForPassenger(idx)}
                             className="w-full bg-blue-600/20 hover:bg-blue-600/40 border border-blue-500/50 rounded-xl px-4 py-3 text-blue-300 font-bold transition-colors flex items-center justify-between text-left"
                           >
-                            <span className="truncate pr-2">{p.pref !== 'No Preference' ? p.pref : 'Select Seat'}</span>
-                            <span className="text-[10px] bg-blue-600 text-white px-2 py-1 rounded font-black tracking-widest uppercase shadow-md">Map</span>
+                            <span className="truncate pr-2 text-[11px] md:text-xs">{p.pref !== 'No Preference' ? p.pref : 'Select Seat'}</span>
+                            <span className="text-[10px] bg-blue-600 text-white px-2 py-1 rounded font-black tracking-widest uppercase shadow-md flex-shrink-0">Map</span>
                           </button>
                         ) : (
                           <select value={p.pref} onChange={e => updatePassenger(idx, 'pref', e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white font-medium focus:ring-2 focus:ring-blue-500/50 appearance-none">
@@ -1063,9 +1063,11 @@ function BookingFlowInner() {
                   </div>
                   
                   <div className="bg-white/5 border border-white/10 rounded-3xl p-8 space-y-6 backdrop-blur-xl">
-                    <div className="flex gap-4 mb-6 border-b border-white/10 pb-4">
-                      {['card', 'upi', 'netbanking'].map(method => (
-                        <button 
+                    {Math.max(0, Math.round(totalPrice + (totalPrice * 0.18)) - (useWallet ? Math.min(Math.round(totalPrice + (totalPrice * 0.18)), userWalletBalance) : 0)) > 0 ? (
+                      <>
+                        <div className="flex gap-4 mb-6 border-b border-white/10 pb-4">
+                          {['card', 'upi', 'netbanking'].map(method => (
+                            <button 
                           key={method}
                           type="button"
                           onClick={() => setPaymentMethod(method)}
@@ -1130,7 +1132,19 @@ function BookingFlowInner() {
                         <p className="text-sm text-emerald-400/80 italic text-center mt-4">You will be redirected to your bank's secure portal.</p>
                       </div>
                     )}
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-10 space-y-4">
+                    <div className="bg-emerald-500/20 p-4 rounded-full border border-emerald-500/30">
+                      <Wallet className="w-12 h-12 text-emerald-400" />
+                    </div>
+                    <h3 className="text-2xl font-black text-white">Fully Covered by Wallet</h3>
+                    <p className="text-emerald-400/80 font-medium text-center max-w-sm">
+                      Your IRCTC Wallet balance covers the full amount. No additional payment methods are required. Click Pay to complete booking.
+                    </p>
                   </div>
+                )}
+              </div>
                 </div>
 
                 <div className="lg:w-96">
@@ -1238,7 +1252,7 @@ function BookingFlowInner() {
                       <Download className="w-5 h-5 group-hover:translate-y-1 transition-transform" />
                     </button>
                     <button 
-                      onClick={() => router.push('/profile')}
+                      onClick={() => router.push('/dashboard?tab=profile')}
                       className="bg-black/50 text-white hover:bg-black/70 px-8 py-4 rounded-2xl font-black transition-all border border-white/20 backdrop-blur-md flex items-center justify-center text-lg"
                     >
                       Go to Profile
