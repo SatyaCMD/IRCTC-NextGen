@@ -31,6 +31,24 @@ body {
   scrollbar-width: none;  /* Firefox */
 }
 
+/* Custom scrollbar for specific elements */
+.custom-scrollbar::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #3b82f6;
+  border-radius: 10px;
+}
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #3b82f6 transparent;
+  -ms-overflow-style: auto;
+}
+
 @layer components {
   .glass-card {
     @apply bg-[var(--card)] border border-[var(--border)] rounded-2xl shadow-lg backdrop-blur-md;

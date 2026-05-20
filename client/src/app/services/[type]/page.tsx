@@ -1314,7 +1314,7 @@ function BookingFlowInner() {
                   <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-white/10 border border-white/30"></div> Aisle</div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto pr-2 scrollbar-hide space-y-4 pb-4">
+                <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar overscroll-contain space-y-4 pb-4">
                   {(() => {
                     let seatRows = 12;
                     let seatLeft = ['A', 'B', 'C'];
@@ -1337,15 +1337,15 @@ function BookingFlowInner() {
                          seatRows = 12; seatLeft = ['A', 'B', 'C']; seatRight = ['D', 'E', 'F'];
                        } else if (journeyDetails.travelClass.includes('1A')) {
                          seatRows = 10; 
-                         seatLeft = ['L1']; 
-                         seatRight = ['U1'];
+                         seatLeft = ['U1', 'L1']; 
+                         seatRight = [];
                        } else if (journeyDetails.travelClass.includes('2A')) {
                          seatRows = 10; 
-                         seatLeft = ['SL', 'SU']; 
+                         seatLeft = ['SU', 'SL']; 
                          seatRight = ['L1', 'U1', 'L2', 'U2'];
                        } else {
                          seatRows = 10; 
-                         seatLeft = ['SL', 'SU']; 
+                         seatLeft = ['SU', 'SL']; 
                          seatRight = ['L1', 'M1', 'U1', 'L2', 'M2', 'U2'];
                        }
                     }
@@ -1353,7 +1353,7 @@ function BookingFlowInner() {
                     return Array.from({ length: seatRows }).map((_, rowIdx) => (
                       <div key={rowIdx} className="flex justify-between items-center gap-2">
                         <div className="w-6 text-center text-white/30 text-xs font-bold">{rowIdx + 1}</div>
-                        <div className="flex gap-2">
+                        <div className="flex flex-col gap-2">
                           {seatLeft.map(col => {
                             let displayCol = col;
                             let seatId = `${rowIdx + 1}${col}`;
