@@ -32,9 +32,9 @@ Welcome to **IRCTC 2.0**, a full-stack AI-powered travel and hospitality booking
 
 ### 6. Admin Dashboard & Real-Time Tracking
 - Dedicated **`/admin`** panel protected by unique credentials and OTP verification.
-  - **Demo Admin ID**: `admin`
-  - **Demo Password**: `admin@321`
-  - **Demo OTP**: `123456`
+  - **Admin ID**: `admin`
+  - **Password**: `admin@321`
+  - **Random OTP**: `******`
 - **Total Revenue Tracking**: Tracks all incoming revenue. If a user cancels a confirmed booking, the backend intelligently reverses the revenue from the dashboard to maintain financial consistency.
 - Full CRUD access to manage the 480+ seeded location services dynamically.
 
