@@ -109,20 +109,32 @@ exports.searchTrains = async (req, res) => {
           if (type === 'Hotels') {
              const hotelNames = ['Taj', 'Oberoi', 'ITC', 'Leela', 'Marriott', 'Hyatt', 'Radisson', 'Novotel', 'Lemon Tree', 'Ginger', 'Holiday Inn', 'Sheraton', 'The Lalit', 'Park', 'Westin'];
              const hotelCount = Math.floor(25 + Math.random() * 10);
+             const hImages = ['https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1551882547-ff40c0d509af?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1445019980597-93fa8acb246c?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1542314831-c6a4d2759876?w=500&auto=format&fit=crop'];
              for (let i = 0; i < hotelCount; i++) {
                 const brand = hotelNames[Math.floor(Math.random() * hotelNames.length)];
                 const randomSuffix = ['Grand', 'Resort', 'Plaza', 'Palace', 'Suites', 'Boutique', 'Inn', 'Express'];
                 const name = `${brand} ${randomSuffix[Math.floor(Math.random() * randomSuffix.length)]} ${locationName}`;
                 const baseP = Math.floor(2000 + Math.random() * 8000);
                 const address = `${Math.floor(10 + Math.random() * 90)}, ${locationName} Main Road, City Center, ${locationName}`;
+                
+                const numReviews = Math.floor(10 + Math.random() * 15);
+                const rating = Number((3.5 + Math.random() * 1.5).toFixed(1));
+                const mockReviews = Array.from({ length: numReviews }).map((_, idx) => ({
+                    user: `Guest User ${idx + 1}`,
+                    rating: Math.floor(3 + Math.random() * 3),
+                    comment: ["Great place!", "Very clean and nice.", "Loved the view.", "Staff was very polite.", "Average experience.", "Will come again!"][Math.floor(Math.random() * 6)],
+                    date: new Date(Date.now() - Math.floor(Math.random() * 10000000000))
+                }));
+                
                 newServices.push({
                   trainNumber: `HTL-${Math.floor(1000 + Math.random() * 9000)}`,
                   name, serviceType: "Hotels", source, destination: address,
                   timings: { departure: "12:00", arrival: "11:00", duration: "1 Night" },
-                  image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&auto=format&fit=crop",
-                  description: `Experience luxury and comfort at ${name}. Located perfectly in the heart of ${locationName}, we offer world-class amenities and exceptional service.`,
-                  rating: Number((3.5 + Math.random() * 1.5).toFixed(1)),
-                  reviews: Math.floor(100 + Math.random() * 900),
+                  image: hImages[Math.floor(Math.random() * hImages.length)],
+                  description: `Experience the best of ${locationName} at ${name}. We offer world-class amenities, clean rooms, and exceptional hospitality perfect for every traveler.`,
+                  rating,
+                  reviews: numReviews,
+                  reviewsList: mockReviews,
                   classes: [
                     { type: 'Standard Room', price: baseP, availableSeats: getSeats(20) },
                     { type: 'Deluxe Room', price: Math.floor(baseP * 1.5), availableSeats: getSeats(10) },
@@ -134,19 +146,31 @@ exports.searchTrains = async (req, res) => {
           } else if (type === 'Retiring Room') {
              const roomTypes = ['AC Dormitory', 'Non-AC Dormitory', 'AC Double Bed', 'Non-AC Double Bed', 'AC Single Bed', 'Family Room', 'Premium Suite AC'];
              const roomCount = Math.floor(25 + Math.random() * 10);
+             const rImages = ['https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1629140727571-9b5c6f6267b4?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=500&auto=format&fit=crop'];
              for (let i = 0; i < roomCount; i++) {
                 const roomType = roomTypes[Math.floor(Math.random() * roomTypes.length)];
                 const name = `IRCTC Retiring Room - ${roomType}`;
                 const baseP = Math.floor(200 + Math.random() * 800);
                 const address = `${locationName} Railway Station, Platform ${Math.floor(1 + Math.random() * 5)}`;
+                
+                const numReviews = Math.floor(5 + Math.random() * 15);
+                const rating = Number((3.0 + Math.random() * 1.5).toFixed(1));
+                const mockReviews = Array.from({ length: numReviews }).map((_, idx) => ({
+                    user: `Passenger ${idx + 1}`,
+                    rating: Math.floor(3 + Math.random() * 3),
+                    comment: ["Good place to rest.", "Clean beds and safe.", "Very near to platform.", "Decent for the price."][Math.floor(Math.random() * 4)],
+                    date: new Date(Date.now() - Math.floor(Math.random() * 10000000000))
+                }));
+                
                 newServices.push({
                   trainNumber: `RR-${Math.floor(1000 + Math.random() * 9000)}`,
                   name, serviceType: "Retiring Room", source, destination: address,
                   timings: { departure: "12:00", arrival: "11:00", duration: "24 Hours" },
-                  image: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=500&auto=format&fit=crop",
-                  description: `Convenient transit accommodation at ${locationName} station. Clean, secure, and available 24/7 for railway passengers.`,
-                  rating: Number((3.0 + Math.random() * 1.5).toFixed(1)),
-                  reviews: Math.floor(50 + Math.random() * 300),
+                  image: rImages[Math.floor(Math.random() * rImages.length)],
+                  description: `Rest at ease at ${locationName} station in our clean and secure ${roomType}. A perfect transit stop for passengers.`,
+                  rating,
+                  reviews: numReviews,
+                  reviewsList: mockReviews,
                   classes: [
                     { type: '12 Hours', price: baseP, availableSeats: getSeats(30) },
                     { type: '24 Hours', price: Math.floor(baseP * 1.8), availableSeats: getSeats(20) },
@@ -158,20 +182,29 @@ exports.searchTrains = async (req, res) => {
           } else if (type === 'E Catering') {
              const restNames = ['Bikanerwala', 'Haldirams', 'Dominos', 'KFC', 'Subway', 'Sagar Ratna', 'Punjabi Dhaba', 'South Indian Express', 'Mughlai Darbar', 'The Foodie Station', 'Biryani Blues', 'Behrouz', 'Faasos', 'Street Food Hub'];
              const restCount = Math.floor(30 + Math.random() * 15);
+             const eImages = ['https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1512152272829-e3139592d56f?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=500&auto=format&fit=crop'];
              for (let i = 0; i < restCount; i++) {
                 const restName = restNames[Math.floor(Math.random() * restNames.length)];
                 const randomSuffix = ['- Fast Food', '- Premium Thali', '- North Indian', '- South Indian', '- Bakery', '- Pure Veg', '- Multi Cuisine'];
                 const name = `${restName} ${randomSuffix[Math.floor(Math.random() * randomSuffix.length)]}`;
                 const baseP = Math.floor(150 + Math.random() * 300);
                 const address = `Delivering at ${locationName} Station`;
+                const numReviews = Math.floor(15 + Math.random() * 20);
+                const mockReviews = Array.from({ length: numReviews }).map((_, idx) => ({
+                    user: `Diner ${idx + 1}`,
+                    rating: Math.floor(3 + Math.random() * 3),
+                    comment: ["Very tasty food!", "Delivery was exactly on time.", "Hygiene was maintained.", "Good portions."][Math.floor(Math.random() * 4)],
+                    date: new Date(Date.now() - Math.floor(Math.random() * 10000000000))
+                }));
                 newServices.push({
                   trainNumber: `FOD-${Math.floor(1000 + Math.random() * 9000)}`,
                   name, serviceType: "E Catering", source, destination: address,
                   timings: { departure: "Lunch / Dinner", arrival: "At Seat", duration: "Freshly Cooked" },
-                  image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=500&auto=format&fit=crop",
-                  description: `Hot and delicious meals delivered straight to your seat by ${restName}. Hygiene guaranteed.`,
+                  image: eImages[Math.floor(Math.random() * eImages.length)],
+                  description: `Delicious and fresh food delivered directly to your train seat by ${restName}. Satisfaction guaranteed on your journey!`,
                   rating: Number((3.8 + Math.random() * 1.0).toFixed(1)),
-                  reviews: Math.floor(200 + Math.random() * 1000),
+                  reviews: numReviews,
+                  reviewsList: mockReviews,
                   classes: [
                     { type: 'Standard Thali', price: baseP, availableSeats: getSeats(100) },
                     { type: 'Premium Thali', price: Math.floor(baseP * 1.5), availableSeats: getSeats(100) },
@@ -379,4 +412,25 @@ exports.getSmartRecommendation = async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
-}
+};
+
+exports.addReview = async (req, res) => {
+  try {
+    const { user, rating, comment } = req.body;
+    const train = await Train.findById(req.params.id);
+    if (!train) return res.status(404).json({ error: 'Service not found' });
+    
+    train.reviewsList.push({ user, rating, comment });
+    train.reviews = train.reviewsList.length; // Ensure count stays in sync
+    
+    // Recalculate average rating
+    const totalRating = train.reviewsList.reduce((acc, curr) => acc + curr.rating, 0) + (train.rating * (train.reviews - 1));
+    train.rating = Number((totalRating / train.reviews).toFixed(1));
+
+    await train.save();
+    res.json(train);
+  } catch (error) {
+    console.error("Add review error:", error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};

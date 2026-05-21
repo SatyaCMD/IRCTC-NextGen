@@ -19,7 +19,7 @@ function SearchResults() {
   const [loading, setLoading] = useState(true);
   const [aiRecommendation, setAiRecommendation] = useState<any>(null);
   const [aiLoading, setAiLoading] = useState(false);
-
+  const [selectedTrainForReviews, setSelectedTrainForReviews] = useState<any>(null);
   useEffect(() => {
     axios.post('http://localhost:5000/api/trains/seed').then(() => {
       axios.get(`http://localhost:5000/api/trains?source=${source}&destination=${destination}&type=${requestedType}`)
@@ -211,7 +211,11 @@ function SearchResults() {
                            <div className="flex items-center bg-green-500/20 text-green-400 px-2 py-1 rounded-lg text-sm font-bold border border-green-500/30">
                               <Star className="w-4 h-4 fill-current mr-1" /> {train.rating.toFixed(1)}
                            </div>
-                           <span className="text-sm text-blue-400 font-medium underline cursor-pointer hover:text-blue-300 transition-colors">See {train.reviews} Reviews</span>
+                           <span 
+                             onClick={() => setSelectedTrainForReviews(train)}
+                             className="text-sm text-blue-400 font-medium underline cursor-pointer hover:text-blue-300 transition-colors">
+                             See {train.reviews} Reviews
+                           </span>
                         </div>
                       )}
                     </div>
@@ -270,6 +274,52 @@ function SearchResults() {
           )}
         </div>
       </div>
+
+      {/* Reviews Modal */}
+      {selectedTrainForReviews && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1f222a] border border-[#272a31] rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-white/10 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-white">{selectedTrainForReviews.name} Reviews</h3>
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center bg-green-500/20 text-green-400 px-2 py-1 rounded-lg text-sm font-bold">
+                    <Star className="w-4 h-4 fill-current mr-1" /> {selectedTrainForReviews.rating?.toFixed(1) || '0.0'}
+                  </div>
+                  <span className="text-gray-400 text-sm">Based on {selectedTrainForReviews.reviews} reviews</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedTrainForReviews(null)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+              {selectedTrainForReviews.reviewsList && selectedTrainForReviews.reviewsList.length > 0 ? (
+                selectedTrainForReviews.reviewsList.map((review: any, idx: number) => (
+                  <div key={idx} className="bg-[#131418] p-4 rounded-xl border border-white/5">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-bold text-white">{review.user}</span>
+                      <div className="flex items-center text-yellow-400 text-sm">
+                        <Star className="w-4 h-4 fill-current mr-1" /> {review.rating}
+                      </div>
+                    </div>
+                    <p className="text-gray-300 text-sm mb-2">{review.comment}</p>
+                    <span className="text-xs text-gray-500">{new Date(review.date).toLocaleDateString()}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-400">
+                  <p>No reviews yet for this service.</p>
+                  <p className="text-sm mt-2">Be the first to leave a review after your stay!</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

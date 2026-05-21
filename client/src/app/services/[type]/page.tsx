@@ -7,7 +7,7 @@ import autoTable from 'jspdf-autotable';
 import { 
   Download, CheckCircle2, CreditCard, Users, MapPin, 
   ChevronRight, ShieldCheck, Plane, Train, 
-  Hotel, Utensils, Bus, User, Loader2, ArrowRightLeft, Lock, Wallet
+  Hotel, Utensils, Bus, User, Loader2, ArrowRightLeft, Lock, Wallet, Star
 } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Cookies from 'js-cookie';
@@ -74,6 +74,12 @@ function BookingFlowInner() {
   });
   const [bookingResult, setBookingResult] = useState({ bookingId: '', pnr: '', status: '', serviceClass: '', seatNumbers: [] as string[], trainId: null as any });
   const [showReturnPrompt, setShowReturnPrompt] = useState(true);
+  
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  
   const [idProofFile, setIdProofFile] = useState<File | null>(null);
   const [showSeatMapForPassenger, setShowSeatMapForPassenger] = useState<number | null>(null);
   const [bookedSeats, setBookedSeats] = useState<Set<string>>(new Set());
@@ -286,6 +292,23 @@ function BookingFlowInner() {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const submitReview = async () => {
+    if (!reviewComment.trim()) return;
+    setIsSubmittingReview(true);
+    try {
+      await axios.post(`http://localhost:5000/api/trains/${urlTrainId}/reviews`, {
+        user: contactInfo.email ? contactInfo.email.split('@')[0] : "Guest User",
+        rating: reviewRating,
+        comment: reviewComment
+      });
+      setReviewSubmitted(true);
+    } catch (e) {
+      console.error("Review submission error:", e);
+    } finally {
+      setIsSubmittingReview(false);
     }
   };
 
@@ -1258,6 +1281,41 @@ function BookingFlowInner() {
                       Go to Profile
                     </button>
                   </div>
+
+                  {/* Leave a Review Section for Hotels, Retiring Rooms, and E-Catering */}
+                  {(isHotel || type === 'retiring-room' || isFood) && !reviewSubmitted && (
+                    <div className="bg-black/40 border border-white/10 rounded-3xl p-8 mt-8 w-full max-w-2xl mx-auto backdrop-blur-xl">
+                      <h3 className="text-xl font-bold text-white mb-4">How was your booking experience?</h3>
+                      <div className="flex gap-2 mb-4">
+                        {[1, 2, 3, 4, 5].map(star => (
+                          <Star 
+                            key={star} 
+                            onClick={() => setReviewRating(star)}
+                            className={`w-8 h-8 cursor-pointer transition-colors ${reviewRating >= star ? 'text-yellow-400 fill-current' : 'text-gray-600'}`} 
+                          />
+                        ))}
+                      </div>
+                      <textarea
+                        value={reviewComment}
+                        onChange={(e) => setReviewComment(e.target.value)}
+                        placeholder="Share your thoughts about this place..."
+                        className="w-full bg-black/50 border border-white/20 rounded-xl p-4 text-white placeholder:text-white/30 outline-none focus:border-blue-500 transition-colors mb-4 resize-none h-24"
+                      ></textarea>
+                      <button
+                        onClick={submitReview}
+                        disabled={isSubmittingReview || !reviewComment.trim()}
+                        className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-8 py-3 rounded-xl font-bold transition-all shadow-lg w-full sm:w-auto"
+                      >
+                        {isSubmittingReview ? 'Submitting...' : 'Submit Review'}
+                      </button>
+                    </div>
+                  )}
+
+                  {reviewSubmitted && (
+                    <div className="bg-green-500/20 border border-green-500/30 text-green-400 rounded-3xl p-6 mt-8 w-full max-w-2xl mx-auto text-center font-bold">
+                      Thank you! Your review has been posted successfully.
+                    </div>
+                  )}
 
                   {showReturnPrompt && journeyDetails.to && (
                     <div className="bg-gradient-to-br from-indigo-900/60 to-purple-900/60 border border-indigo-500/40 rounded-3xl p-8 mt-12 w-full max-w-2xl mx-auto shadow-[0_15px_40px_rgba(79,70,229,0.3)] backdrop-blur-2xl animate-in slide-in-from-bottom-8 duration-700">

@@ -23,6 +23,12 @@ const trainSchema = new mongoose.Schema({
   description: { type: String },
   rating: { type: Number },
   reviews: { type: Number },
+  reviewsList: [{
+    user: String,
+    rating: Number,
+    comment: String,
+    date: { type: Date, default: Date.now }
+  }],
 }, { timestamps: true });
 
 module.exports = mongoose.model('Train', trainSchema);
