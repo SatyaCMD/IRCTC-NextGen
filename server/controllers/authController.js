@@ -21,10 +21,18 @@ exports.register = async (req, res) => {
       employeeSubmittedAt: accountType === 'Employee' ? new Date() : null,
       isEmployeeVerified: false
     });
+    // Generate verification token (hex string)
+    const crypto = require('crypto');
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    user.emailVerificationToken = verificationToken;
+    user.emailVerificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
     await user.save();
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
-    res.status(201).json({ token, user: { id: user._id, name: user.name, email: user.email, preferences: user.preferences } });
+    // Dispatch verification email
+    emailService.sendVerificationEmail(user.email, verificationToken).catch(console.error);
+
+    res.status(201).json({ requiresVerification: true, message: 'Registration successful! Please check your email to verify your account.' });
   } catch (error) {
     console.error('Signup Error:', error);
     res.status(500).json({ error: error.message || 'Server error' });
@@ -40,24 +48,90 @@ exports.login = async (req, res) => {
     const isMatch = await user.comparePassword(password);
     if (!isMatch) return res.status(400).json({ error: 'Invalid credentials ckeck userid and password' });
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
-    
-    // Send Login Alert
-    let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
-    
-    // Mock localhost IP to a Delhi IP for testing purposes so geoip works
-    if (ip === '::1' || ip === '127.0.0.1') {
-      ip = '103.155.223.11'; // A random Delhi IP
+    if (user.role !== 'Admin' && !user.isEmailVerified) {
+      return res.status(403).json({ error: 'Please verify your email address before logging in. Check your inbox.' });
     }
 
+    // Generate random 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Save OTP and 5-min expiry to user
+    user.loginOtp = otp;
+    user.loginOtpExpiry = new Date(Date.now() + 5 * 60 * 1000);
+    await user.save();
+
+    // Send OTP Email
+    emailService.sendLoginOtpEmail(user.email, otp).catch(console.error);
+
+    // Return requiresOtp flag and debugOtp (as requested for network fallbacks)
+    res.json({ requiresOtp: true, debugOtp: otp, email: user.email });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.verifyLoginOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) return res.status(400).json({ error: 'User not found' });
+    if (!user.loginOtp || !user.loginOtpExpiry) return res.status(400).json({ error: 'No OTP requested or OTP expired' });
+    
+    if (new Date() > user.loginOtpExpiry) {
+      user.loginOtp = undefined;
+      user.loginOtpExpiry = undefined;
+      await user.save();
+      return res.status(400).json({ error: 'OTP has expired. Please login again.' });
+    }
+
+    if (user.loginOtp !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP' });
+    }
+
+    // OTP Verified! Clear it and issue Token
+    user.loginOtp = undefined;
+    user.loginOtpExpiry = undefined;
+    await user.save();
+
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+    
+    // Send Login Alert now that they are actually logged in
+    let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    if (ip === '::1' || ip === '127.0.0.1') ip = '103.155.223.11';
     const geo = geoip.lookup(ip);
     const location = geo ? `${geo.city || 'Delhi'}, ${geo.country || 'IN'}` : 'Delhi, IN';
     const device = req.headers['user-agent'] || 'Unknown Device';
     emailService.sendSecurityAlert(user.email, 'Account Login', ip, device, location).catch(console.error);
 
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email, preferences: user.preferences } });
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, preferences: user.preferences, role: user.role } });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const user = await User.findOne({ emailVerificationToken: token });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid or expired verification token.' });
+    }
+
+    if (user.emailVerificationExpiry < new Date()) {
+      return res.status(400).json({ error: 'Verification token has expired. Please request a new one.' });
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpiry = undefined;
+    await user.save();
+
+    res.status(200).json({ message: 'Email successfully verified! You can now log in.' });
+  } catch (error) {
+    console.error('Verify Email Error:', error);
+    res.status(500).json({ error: 'Server error during verification.' });
   }
 };
 

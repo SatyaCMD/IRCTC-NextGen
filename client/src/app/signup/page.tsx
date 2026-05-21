@@ -55,7 +55,7 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      await axios.post(`http://localhost:5000/api/auth/register`, {
+      const res = await axios.post(`http://localhost:5000/api/auth/register`, {
         name: formData.name,
         email: formData.email,
         password: formData.password,
@@ -64,12 +64,20 @@ export default function SignupPage() {
         employeeImage: formData.employeeImage
       });
       
-      if (formData.accountType === 'Employee') {
-        toast.success('Registration initiated. Employee verification will take 5 minutes.');
+      if (res.data.requiresVerification) {
+        toast.success(res.data.message || 'Registration successful! Please check your email to verify your account.', { duration: 5000 });
+        setTimeout(() => {
+          router.push('/login');
+        }, 2000);
       } else {
-        toast.success('Registration initiated. Please verify OTP.');
+        // Fallback
+        if (formData.accountType === 'Employee') {
+          toast.success('Registration initiated. Employee verification will take 5 minutes.');
+        } else {
+          toast.success('Registration initiated.');
+        }
+        router.push(`/login`);
       }
-      router.push(`/otp?email=${encodeURIComponent(formData.email)}`);
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || 'Registration failed';
       if (errorMessage === 'User already exists') {

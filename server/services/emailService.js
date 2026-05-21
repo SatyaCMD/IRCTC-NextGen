@@ -499,3 +499,78 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
         console.log(`Booking Confirmation sent to ${userEmail}.`);
     }
 };
+
+exports.sendLoginOtpEmail = async (userEmail, otp) => {
+    if (!transporter) return;
+
+    const content = `
+        <h2 style="color: #0f172a; margin-top: 0; text-align: center;">Your Login OTP</h2>
+        <p style="text-align: center; color: #64748b;">Please use the following 6-digit code to complete your secure login.</p>
+        
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 25px; border-radius: 8px; text-align: center; margin: 30px 0;">
+            <p style="margin: 0 0 5px 0; color: #475569; font-size: 14px; text-transform: uppercase; font-weight: 600;">Verification Code</p>
+            <h1 style="color: #3b82f6; margin: 0; font-size: 42px; letter-spacing: 8px;">${otp}</h1>
+        </div>
+        
+        <p style="text-align: center; font-size: 13px; color: #ef4444; margin-top: 20px;">
+            This code will expire in 5 minutes. Do not share this code with anyone.
+        </p>
+        <p style="margin-top: 30px; margin-bottom: 0; text-align: center;">Warm Regards,<br><strong>IRCTC Security Desk</strong></p>
+    `;
+
+    const message = {
+        from: `"IRCTC NextGen Security" <${process.env.SMTP_USER}>`,
+        to: userEmail,
+        subject: `[IRCTC 2FA] Your Secure Login Code is ${otp}`,
+        html: getBaseHtml('2FA Login Code', content, `Your verification code is ${otp}`),
+        attachments: [
+            { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../../client/public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../../client/public/ir-logo.png'), cid: 'irlogo' }
+        ]
+    };
+
+    const info = await transporter.sendMail(message);
+    if (!process.env.SMTP_HOST) {
+        console.log(`OTP Email sent to ${userEmail}. Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
+    } else {
+        console.log(`OTP Email sent to ${userEmail}.`);
+    }
+};
+
+exports.sendVerificationEmail = async (userEmail, token) => {
+    if (!transporter) return;
+
+    const verifyUrl = `http://localhost:3000/verify-email?token=${token}`;
+
+    const content = `
+        <h2 style="color: #0f172a; margin-top: 0; text-align: center;">Verify Your Email</h2>
+        <p style="text-align: center; color: #64748b;">Welcome to IRCTC NextGen! Please click the button below to verify your email address and activate your account.</p>
+        
+        <div style="text-align: center; margin: 35px 0;">
+            <a href="${verifyUrl}" style="background-color: #3b82f6; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block; letter-spacing: 0.5px;">Verify Email Now</a>
+        </div>
+        
+        <p style="text-align: center; font-size: 13px; color: #ef4444; margin-top: 20px;">
+            This verification link will expire in 24 hours.
+        </p>
+        <p style="margin-top: 30px; margin-bottom: 0; text-align: center;">Warm Regards,<br><strong>IRCTC Onboarding Team</strong></p>
+    `;
+
+    const message = {
+        from: `"IRCTC NextGen Onboarding" <${process.env.SMTP_USER}>`,
+        to: userEmail,
+        subject: `[Action Required] Verify your IRCTC NextGen Account`,
+        html: getBaseHtml('Email Verification', content, `Please verify your email using this link: ${verifyUrl}`),
+        attachments: [
+            { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../../client/public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../../client/public/ir-logo.png'), cid: 'irlogo' }
+        ]
+    };
+
+    const info = await transporter.sendMail(message);
+    if (!process.env.SMTP_HOST) {
+        console.log(`Verification Email sent to ${userEmail}. Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
+    } else {
+        console.log(`Verification Email sent to ${userEmail}.`);
+    }
+};

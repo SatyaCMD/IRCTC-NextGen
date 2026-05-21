@@ -9,6 +9,7 @@ import SessionTimer from './SessionTimer';
 export default function Navbar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -33,13 +34,20 @@ export default function Navbar() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleLogout = () => {
+  const confirmLogout = () => {
     Cookies.remove('token');
     localStorage.removeItem('sessionExpiresAt');
     setIsLoggedIn(false);
+    setShowLogoutModal(false);
     router.push('/login');
   };
+
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+  };
+
   return (
+    <>
     <nav className="fixed top-0 w-full z-50 bg-[#0f1115]/80 backdrop-blur-md border-b border-[#272a31]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
@@ -73,7 +81,7 @@ export default function Navbar() {
                 </Link>
                 <SessionTimer />
                 <button 
-                  onClick={handleLogout}
+                  onClick={handleLogoutClick}
                   className="bg-red-500/10 text-red-400 hover:bg-red-500/20 px-4 py-2 rounded-lg transition-all text-sm font-bold flex items-center gap-2"
                 >
                   <LogOut className="w-4 h-4" /> Logout
@@ -97,5 +105,33 @@ export default function Navbar() {
         </div>
       </div>
     </nav>
+
+    {/* Custom Logout Modal */}
+    {showLogoutModal && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="bg-[#111] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="w-12 h-12 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <LogOut className="w-6 h-6 text-red-400" />
+          </div>
+          <h3 className="text-xl font-bold text-white text-center mb-2">Confirm Logout</h3>
+          <p className="text-gray-400 text-center text-sm mb-6">Are you sure you want to end your current session and logout?</p>
+          <div className="flex gap-3">
+            <button 
+              onClick={() => setShowLogoutModal(false)}
+              className="flex-1 py-2.5 rounded-xl border border-white/10 text-white hover:bg-white/5 transition-colors font-medium text-sm"
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={confirmLogout}
+              className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors font-medium text-sm shadow-[0_0_15px_rgba(239,68,68,0.4)]"
+            >
+              Yes, Logout
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

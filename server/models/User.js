@@ -38,7 +38,12 @@ const userSchema = new mongoose.Schema({
     documentNumber: String,
     documentImage: String
   },
-  phone: String
+  phone: String,
+  loginOtp: String,
+  loginOtpExpiry: Date,
+  isEmailVerified: { type: Boolean, default: false },
+  emailVerificationToken: String,
+  emailVerificationExpiry: Date
 }, { timestamps: true });
 
 userSchema.pre('save', async function() {

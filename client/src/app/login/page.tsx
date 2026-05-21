@@ -80,10 +80,18 @@ export default function LoginPage() {
         email: formData.email,
         password: formData.password
       });
-      // Store token temporarily for 2FA validation
-      sessionStorage.setItem('temp_token', res.data.token);
-      toast.success('Credentials verified! Please complete 2FA.');
-      router.push(`/otp?email=${encodeURIComponent(formData.email)}&type=login`);
+      
+      if (res.data.requiresOtp) {
+        toast.success('Credentials verified! OTP sent to your email.');
+        // Pass debugOtp in URL for fallback purposes as requested by user
+        router.push(`/otp?email=${encodeURIComponent(formData.email)}&type=login&debug=${res.data.debugOtp}`);
+      } else {
+        // Fallback if OTP is bypassed
+        import('js-cookie').then((Cookies) => {
+          Cookies.default.set('token', res.data.token);
+          router.push('/');
+        });
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Invalid credentials check userid and password');
       setIsLoading(false);

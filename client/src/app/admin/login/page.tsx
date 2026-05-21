@@ -35,19 +35,42 @@ export default function AdminLogin() {
       return;
     }
 
-    // Basic client-side validation for demo
-    if (formData.adminId !== 'admin' || formData.password !== 'admin@321') {
-      toast.error('Access Denied: Invalid admin credentials. Use admin / admin@321');
-      return;
-    }
-
     setIsLoading(true);
 
-    // Simulate backend auth call
-    setTimeout(() => {
-      toast.success('Admin credentials verified. Redirecting to 2FA...');
-      router.push(`/admin/otp`);
-    }, 1200);
+    try {
+      // Map adminId to email since the backend expects email
+      // If adminId is 'admin', we will append the domain used for admin
+      let loginEmail = formData.adminId;
+      if (!loginEmail.includes('@')) {
+        loginEmail = `${loginEmail}@irctc2.co.in`; // fallback domain mapping if they just typed 'admin'
+      }
+
+      const res = await fetch(`http://localhost:5000/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: loginEmail, password: formData.password })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        if (data.requiresOtp) {
+          toast.success('Admin verified! OTP sent to email.');
+          router.push(`/admin/otp?email=${encodeURIComponent(loginEmail)}&type=login&debug=${data.debugOtp}`);
+        } else {
+          // Fallback if OTP is bypassed
+          import('js-cookie').then((Cookies) => {
+            Cookies.default.set('token', data.token);
+            router.push('/admin/dashboard');
+          });
+        }
+      } else {
+        toast.error(data.error || 'Access Denied: Invalid admin credentials.');
+        setIsLoading(false);
+      }
+    } catch (err: any) {
+      toast.error('Server error during authentication.');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -170,9 +193,6 @@ export default function AdminLogin() {
               )}
             </button>
             
-            <div className="mt-6 p-4 bg-white/5 border border-white/10 rounded-xl">
-               <p className="text-xs text-gray-500 font-mono">Demo Credentials:<br/>ID: <span className="text-white">admin</span> | Pass: <span className="text-white">admin@321</span></p>
-            </div>
           </form>
 
         </div>

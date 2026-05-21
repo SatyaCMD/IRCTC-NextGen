@@ -17,9 +17,19 @@ export default function AdminOTPPage() {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
 
+  const [email, setEmail] = useState('');
+
   useEffect(() => {
     generateCaptcha();
-    setDebugOtp(Math.floor(100000 + Math.random() * 900000).toString());
+    
+    // Read from search params
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const emailParam = params.get('email');
+      const debugParam = params.get('debug');
+      if (emailParam) setEmail(emailParam);
+      if (debugParam) setDebugOtp(debugParam);
+    }
   }, []);
 
   useEffect(() => {
@@ -77,18 +87,31 @@ export default function AdminOTPPage() {
     }
 
     if (otpValue !== debugOtp) {
-      toast.error('Invalid 2FA code. Use the secure debug code.');
-      return;
+      // In a real app we wouldn't block if debugOtp doesn't match, but the user requested fallback
     }
 
     setIsVerifying(true);
 
-    setTimeout(() => {
-      // Using sessionStorage instead of Cookies ensures the session dies when the browser/tab is closed
-      sessionStorage.setItem('admin_token', 'secure_admin_session_789');
-      toast.success('Authentication Complete. Welcome Admin.');
-      router.push('/admin');
-    }, 1500);
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/verify-login-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp: otpValue })
+      });
+      const data = await res.json();
+      
+      if (res.ok) {
+        sessionStorage.setItem('admin_token', data.token);
+        toast.success('Authentication Complete. Welcome Admin.');
+        router.push('/admin/dashboard');
+      } else {
+        toast.error(data.error || 'Invalid 2FA code.');
+        setIsVerifying(false);
+      }
+    } catch (err) {
+      toast.error('Server error during OTP verification');
+      setIsVerifying(false);
+    }
   };
 
   return (

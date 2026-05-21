@@ -33,6 +33,7 @@ export default function AdminDashboard() {
   const [bookingSearch, setBookingSearch] = useState('');
   const [dashboardStats, setDashboardStats] = useState<any>({ totalUsers: 0, activeServices: 0, totalBookings: 0, revenue: 0 });
   const [isDataLoading, setIsDataLoading] = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   
   // Settings State
   const [systemSettings, setSystemSettings] = useState({ maintenanceMode: false, aiAssistant: true, bookingCommission: 5 });
@@ -253,11 +254,7 @@ export default function AdminDashboard() {
             <p className="text-xs text-gray-400">Logged in as</p>
             <p className="font-bold text-white mb-3">Super Admin</p>
             <button 
-              onClick={() => { 
-                sessionStorage.removeItem('admin_token'); 
-                router.push('/admin/login'); 
-                toast.success('Admin logged out.'); 
-              }} 
+              onClick={() => setShowLogoutModal(true)} 
               className="w-full flex items-center justify-center gap-2 py-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 text-sm font-bold transition-colors"
             >
               <LogOut className="w-4 h-4" /> Logout
@@ -804,6 +801,37 @@ export default function AdminDashboard() {
                 className={`flex-1 py-3 rounded-xl font-bold transition-colors ${viewingService.status === 'Active' ? 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30' : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'}`}
               >
                 {viewingService.status === 'Active' ? 'Set to Maintenance' : 'Activate Service'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Logout Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-[#111] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="w-12 h-12 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <LogOut className="w-6 h-6 text-red-400" />
+            </div>
+            <h3 className="text-xl font-bold text-white text-center mb-2">Confirm Logout</h3>
+            <p className="text-gray-400 text-center text-sm mb-6">Are you sure you want to exit the Admin Control Panel?</p>
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setShowLogoutModal(false)}
+                className="flex-1 py-2.5 rounded-xl border border-white/10 text-white hover:bg-white/5 transition-colors font-medium text-sm"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  sessionStorage.removeItem('admin_token'); 
+                  router.push('/admin/login'); 
+                  toast.success('Admin logged out.'); 
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white transition-colors font-medium text-sm shadow-[0_0_15px_rgba(239,68,68,0.4)]"
+              >
+                Yes, Logout
               </button>
             </div>
           </div>

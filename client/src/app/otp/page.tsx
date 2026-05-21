@@ -29,8 +29,10 @@ export default function OTPPage() {
       const params = new URLSearchParams(window.location.search);
       const emailParam = params.get('email');
       const typeParam = params.get('type');
+      const debugParam = params.get('debug');
       if (emailParam) setEmail(emailParam);
       if (typeParam === 'login') setIsLoginType(true);
+      if (debugParam) setDebugOtp(debugParam);
     }
   }, []);
 
@@ -74,31 +76,44 @@ export default function OTPPage() {
       return;
     }
 
-    if (otpValue !== debugOtp) {
-      toast.error('Invalid OTP code. Try the debug code.');
-      return;
-    }
-
     setIsVerifying(true);
 
-    // Mock API call delay
-    setTimeout(() => {
-      if (isLoginType) {
-        const tempToken = sessionStorage.getItem('temp_token');
-        if (tempToken) {
+    if (isLoginType) {
+      try {
+        const res = await fetch('http://localhost:5000/api/auth/verify-login-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, otp: otpValue })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
           import('js-cookie').then((Cookies) => {
-            Cookies.default.set('token', tempToken); // Removed 'expires' to make it a Session Cookie
-            sessionStorage.removeItem('temp_token');
-            localStorage.removeItem('sessionExpiresAt'); // Force timer to reset for new login
+            Cookies.default.set('token', data.token);
+            localStorage.removeItem('sessionExpiresAt'); 
           });
+          toast.success('Successfully logged in!');
+          router.push('/');
+        } else {
+          toast.error(data.error || 'Invalid OTP');
+          setIsVerifying(false);
         }
-        toast.success('Successfully logged in!');
-        router.push('/');
-      } else {
+      } catch (err) {
+        toast.error('Server error during OTP verification');
+        setIsVerifying(false);
+      }
+    } else {
+      // Mock for other types (like registration)
+      if (otpValue !== debugOtp) {
+        toast.error('Invalid OTP code. Try the debug code.');
+        setIsVerifying(false);
+        return;
+      }
+      setTimeout(() => {
         toast.success('Account successfully verified!');
         router.push('/login');
-      }
-    }, 1500);
+      }, 1200);
+    }
   };
 
   return (
