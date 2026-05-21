@@ -85,7 +85,7 @@ export default function LoginPage() {
       toast.success('Credentials verified! Please complete 2FA.');
       router.push(`/otp?email=${encodeURIComponent(formData.email)}&type=login`);
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Invalid credentials');
+      toast.error(err.response?.data?.error || 'Invalid credentials check userid and password');
       setIsLoading(false);
     }
   };

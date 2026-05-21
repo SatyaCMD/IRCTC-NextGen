@@ -5,7 +5,7 @@ import Navbar from '@/components/Navbar';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Ticket, LogOut, Download, User as UserIcon, Trash2, Edit3, Shield, Loader2, X, AlertTriangle, Phone, Wallet, Home, Plus } from 'lucide-react';
+import { Ticket, LogOut, Download, User as UserIcon, Trash2, Edit3, Shield, Loader2, X, AlertTriangle, Phone, Wallet, Home, Plus, MapPin, CheckCircle2, Clock } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import toast from 'react-hot-toast';
@@ -24,6 +24,7 @@ export default function Dashboard() {
   const [phoneInput, setPhoneInput] = useState('');
   const [otpInput, setOtpInput] = useState('');
   const [generatedOtp, setGeneratedOtp] = useState('');
+  const [trackingBooking, setTrackingBooking] = useState<any>(null);
   
   const [showTopupModal, setShowTopupModal] = useState(false);
   const [topupAmount, setTopupAmount] = useState('');
@@ -33,6 +34,7 @@ export default function Dashboard() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', phone: '', age: '', gender: '', travelHabits: '', dob: '', address: '', state: '', pincode: '' });
   const [kycForm, setKycForm] = useState({ documentType: 'Aadhaar', documentNumber: '', documentImage: '' });
+  const [paymentStatus, setPaymentStatus] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -85,20 +87,30 @@ export default function Dashboard() {
     }
     
     setIsToppingUp(true);
-    try {
-      const res = await axios.post('http://localhost:5000/api/auth/wallet/add', 
-        { amount: Number(topupAmount) }, 
-        { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
-      );
-      toast.success('Funds added successfully!');
-      setUser({ ...user, walletBalance: res.data.walletBalance });
-      setShowTopupModal(false);
-      setTopupAmount('');
-    } catch (err) {
-      toast.error('Failed to add funds');
-    } finally {
-      setIsToppingUp(false);
-    }
+    setPaymentStatus('Connecting to Payment Gateway...');
+    
+    // Simulate payment gateway steps
+    setTimeout(() => setPaymentStatus('Processing Payment...'), 800);
+    setTimeout(() => setPaymentStatus('Payment Successful! Adding funds...'), 2000);
+    
+    setTimeout(async () => {
+      try {
+        const res = await axios.post('http://localhost:5000/api/auth/wallet/add', 
+          { amount: Number(topupAmount) }, 
+          { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
+        );
+        toast.success('Funds added successfully!');
+        setUser({ ...user, walletBalance: res.data.walletBalance });
+        setShowTopupModal(false);
+        setTopupAmount('');
+        setPaymentStatus('');
+      } catch (err) {
+        toast.error('Failed to add funds');
+        setPaymentStatus('');
+      } finally {
+        setIsToppingUp(false);
+      }
+    }, 2800);
   };
 
   const downloadTicket = async (booking: any) => {
@@ -204,7 +216,7 @@ export default function Dashboard() {
     const trainNum = booking.trainId?.trainNumber || (!booking.from ? '15959' : booking.mockTrainId?.substring(booking.mockTrainId.length - 5) || '12345');
     
     const trainDesc = `${trainNum} / ${trainName}`.toUpperCase();
-    doc.text(trainDesc.length > 25 ? trainDesc.substring(0, 23) + '...' : trainDesc, 105, 62, { align: 'center' });
+    doc.text(trainDesc.length > 45 ? trainDesc.substring(0, 43) + '...' : trainDesc, 105, 62, { align: 'center' });
 
     doc.text(booking.serviceClass || booking.trainClass || 'SL', 175, 62, { align: 'center' });
     doc.setTextColor(0, 0, 0);
@@ -453,12 +465,20 @@ export default function Dashboard() {
                           <p className="text-sm text-gray-400 mb-1">Passengers: <span className="text-white font-medium">{booking.passengers.length}</span></p>
                           <p className="text-sm text-gray-400 mb-2">Seats: <span className="text-white font-medium">{booking.seatNumbers?.length ? booking.seatNumbers.join(', ') : 'Pending'}</span></p>
                           <p className="text-2xl font-black text-white font-mono tracking-tighter mb-4">₹{booking.totalPrice}</p>
-                          {isConfirmed && (
+                          {isConfirmed && booking.serviceType !== 'E Catering' && (
                             <button
                               onClick={() => downloadTicket(booking)}
                               className="flex items-center justify-center w-full md:w-auto text-sm bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-[0_5px_15px_rgba(37,99,235,0.3)] hover:shadow-[0_5px_20px_rgba(37,99,235,0.5)] hover:-translate-y-0.5"
                             >
                               <Download className="w-4 h-4 mr-2" /> Download Ticket
+                            </button>
+                          )}
+                          {isConfirmed && booking.serviceType === 'E Catering' && (
+                            <button
+                              onClick={() => setTrackingBooking(booking)}
+                              className="flex items-center justify-center w-full md:w-auto text-sm bg-orange-600 hover:bg-orange-500 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-[0_5px_15px_rgba(234,88,12,0.3)] hover:shadow-[0_5px_20px_rgba(234,88,12,0.5)] hover:-translate-y-0.5"
+                            >
+                              <MapPin className="w-4 h-4 mr-2" /> Track Order
                             </button>
                           )}
                         </div>
@@ -991,13 +1011,95 @@ export default function Dashboard() {
                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-4 rounded-xl font-bold transition-all flex justify-center items-center gap-2"
               >
                 {isToppingUp ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-                {isToppingUp ? 'Processing...' : 'Add to Wallet'}
+                {isToppingUp ? (paymentStatus || 'Processing...') : 'Add to Wallet'}
               </button>
             </form>
           </div>
         </div>
       )}
 
+      {/* Order Tracking Modal for E-Catering */}
+      {trackingBooking && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#111318] border border-[#272a31] rounded-3xl p-8 max-w-lg w-full relative shadow-2xl overflow-hidden">
+            <button onClick={() => setTrackingBooking(null)} className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-2 rounded-full">
+              <X className="w-5 h-5" />
+            </button>
+            
+            <div className="flex items-center gap-4 mb-8">
+               <div className="w-14 h-14 bg-orange-500/20 text-orange-500 rounded-2xl flex items-center justify-center border border-orange-500/30">
+                  <Utensils className="w-6 h-6" />
+               </div>
+               <div>
+                  <h3 className="text-2xl font-black text-white tracking-tight">Order Status</h3>
+                  <p className="text-orange-400 text-sm mt-1">{trackingBooking.trainId?.name || 'Restaurant'}</p>
+               </div>
+            </div>
+
+            {trackingBooking.orderedItems && trackingBooking.orderedItems.length > 0 && (
+               <div className="mb-6 bg-[#1a1c23] border border-white/5 rounded-xl p-4">
+                 <h4 className="text-xs font-bold text-gray-400 uppercase mb-3">Items Ordered</h4>
+                 <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+                   {trackingBooking.orderedItems.map((item: any, idx: number) => (
+                     <div key={idx} className="flex justify-between items-center text-sm">
+                       <span className="text-gray-300"><span className="text-orange-400 font-bold mr-2">{item.quantity}x</span>{item.name}</span>
+                       <span className="text-emerald-400 font-mono">₹{item.price * item.quantity}</span>
+                     </div>
+                   ))}
+                 </div>
+               </div>
+            )}
+
+            <div className="relative pl-8 space-y-8 before:absolute before:inset-0 before:ml-[1.1rem] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-orange-500 before:via-orange-500/50 before:to-transparent">
+               
+               {/* Order Placed */}
+               <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full border-4 border-[#111318] bg-orange-500 text-white shrink-0 absolute left-0 md:left-1/2 md:-translate-x-1/2 -ml-4 md:ml-0 shadow shadow-orange-500/50">
+                     <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 shadow-lg">
+                     <div className="flex items-center justify-between space-x-2 mb-1">
+                        <div className="font-bold text-white">Order Placed</div>
+                        <time className="font-mono text-xs font-medium text-orange-400">{new Date(trackingBooking.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</time>
+                     </div>
+                     <div className="text-gray-400 text-xs">Your order has been received by the restaurant.</div>
+                  </div>
+               </div>
+
+               {/* Preparing */}
+               <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full border-4 border-[#111318] bg-orange-500 text-white shrink-0 absolute left-0 md:left-1/2 md:-translate-x-1/2 -ml-4 md:ml-0 shadow shadow-orange-500/50">
+                     <Utensils className="w-4 h-4" />
+                  </div>
+                  <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl bg-[#1a1c23] border border-[#272a31] shadow">
+                     <div className="flex items-center justify-between space-x-2 mb-1">
+                        <div className="font-bold text-gray-300">Preparing</div>
+                     </div>
+                     <div className="text-gray-500 text-xs">The chef is cooking your meal.</div>
+                  </div>
+               </div>
+
+               {/* Out for Delivery */}
+               <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full border-4 border-[#111318] bg-[#272a31] text-gray-400 shrink-0 absolute left-0 md:left-1/2 md:-translate-x-1/2 -ml-4 md:ml-0">
+                     <MapPin className="w-4 h-4" />
+                  </div>
+                  <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl bg-[#131418] border border-white/5">
+                     <div className="flex items-center justify-between space-x-2 mb-1">
+                        <div className="font-bold text-gray-500">Out for Delivery</div>
+                     </div>
+                     <div className="text-gray-600 text-xs">Delivery partner is on the way to your seat.</div>
+                  </div>
+               </div>
+            </div>
+
+            <div className="mt-10 bg-orange-500/10 rounded-xl p-4 border border-orange-500/20 text-center">
+               <p className="text-sm text-gray-300 font-medium">Estimated arrival at your seat in</p>
+               <p className="text-2xl font-black text-white mt-1">25 - 30 mins</p>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -20,6 +20,16 @@ function SearchResults() {
   const [aiRecommendation, setAiRecommendation] = useState<any>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [selectedTrainForReviews, setSelectedTrainForReviews] = useState<any>(null);
+  const [vegFilter, setVegFilter] = useState<'All' | 'Veg' | 'Non-Veg'>('All');
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [cart, setCart] = useState<{ [trainId: string]: { [itemName: string]: { count: number, price: number } } }>({});
+  const [imgIdx, setImgIdx] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setImgIdx(i => i + 1), 5000);
+    return () => clearInterval(timer);
+  }, []);
+
   useEffect(() => {
     axios.post('http://localhost:5000/api/trains/seed').then(() => {
       axios.get(`http://localhost:5000/api/trains?source=${source}&destination=${destination}&type=${requestedType}`)
@@ -82,11 +92,35 @@ function SearchResults() {
       <Navbar />
       
       <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center space-x-4 mb-8 text-white">
-           <h1 className="text-2xl font-bold">{source || 'Any'}</h1>
-           <MoveRight className="w-6 h-6 text-gray-500" />
-           <h1 className="text-2xl font-bold">{destination || 'Any'}</h1>
-           {searchDate && <span className="ml-4 px-3 py-1 bg-white/10 rounded-full text-sm">{searchDate}</span>}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-4 text-white">
+             <h1 className="text-2xl font-bold">{source || 'Any'}</h1>
+             {!(requestedType === 'Hotels' || requestedType === 'Retiring Room') && (
+               <>
+                 <MoveRight className="w-6 h-6 text-gray-500" />
+                 <h1 className="text-2xl font-bold">{destination || 'Any'}</h1>
+               </>
+             )}
+             {searchDate && (
+               <span className="ml-4 px-3 py-1 bg-white/10 rounded-full text-sm">
+                 {searchDate} ({new Date(searchDate).toLocaleDateString('en-US', { weekday: 'long' })})
+               </span>
+             )}
+          </div>
+          
+          {requestedType === 'E Catering' && (
+             <div className="flex items-center bg-[#131418] border border-[#272a31] rounded-lg p-1">
+                {(['All', 'Veg', 'Non-Veg'] as const).map(f => (
+                   <button
+                     key={f}
+                     onClick={() => setVegFilter(f)}
+                     className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${vegFilter === f ? (f === 'Veg' ? 'bg-green-600 text-white' : f === 'Non-Veg' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white') : 'text-gray-400 hover:text-white'}`}
+                   >
+                     {f}
+                   </button>
+                ))}
+             </div>
+          )}
         </div>
 
         {/* AI Recommendation Banner */}
@@ -118,9 +152,30 @@ function SearchResults() {
         {/* Train List */}
         <div className="space-y-6">
           {loading ? (
-            <div className="text-white text-center py-10">Searching routes...</div>
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="glass-card p-6 h-48 animate-pulse flex flex-col justify-between">
+                  <div className="flex justify-between">
+                    <div className="w-48 h-6 bg-white/10 rounded"></div>
+                    <div className="w-32 h-6 bg-white/10 rounded"></div>
+                  </div>
+                  <div className="flex gap-4">
+                    <div className="w-24 h-16 bg-white/10 rounded"></div>
+                    <div className="w-24 h-16 bg-white/10 rounded"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : trains.length > 0 ? (
-            trains.map((train) => {
+            trains
+            .filter(t => {
+               if (requestedType === 'E Catering') {
+                  if (vegFilter === 'Veg') return t.vegType === 'Veg' || t.vegType === 'Both';
+                  if (vegFilter === 'Non-Veg') return t.vegType === 'Non-Veg' || t.vegType === 'Both';
+               }
+               return true;
+            })
+            .map((train) => {
               const type = train.serviceType || 'Train';
               let Icon = TrainIcon;
               let iconColor = "text-blue-400";
@@ -167,7 +222,11 @@ function SearchResults() {
                       <span className={`px-2 py-0.5 rounded text-xs font-bold mr-2 ${type === 'Flight' ? 'bg-indigo-500/20 text-indigo-400' : type === 'Bus' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
                         {type}
                       </span>
-                      Runs On: {train.daysOfRun?.join(', ') || 'Daily'}
+                      {type === 'E Catering' ? (
+                        <>Opens On: {train.daysOfRun?.join(', ') || 'Daily'}</>
+                      ) : (type !== 'Hotels' && type !== 'Retiring Room') ? (
+                        <>Runs On: {train.daysOfRun?.join(', ') || 'Daily'}</>
+                      ) : null}
                     </p>
                   </div>
                   {type === 'Hotels' || type === 'Retiring Room' ? (
@@ -198,12 +257,26 @@ function SearchResults() {
                   )}
                 </div>
 
-                {train.image && train.description && (
+                {train.image && train.description && (() => {
+                  const images = train.image.split(',');
+                  return (
                   <div className="flex flex-col md:flex-row gap-6 mb-6 mt-4 p-4 bg-[#131418] border border-[#272a31] rounded-2xl hover:border-blue-500/50 transition-colors cursor-pointer group">
-                    <div className="relative overflow-hidden rounded-xl w-full md:w-56 h-40 border border-white/5">
-                      <img src={train.image} alt={train.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                    </div>
+                    {images.length > 1 ? (
+                      <div className="relative w-full md:w-56 h-40 overflow-hidden rounded-xl border border-white/5">
+                        <img key={imgIdx} src={images[imgIdx % images.length]} alt={train.name} className="w-full h-full object-cover animate-[fade_1s_ease-in-out]" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                           {images.map((_: any, idx: number) => (
+                              <div key={idx} className={`w-1.5 h-1.5 rounded-full transition-colors ${idx === (imgIdx % images.length) ? 'bg-white' : 'bg-white/30'}`} />
+                           ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="relative overflow-hidden rounded-xl w-full md:w-56 h-40 border border-white/5">
+                        <img src={images[0]} alt={train.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+                      </div>
+                    )}
                     <div className="flex-1 flex flex-col justify-center">
                       <p className="text-sm text-gray-300 leading-relaxed mb-4">{train.description}</p>
                       {train.rating && (
@@ -220,49 +293,122 @@ function SearchResults() {
                       )}
                     </div>
                   </div>
+                  );
+                })()}
+
+                {type === 'E Catering' ? (
+                   <div className="mt-2">
+                     <button 
+                        onClick={() => setActiveMenuId(activeMenuId === train._id ? null : train._id)}
+                        className="w-full py-3 bg-orange-500/20 text-orange-400 font-bold rounded-xl hover:bg-orange-500/30 transition-colors"
+                     >
+                        {activeMenuId === train._id ? 'Hide Menu' : 'View Full Menu'}
+                     </button>
+                     {activeMenuId === train._id && (
+                        <div className="mt-4 p-4 border border-[#272a31] bg-[#1a1c23] rounded-xl max-h-[500px] overflow-y-auto">
+                           {train.menu?.map((category: any) => (
+                              <div key={category.category} className="mb-6">
+                                 <h4 className="text-lg font-bold text-white mb-3 pb-2 border-b border-[#272a31]">{category.category}</h4>
+                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {category.items?.map((item: any) => {
+                                       const count = cart[train._id]?.[item.name]?.count || 0;
+                                       return (
+                                          <div key={item.name} className="flex justify-between items-center p-3 bg-[#131418] rounded-lg border border-[#272a31]">
+                                             <div>
+                                                <div className="flex items-center gap-2">
+                                                   <span className={`w-3 h-3 rounded-full border flex items-center justify-center ${item.isVeg ? 'border-green-500 text-green-500' : 'border-red-500 text-red-500'}`}><span className="w-1.5 h-1.5 rounded-full bg-current"></span></span>
+                                                   <span className="text-sm font-medium text-white">{item.name}</span>
+                                                </div>
+                                                <p className="text-sm text-gray-400 mt-1">₹{item.price}</p>
+                                             </div>
+                                             {count > 0 ? (
+                                                <div className="flex items-center gap-3 bg-blue-600/20 text-blue-400 rounded-lg px-2 py-1">
+                                                   <button onClick={() => {
+                                                      const n = count - 1;
+                                                      setCart(prev => ({...prev, [train._id]: {...(prev[train._id] || {}), [item.name]: { count: n, price: item.price }}}));
+                                                   }} className="px-2 font-bold">-</button>
+                                                   <span className="font-bold">{count}</span>
+                                                   <button onClick={() => {
+                                                      const n = count + 1;
+                                                      if (n > 6) return;
+                                                      setCart(prev => ({...prev, [train._id]: {...(prev[train._id] || {}), [item.name]: { count: n, price: item.price }}}));
+                                                   }} className="px-2 font-bold">+</button>
+                                                </div>
+                                             ) : (
+                                                <button onClick={() => {
+                                                   setCart(prev => ({...prev, [train._id]: {...(prev[train._id] || {}), [item.name]: { count: 1, price: item.price }}}));
+                                                }} className="px-4 py-1.5 border border-orange-500 text-orange-500 rounded-lg text-sm font-bold hover:bg-orange-500/10">Add</button>
+                                             )}
+                                          </div>
+                                       );
+                                    })}
+                                 </div>
+                              </div>
+                           ))}
+                           
+                           {/* Checkout Bar */}
+                           {Object.values(cart[train._id] || {}).some(i => i.count > 0) && (
+                              <div className="sticky bottom-0 bg-[#272a31] p-4 rounded-xl flex justify-between items-center shadow-2xl border border-white/10 mt-4">
+                                 <div>
+                                    <p className="text-sm text-gray-400">Total Amount</p>
+                                    <p className="text-xl font-bold text-white">
+                                       ₹{Object.values(cart[train._id] || {}).reduce((acc, curr) => acc + (curr.count * curr.price), 0)}
+                                    </p>
+                                 </div>
+                                 <button onClick={() => {
+                                    const total = Object.values(cart[train._id] || {}).reduce((acc, curr) => acc + (curr.count * curr.price), 0);
+                                    handleBook('E-Catering Menu Order', total);
+                                 }} className="bg-orange-500 hover:bg-orange-400 text-white px-6 py-2 rounded-lg font-bold">
+                                    Place Order
+                                 </button>
+                              </div>
+                           )}
+                        </div>
+                     )}
+                   </div>
+                ) : (
+                   <div className="flex flex-wrap gap-4">
+                     {train.classes?.map((cls: any) => {
+                       const effectiveAvailability = isDeparted ? -100 : cls.availableSeats;
+                       const isRegret = effectiveAvailability < -50;
+
+                       return (
+                       <div key={cls.type} className={`border border-[#272a31] bg-[#1f222a] rounded-xl p-4 flex-1 min-w-[200px] transition-colors ${isRegret ? 'opacity-80' : 'cursor-pointer hover:border-blue-500'} group/cls relative`}>
+                         <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-xs text-white px-3 py-1.5 rounded-lg opacity-0 group-hover/cls:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none border border-white/10 shadow-xl">
+                           {cls.type === '1A' ? 'First Class AC' : 
+                            cls.type === '2A' ? 'Second AC (2-Tier)' : 
+                            cls.type === '3A' ? 'Third AC (3-Tier)' : 
+                            cls.type === 'SL' ? 'Sleeper Class (Non-AC)' : 
+                            cls.type === '2S' ? 'Second Seater (Non-AC)' : 
+                            cls.type === 'CC' ? 'AC Chair Car' : 
+                            cls.type === 'EC' ? 'Executive Chair Car' : 
+                            cls.type === 'Economy' ? 'Standard Economy' : 
+                            cls.type === 'Business' ? 'Business Class' : `${cls.type} Class`}
+                         </div>
+                         <div className="flex justify-between items-center mb-2">
+                           <span className="font-bold text-white">{cls.type}</span>
+                           <span className="text-blue-400 font-bold">₹{Math.round(cls.price)}</span>
+                         </div>
+                         <div className="flex justify-between items-center">
+                           <span className={`text-sm font-bold ${effectiveAvailability > 0 ? 'text-green-400' : isRegret ? 'text-red-500' : 'text-orange-400'}`}>
+                             {effectiveAvailability > 0 
+                               ? `AVAILABLE ${effectiveAvailability}` 
+                               : isRegret 
+                                 ? 'REGRET' 
+                                 : `WL ${Math.abs(effectiveAvailability)}`}
+                           </span>
+                           <button 
+                             onClick={() => handleBook(cls.type, cls.price)}
+                             disabled={isRegret}
+                             className={`text-xs text-white px-3 py-1.5 rounded-lg transition-colors ${isRegret ? 'bg-gray-600 cursor-not-allowed opacity-50' : 'bg-blue-600 hover:bg-blue-500'}`}
+                           >
+                             {isRegret ? 'Unavailable' : 'Book Now'}
+                           </button>
+                         </div>
+                       </div>
+                     )})}
+                   </div>
                 )}
-
-                <div className="flex flex-wrap gap-4">
-                  {train.classes?.map((cls: any) => {
-                    const effectiveAvailability = isDeparted ? -100 : cls.availableSeats;
-                    const isRegret = effectiveAvailability < -50;
-
-                    return (
-                    <div key={cls.type} className={`border border-[#272a31] bg-[#1f222a] rounded-xl p-4 flex-1 min-w-[200px] transition-colors ${isRegret ? 'opacity-80' : 'cursor-pointer hover:border-blue-500'} group/cls relative`}>
-                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-xs text-white px-3 py-1.5 rounded-lg opacity-0 group-hover/cls:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none border border-white/10 shadow-xl">
-                        {cls.type === '1A' ? 'First Class AC' : 
-                         cls.type === '2A' ? 'Second AC (2-Tier)' : 
-                         cls.type === '3A' ? 'Third AC (3-Tier)' : 
-                         cls.type === 'SL' ? 'Sleeper Class (Non-AC)' : 
-                         cls.type === '2S' ? 'Second Seater (Non-AC)' : 
-                         cls.type === 'CC' ? 'AC Chair Car' : 
-                         cls.type === 'EC' ? 'Executive Chair Car' : 
-                         cls.type === 'Economy' ? 'Standard Economy' : 
-                         cls.type === 'Business' ? 'Business Class' : `${cls.type} Class`}
-                      </div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="font-bold text-white">{cls.type}</span>
-                        <span className="text-blue-400 font-bold">₹{Math.round(cls.price)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className={`text-sm font-bold ${effectiveAvailability > 0 ? 'text-green-400' : isRegret ? 'text-red-500' : 'text-orange-400'}`}>
-                          {effectiveAvailability > 0 
-                            ? `AVAILABLE ${effectiveAvailability}` 
-                            : isRegret 
-                              ? 'REGRET' 
-                              : `WL ${Math.abs(effectiveAvailability)}`}
-                        </span>
-                        <button 
-                          onClick={() => handleBook(cls.type, cls.price)}
-                          disabled={isRegret}
-                          className={`text-xs text-white px-3 py-1.5 rounded-lg transition-colors ${isRegret ? 'bg-gray-600 cursor-not-allowed opacity-50' : 'bg-blue-600 hover:bg-blue-500'}`}
-                        >
-                          {isRegret ? 'Unavailable' : 'Book Now'}
-                        </button>
-                      </div>
-                    </div>
-                  )})}
-                </div>
               </div>
             )})
           ) : (

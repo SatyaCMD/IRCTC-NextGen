@@ -257,12 +257,14 @@ export default function BookingHistory() {
                           <MapPin className="w-4 h-4" /> Journey Information
                         </h4>
                         <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
-                          {booking.from && booking.to && (
-                            <div className="flex justify-between items-center">
-                              <span className="text-gray-400">Route</span>
-                              <span className="font-bold">{booking.from} ➔ {booking.to}</span>
-                            </div>
-                          )}
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-400">Boarding Station</span>
+                            <span className="font-bold">{booking.from || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-400">Destination Station</span>
+                            <span className="font-bold">{booking.to || 'N/A'}</span>
+                          </div>
                           <div className="flex justify-between items-center">
                             <span className="text-gray-400">Date</span>
                             <span className="font-bold">{new Date(booking.journeyDate || booking.createdAt).toLocaleDateString()}</span>

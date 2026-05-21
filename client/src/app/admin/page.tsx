@@ -738,6 +738,20 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            {viewingBooking.orderedItems && viewingBooking.orderedItems.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-sm font-bold text-gray-400 uppercase mb-3">Ordered Items</h3>
+                <div className="bg-[#1a1c23] border border-white/10 rounded-xl p-4 space-y-2 max-h-40 overflow-y-auto">
+                  {viewingBooking.orderedItems.map((item: any, idx: number) => (
+                    <div key={idx} className="flex justify-between items-center pb-2 border-b border-white/5 last:border-0 last:pb-0">
+                      <span className="text-white text-sm">{item.quantity}x {item.name}</span>
+                      <span className="text-emerald-400 text-sm font-mono">₹{item.price * item.quantity}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <button onClick={() => setViewingBooking(null)} className="w-full py-3 bg-white/5 hover:bg-white/10 rounded-xl font-bold transition-colors">Close</button>
           </div>
         </div>

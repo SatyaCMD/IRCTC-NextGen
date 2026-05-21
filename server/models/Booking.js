@@ -30,6 +30,11 @@ const bookingSchema = new mongoose.Schema({
     meal: { type: String },
     price: { type: Number }
   },
+  orderedItems: [{
+    name: { type: String },
+    price: { type: Number },
+    quantity: { type: Number }
+  }],
   refundAmount: { type: Number, default: 0 },
   refundStatus: { type: String, enum: ['None', 'Initiated', 'Completed'], default: 'None' },
   expireAt: { type: Date }

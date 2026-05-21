@@ -18,6 +18,15 @@ const trainSchema = new mongoose.Schema({
     duration: { type: String, required: true }
   },
   classes: [classSchema],
+  vegType: { type: String }, // 'Veg', 'Non-Veg', 'Both'
+  menu: [{
+    category: { type: String },
+    items: [{
+      name: { type: String },
+      price: { type: Number },
+      isVeg: { type: Boolean }
+    }]
+  }],
   daysOfRun: [{ type: String }],
   image: { type: String },
   description: { type: String },

@@ -105,33 +105,93 @@ exports.searchTrains = async (req, res) => {
       // Generate 25+ Hotels, Retiring Rooms, E Catering if requested
       if (isSpecialType) {
           const locationName = source.split(' - ')[0];
-          
+          // Helper to generate 100+ word descriptions
+          const getLongDesc = (type, name, locationName) => {
+              const adjectives = ["luxurious", "comfortable", "premium", "elegant", "modern", "cozy", "spacious", "well-appointed", "exquisite", "charming"];
+              const features1 = ["world-class amenities", "exceptional hospitality", "state-of-the-art facilities", "round-the-clock room service", "high-speed Wi-Fi connectivity", "premium bedding setups"];
+              const features2 = ["stunning city views", "a serene environment", "easy access to major transit points", "a dedicated concierge team", "unparalleled comfort", "top-tier cleanliness and hygiene"];
+              const activities = ["relax after a long journey", "recharge for your upcoming travel", "conduct important business meetings", "enjoy a peaceful weekend getaway", "experience the local culture", "unwind with your family in absolute peace"];
+              const endings = ["Your satisfaction is our highest priority, ensuring every moment spent here is memorable.", "We take pride in delivering an unforgettable experience tailored specifically to your unique needs.", "Join thousands of satisfied guests who make us their preferred choice time and time again.", "Experience the gold standard of hospitality where every detail is meticulously crafted for you.", "Let us redefine your travel experience with a perfect blend of modern convenience and traditional warmth."];
+              
+              const a1 = adjectives[Math.floor(Math.random() * adjectives.length)];
+              const a2 = adjectives[Math.floor(Math.random() * adjectives.length)];
+              const f1 = features1[Math.floor(Math.random() * features1.length)];
+              const f2 = features2[Math.floor(Math.random() * features2.length)];
+              const act = activities[Math.floor(Math.random() * activities.length)];
+              const end = endings[Math.floor(Math.random() * endings.length)];
+              
+              const r = Math.random();
+              
+              if (type === 'Hotels' || type === 'Retiring Room') {
+                  if (r < 0.25) {
+                     return `Welcome to ${name} in ${locationName}. We offer a ${a1} and ${a2} stay perfectly balancing comfort and convenience. Recharge your spirit and ${act} in our beautifully maintained spaces. With ${f1}, your satisfaction is our priority.`; // ~40 words
+                  } else if (r < 0.5) {
+                     return `Experience the true essence of ${locationName} at ${name}. Our property is renowned for offering a highly ${a1} and ${a2} stay. Whether you are arriving late at night or preparing for an early morning departure, our establishment provides the perfect sanctuary to ${act}. Our meticulously designed rooms are equipped with ${f1}. ${end}`; // ~60 words
+                  } else if (r < 0.75) {
+                     return `Welcome to ${name}, your premier destination in the beautiful city of ${locationName}. We are renowned for offering a highly ${a1} and ${a2} stay that perfectly balances comfort with convenience. Our meticulously designed rooms are equipped with ${f1} and boast ${f2}, guaranteeing a restful and rejuvenating experience to ${act}. Located strategically within reach of major transit hubs, we eliminate the stress of travel logistics. ${end}`; // ~75 words
+                  } else {
+                     return `Welcome to ${name}, your premier destination in the beautiful city of ${locationName}. We are renowned for offering a highly ${a1} and ${a2} stay that perfectly balances comfort with convenience. Whether you are arriving late at night or preparing for an early morning departure, our establishment provides the perfect sanctuary to ${act}. Our meticulously designed rooms are equipped with ${f1} and boast ${f2}, guaranteeing a restful and rejuvenating experience. Our dedicated staff undergoes rigorous training to anticipate your every requirement, ensuring seamless check-ins, immaculate surroundings, and prompt assistance at any hour of the day or night. Located strategically within reach of major transit hubs, we eliminate the stress of travel logistics. Furthermore, our exclusive partnerships with local tour guides and transport services mean your itinerary is always covered. From complimentary signature breakfasts to plush lounging areas, every aspect of your stay is designed to elevate your journey. ${end}`; // 100+ words
+                  }
+              } else {
+                  if (r < 0.25) {
+                     return `Enjoy delicious food with ${name} at ${locationName}. We provide highly ${a1} and ${a2} dining right at your seat. Craving a quick snack to ${act}? We have you covered with ${f1}.`; // ~40 words
+                  } else if (r < 0.5) {
+                     return `Indulge in a culinary journey with ${name}, proudly delivering freshly prepared meals directly to your train seat at ${locationName}. We provide highly ${a1} and ${a2} dining experiences. Our master chefs utilize only the finest, locally sourced ingredients to craft dishes that burst with authentic flavors, ensuring you ${act} with every bite. ${end}`; // ~60 words
+                  } else if (r < 0.75) {
+                     return `Indulge in a culinary journey with ${name}, proudly delivering freshly prepared meals directly to your train seat at ${locationName}. We understand that train travel demands not just convenience, but also highly ${a1} and ${a2} dining experiences. Our master chefs utilize only the finest ingredients to craft dishes that burst with authentic flavors to help you ${act}. We pride ourselves on maintaining the highest standards of culinary hygiene, operating in kitchens equipped with ${f1}. ${end}`; // ~80 words
+                  } else {
+                     return `Indulge in a culinary journey with ${name}, proudly delivering freshly prepared meals directly to your train seat at ${locationName}. We understand that train travel demands not just convenience, but also highly ${a1} and ${a2} dining experiences. Our master chefs utilize only the finest, locally sourced ingredients to craft dishes that burst with authentic flavors. Whether you crave a quick snack to ${act} or a grand, multi-course feast, our extensive menu is meticulously curated to satisfy every palate. We pride ourselves on maintaining the highest standards of culinary hygiene, operating in state-of-the-art kitchens equipped with ${f1}. Our advanced logistics network ensures that your food arrives piping hot, flawlessly packaged, and exactly on schedule. Furthermore, our diverse offerings cater to various dietary preferences, ensuring that every passenger enjoys a delightful meal without compromise. With unparalleled attention to detail and a passion for gastronomy, we transform your train journey into an exquisite dining adventure. ${end}`; // 100+ words
+                  }
+              }
+          };
+
           if (type === 'Hotels') {
              const hotelNames = ['Taj', 'Oberoi', 'ITC', 'Leela', 'Marriott', 'Hyatt', 'Radisson', 'Novotel', 'Lemon Tree', 'Ginger', 'Holiday Inn', 'Sheraton', 'The Lalit', 'Park', 'Westin'];
              const hotelCount = Math.floor(25 + Math.random() * 10);
-             const hImages = ['https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1551882547-ff40c0d509af?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1445019980597-93fa8acb246c?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1542314831-c6a4d2759876?w=500&auto=format&fit=crop'];
+             const hImages = [
+              'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1445019980597-93fa8acb246c?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1517840901100-8179e982acb7?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1560200353-ce0a76b1d438?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1535827841776-24afc1e255ac?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1498503182468-3b51cbb6cb24?w=500&auto=format&fit=crop'
+             ];
+             const streets = ["MG Road", "Station Approach Road", "City Center", "Railway Avenue", "Market Street", "Residency Road", "Grand Trunk Road"];
+             
              for (let i = 0; i < hotelCount; i++) {
                 const brand = hotelNames[Math.floor(Math.random() * hotelNames.length)];
                 const randomSuffix = ['Grand', 'Resort', 'Plaza', 'Palace', 'Suites', 'Boutique', 'Inn', 'Express'];
                 const name = `${brand} ${randomSuffix[Math.floor(Math.random() * randomSuffix.length)]} ${locationName}`;
                 const baseP = Math.floor(2000 + Math.random() * 8000);
-                const address = `${Math.floor(10 + Math.random() * 90)}, ${locationName} Main Road, City Center, ${locationName}`;
+                const address = `${Math.floor(1 + Math.random() * 200)}, ${streets[Math.floor(Math.random() * streets.length)]}, ${locationName}`;
                 
                 const numReviews = Math.floor(10 + Math.random() * 15);
                 const rating = Number((3.5 + Math.random() * 1.5).toFixed(1));
-                const mockReviews = Array.from({ length: numReviews }).map((_, idx) => ({
-                    user: `Guest User ${idx + 1}`,
+                const namesList = ["Rahul Sharma", "Priya Singh", "Amit Kumar", "Neha Gupta", "Vikram Patel", "Sneha Reddy", "Arjun Desai", "Anjali Verma", "Suresh Iyer", "Pooja Joshi", "Kiran Rao", "Sanjay Dutt", "Anita Desai", "Sunil Shetty", "Ravi Shankar"];
+                const comments = ["Absolutely fantastic experience! Highly recommend to everyone.", "The amenities were top notch and the staff was extremely courteous.", "Very clean and nice. Would definitely visit again.", "Loved the view from the room. Very relaxing stay.", "Staff was very polite and helpful throughout our stay.", "Averaged out experience, could be better in some areas.", "Will definitely come again! Food was amazing.", "One of the best places I have ever stayed at.", "Great value for money. Very peaceful environment.", "The location is perfect, right in the center of everything.", "Room service was incredibly fast and food was delicious.", "Bed was super comfortable. Got a great night's sleep."];
+                const mockReviews = Array.from({ length: numReviews }).map(() => ({
+                    user: namesList[Math.floor(Math.random() * namesList.length)],
                     rating: Math.floor(3 + Math.random() * 3),
-                    comment: ["Great place!", "Very clean and nice.", "Loved the view.", "Staff was very polite.", "Average experience.", "Will come again!"][Math.floor(Math.random() * 6)],
+                    comment: comments[Math.floor(Math.random() * comments.length)],
                     date: new Date(Date.now() - Math.floor(Math.random() * 10000000000))
                 }));
+                
+                // Get 3 random unique images
+                const shuffledH = [...hImages].sort(() => 0.5 - Math.random());
+                const selectedH = shuffledH.slice(0, 3);
                 
                 newServices.push({
                   trainNumber: `HTL-${Math.floor(1000 + Math.random() * 9000)}`,
                   name, serviceType: "Hotels", source, destination: address,
                   timings: { departure: "12:00", arrival: "11:00", duration: "1 Night" },
-                  image: hImages[Math.floor(Math.random() * hImages.length)],
-                  description: `Experience the best of ${locationName} at ${name}. We offer world-class amenities, clean rooms, and exceptional hospitality perfect for every traveler.`,
+                  image: selectedH.join(','),
+                  description: getLongDesc('Hotels', name, locationName),
                   rating,
                   reviews: numReviews,
                   reviewsList: mockReviews,
@@ -146,28 +206,42 @@ exports.searchTrains = async (req, res) => {
           } else if (type === 'Retiring Room') {
              const roomTypes = ['AC Dormitory', 'Non-AC Dormitory', 'AC Double Bed', 'Non-AC Double Bed', 'AC Single Bed', 'Family Room', 'Premium Suite AC'];
              const roomCount = Math.floor(25 + Math.random() * 10);
-             const rImages = ['https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1629140727571-9b5c6f6267b4?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=500&auto=format&fit=crop'];
+             const rImages = [
+              'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1629140727571-9b5c6f6267b4?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1497366216548-37526070297c?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1540518614846-7eded433c457?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1554995207-c18c203602cb?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1505693314120-0d443867891c?w=500&auto=format&fit=crop'
+             ];
              for (let i = 0; i < roomCount; i++) {
                 const roomType = roomTypes[Math.floor(Math.random() * roomTypes.length)];
                 const name = `IRCTC Retiring Room - ${roomType}`;
                 const baseP = Math.floor(200 + Math.random() * 800);
-                const address = `${locationName} Railway Station, Platform ${Math.floor(1 + Math.random() * 5)}`;
+                const address = `${locationName} Railway Station, Platform ${Math.floor(1 + Math.random() * 10)}`;
                 
                 const numReviews = Math.floor(5 + Math.random() * 15);
                 const rating = Number((3.0 + Math.random() * 1.5).toFixed(1));
-                const mockReviews = Array.from({ length: numReviews }).map((_, idx) => ({
-                    user: `Passenger ${idx + 1}`,
+                const namesList = ["Rahul Sharma", "Priya Singh", "Amit Kumar", "Neha Gupta", "Vikram Patel", "Sneha Reddy", "Arjun Desai", "Anjali Verma", "Suresh Iyer", "Pooja Joshi", "Aman Verma", "Ritika Sen"];
+                const comments = ["A peaceful and quiet place to rest.", "Clean bathrooms and comfortable beds.", "Very convenient since it's right at the station.", "Saved me a lot of hassle. Good service.", "Affordable and clean. Highly recommended for transit.", "Better than waiting on the platform!", "Secure and safe for families.", "Good option for a short layover.", "Air conditioning worked perfectly. Slept well.", "Staff was helpful with my luggage."];
+                const mockReviews = Array.from({ length: numReviews }).map(() => ({
+                    user: namesList[Math.floor(Math.random() * namesList.length)],
                     rating: Math.floor(3 + Math.random() * 3),
-                    comment: ["Good place to rest.", "Clean beds and safe.", "Very near to platform.", "Decent for the price."][Math.floor(Math.random() * 4)],
+                    comment: comments[Math.floor(Math.random() * comments.length)],
                     date: new Date(Date.now() - Math.floor(Math.random() * 10000000000))
                 }));
+                
+                // Get 3 random unique images
+                const shuffledR = [...rImages].sort(() => 0.5 - Math.random());
+                const selectedR = shuffledR.slice(0, 3);
                 
                 newServices.push({
                   trainNumber: `RR-${Math.floor(1000 + Math.random() * 9000)}`,
                   name, serviceType: "Retiring Room", source, destination: address,
                   timings: { departure: "12:00", arrival: "11:00", duration: "24 Hours" },
-                  image: rImages[Math.floor(Math.random() * rImages.length)],
-                  description: `Rest at ease at ${locationName} station in our clean and secure ${roomType}. A perfect transit stop for passengers.`,
+                  image: selectedR.join(','),
+                  description: getLongDesc('Retiring Room', name, locationName),
                   rating,
                   reviews: numReviews,
                   reviewsList: mockReviews,
@@ -182,35 +256,84 @@ exports.searchTrains = async (req, res) => {
           } else if (type === 'E Catering') {
              const restNames = ['Bikanerwala', 'Haldirams', 'Dominos', 'KFC', 'Subway', 'Sagar Ratna', 'Punjabi Dhaba', 'South Indian Express', 'Mughlai Darbar', 'The Foodie Station', 'Biryani Blues', 'Behrouz', 'Faasos', 'Street Food Hub'];
              const restCount = Math.floor(30 + Math.random() * 15);
-             const eImages = ['https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1512152272829-e3139592d56f?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=500&auto=format&fit=crop', 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=500&auto=format&fit=crop'];
+             const eImages = [
+              'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1512152272829-e3139592d56f?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=500&auto=format&fit=crop'
+             ];
              for (let i = 0; i < restCount; i++) {
                 const restName = restNames[Math.floor(Math.random() * restNames.length)];
                 const randomSuffix = ['- Fast Food', '- Premium Thali', '- North Indian', '- South Indian', '- Bakery', '- Pure Veg', '- Multi Cuisine'];
                 const name = `${restName} ${randomSuffix[Math.floor(Math.random() * randomSuffix.length)]}`;
                 const baseP = Math.floor(150 + Math.random() * 300);
-                const address = `Delivering at ${locationName} Station`;
+                const address = `Delivering at ${locationName} Station Platform ${Math.floor(1 + Math.random() * 10)}`;
                 const numReviews = Math.floor(15 + Math.random() * 20);
-                const mockReviews = Array.from({ length: numReviews }).map((_, idx) => ({
-                    user: `Diner ${idx + 1}`,
+                const namesList = ["Rahul Sharma", "Priya Singh", "Amit Kumar", "Neha Gupta", "Vikram Patel", "Sneha Reddy", "Arjun Desai", "Anjali Verma", "Suresh Iyer", "Pooja Joshi"];
+                const mockReviews = Array.from({ length: numReviews }).map(() => ({
+                    user: namesList[Math.floor(Math.random() * namesList.length)],
                     rating: Math.floor(3 + Math.random() * 3),
                     comment: ["Very tasty food!", "Delivery was exactly on time.", "Hygiene was maintained.", "Good portions."][Math.floor(Math.random() * 4)],
                     date: new Date(Date.now() - Math.floor(Math.random() * 10000000000))
                 }));
+                
+                let imgs = [];
+                for(let j = 0; j < 3; j++) {
+                    imgs.push(eImages[Math.floor(Math.random() * eImages.length)]);
+                }
+                
+                const isVegRest = name.includes('Pure Veg') || name.includes('Bikanerwala') || name.includes('Haldirams') || name.includes('Sagar Ratna');
+                const isNonVegRest = name.includes('KFC');
+                const vegType = isVegRest ? 'Veg' : (isNonVegRest ? 'Non-Veg' : 'Both');
+                
+                // Generate a massive 150+ item menu
+                const menu = [];
+                const addCategory = (catName, itemNames, basePrice, forceVeg = null) => {
+                    const items = [];
+                    itemNames.forEach(n => {
+                        for(let k=1; k<=3; k++) { // Duplicate with variations to reach 150 items
+                            const isVeg = forceVeg !== null ? forceVeg : (!n.toLowerCase().includes('chicken') && !n.toLowerCase().includes('mutton') && !n.toLowerCase().includes('fish') && !n.toLowerCase().includes('egg'));
+                            if (vegType === 'Veg' && !isVeg) return;
+                            if (vegType === 'Non-Veg' && isVeg && catName !== 'Breads' && catName !== 'Drinks') return;
+                            
+                            const variation = k === 1 ? 'Regular' : (k === 2 ? 'Large' : 'Special');
+                            items.push({
+                                name: `${n} (${variation})`,
+                                price: Math.floor(basePrice + Math.random() * 100) + (k * 40),
+                                isVeg
+                            });
+                        }
+                    });
+                    if (items.length > 0) menu.push({ category: catName, items });
+                };
+
+                addCategory("Starters", ["Paneer Tikka", "Veg Manchurian", "Chilly Paneer", "Spring Rolls", "Hara Bhara Kebab", "Chicken Tikka", "Chilly Chicken", "Chicken 65", "Fish Fry", "Mutton Kebab", "Chicken Lollypop"], 150);
+                addCategory("Main Course (Indian)", ["Paneer Butter Masala", "Dal Makhani", "Kadhai Paneer", "Mix Veg", "Malai Kofta", "Butter Chicken", "Chicken Curry", "Mutton Rogan Josh", "Fish Curry", "Egg Curry"], 200);
+                addCategory("Breads", ["Roti", "Butter Roti", "Naan", "Butter Naan", "Garlic Naan", "Lachha Paratha", "Pudina Paratha", "Missi Roti"], 30, true);
+                addCategory("Rice & Biryani", ["Steamed Rice", "Jeera Rice", "Veg Pulao", "Veg Biryani", "Chicken Biryani", "Mutton Biryani", "Egg Biryani"], 120);
+                addCategory("Chinese", ["Veg Fried Rice", "Hakka Noodles", "Veg Manchurian Gravy", "Chicken Fried Rice", "Chicken Noodles", "Chilly Chicken Gravy"], 180);
+                addCategory("Italian", ["Margherita Pizza", "Farmhouse Pizza", "Peperoni Pizza", "White Sauce Pasta", "Red Sauce Pasta", "Garlic Bread"], 250);
+                addCategory("Drinks", ["Mineral Water", "Coke", "Pepsi", "Sprite", "Fresh Lime Soda", "Lassi", "Buttermilk", "Cold Coffee", "Masala Chai"], 40, true);
+                addCategory("Desserts", ["Gulab Jamun", "Rasgulla", "Ice Cream", "Brownie", "Gajar Halwa", "Kheer", "Rasmalai", "Jalebi"], 80, true);
+                
                 newServices.push({
                   trainNumber: `FOD-${Math.floor(1000 + Math.random() * 9000)}`,
                   name, serviceType: "E Catering", source, destination: address,
                   timings: { departure: "Lunch / Dinner", arrival: "At Seat", duration: "Freshly Cooked" },
-                  image: eImages[Math.floor(Math.random() * eImages.length)],
-                  description: `Delicious and fresh food delivered directly to your train seat by ${restName}. Satisfaction guaranteed on your journey!`,
+                  image: imgs.join(','),
+                  description: getLongDesc('E Catering', restName, locationName),
                   rating: Number((3.8 + Math.random() * 1.0).toFixed(1)),
                   reviews: numReviews,
                   reviewsList: mockReviews,
-                  classes: [
-                    { type: 'Standard Thali', price: baseP, availableSeats: getSeats(100) },
-                    { type: 'Premium Thali', price: Math.floor(baseP * 1.5), availableSeats: getSeats(100) },
-                    { type: 'Combo Meal', price: Math.floor(baseP * 1.2), availableSeats: getSeats(100) },
-                    { type: 'Snacks & Beverages', price: Math.floor(baseP * 0.5), availableSeats: getSeats(100) }
-                  ],
+                  classes: [], // No longer using classes for E-catering
+                  vegType,
+                  menu,
                   daysOfRun: ["Daily"]
                 });
              }

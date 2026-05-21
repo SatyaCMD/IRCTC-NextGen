@@ -208,9 +208,24 @@ function BookingFlowInner() {
     setIsLoading(true);
     try {
       const token = Cookies.get('token');
+      let orderedItems: any[] = [];
+      if (isFood) {
+         try {
+            const cartStr = localStorage.getItem('ecatering_cart');
+            if (cartStr) {
+               const cartObj = JSON.parse(cartStr);
+               orderedItems = Object.entries(cartObj).map(([name, data]: any) => ({
+                  name,
+                  price: data.price,
+                  quantity: data.count
+               }));
+            }
+         } catch (e) {}
+      }
+
       const bookingRes = await axios.post('http://localhost:5000/api/bookings', {
         trainId: urlTrainId,
-        serviceType: isHotel ? 'Hotel' : isFlight ? 'Flight' : isBus ? 'Bus' : isFood ? 'Food' : 'Train',
+        serviceType: isHotel ? 'Hotels' : isFlight ? 'Flight' : isBus ? 'Bus' : isFood ? 'E Catering' : 'Train',
         serviceClass: journeyDetails.travelClass || 'Standard',
         passengers: passengers.map(p => ({
           name: p.name,
@@ -224,7 +239,8 @@ function BookingFlowInner() {
         to: journeyDetails.to,
         departureTime: urlDepartureTime,
         quota: journeyDetails.quota,
-        walletAmountUsed: useWallet ? Math.min(Math.round(totalPrice + (totalPrice * 0.18)), userWalletBalance) : 0
+        walletAmountUsed: useWallet ? Math.min(Math.round(totalPrice + (totalPrice * 0.18)), userWalletBalance) : 0,
+        orderedItems
       }, { headers: { Authorization: `Bearer ${token}` } });
 
       const createdBooking = bookingRes.data;
@@ -250,7 +266,7 @@ function BookingFlowInner() {
         seatNumbers: confirmRes.data.seatNumbers || [],
         trainId: createdBooking.trainId
       });
-      setStep(3);
+      setStep(4);
       
       if (finalStatus === 'Verification Pending') {
          setShowVerificationModal(true);
@@ -1067,15 +1083,65 @@ function BookingFlowInner() {
                   Cancel Booking
                 </button>
                 <button type="submit" disabled={isLoading} className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-10 py-4 rounded-2xl font-bold text-lg transition-all flex items-center gap-3 disabled:opacity-70 group shadow-[0_10px_30px_rgba(59,130,246,0.4)] hover:shadow-[0_10px_40px_rgba(59,130,246,0.6)] hover:-translate-y-1">
-                  {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Review & Pay'}
+                  {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : 'Review Booking'}
                   {!isLoading && <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />}
                 </button>
               </div>
             </form>
           )}
 
-          {/* STEP 2: PAYMENT */}
+          {/* STEP 2: REVIEW */}
           {step === 2 && (
+             <div className="animate-in fade-in zoom-in-95 duration-500">
+                <div className="flex items-center gap-3 mb-8 pb-4 border-b border-white/10">
+                  <div className="bg-blue-500/20 p-2 rounded-lg text-blue-400 border border-blue-500/30"><ShieldCheck className="w-6 h-6" /></div>
+                  <h2 className="text-2xl font-bold text-white tracking-wide">Review & Confirm</h2>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-3xl p-8 space-y-6 backdrop-blur-xl mb-8">
+                  <h3 className="text-lg font-bold text-white/80 uppercase tracking-widest border-b border-white/10 pb-2">Journey Details</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm font-medium">
+                     <div><span className="text-gray-500 block">From</span><span className="text-white text-base">{journeyDetails.from || 'N/A'}</span></div>
+                     <div><span className="text-gray-500 block">To</span><span className="text-white text-base">{journeyDetails.to || 'N/A'}</span></div>
+                     <div><span className="text-gray-500 block">Date</span><span className="text-white text-base">{journeyDetails.date1}</span></div>
+                     <div><span className="text-gray-500 block">Class</span><span className="text-white text-base">{journeyDetails.travelClass}</span></div>
+                  </div>
+                  
+                  <h3 className="text-lg font-bold text-white/80 uppercase tracking-widest border-b border-white/10 pb-2 mt-8">Passenger Details</h3>
+                  <div className="space-y-4">
+                     {passengers.map((p, i) => (
+                        <div key={i} className="flex justify-between items-center bg-black/40 p-4 rounded-xl border border-white/5">
+                           <div>
+                              <span className="font-bold text-white block">{p.name}</span>
+                              <span className="text-gray-400 text-xs">{p.age} Yrs • {p.gender}</span>
+                           </div>
+                           <div className="text-right">
+                              <span className="text-gray-500 text-xs block uppercase">Preference</span>
+                              <span className="font-bold text-blue-400">{p.pref || 'None'}</span>
+                           </div>
+                        </div>
+                     ))}
+                  </div>
+
+                  <div className="flex justify-between items-center pt-6 mt-8 border-t border-white/10">
+                    <div>
+                       <span className="text-gray-400 block text-sm">Total Amount to Pay</span>
+                       <span className="text-3xl font-black text-emerald-400 font-mono">₹{Math.max(0, Math.round(totalPrice + (totalPrice * 0.18)) - (useWallet ? Math.min(Math.round(totalPrice + (totalPrice * 0.18)), userWalletBalance) : 0)).toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-4">
+                  <button type="button" onClick={() => setStep(1)} className="text-white/60 hover:text-white px-6 py-3 font-bold transition-colors">Edit Details</button>
+                  <button type="button" onClick={() => setStep(3)} className="bg-emerald-500 hover:bg-emerald-400 text-white px-10 py-4 rounded-2xl font-bold text-lg transition-all flex items-center gap-3 hover:-translate-y-1 shadow-[0_10px_30px_rgba(16,185,129,0.3)]">
+                    Make Payment <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+             </div>
+          )}
+
+          {/* STEP 3: PAYMENT */}
+          {step === 3 && (
             <form onSubmit={handlePayment} className="animate-in fade-in zoom-in-95 duration-500">
               <div className="flex flex-col lg:flex-row gap-10">
                 
@@ -1221,7 +1287,7 @@ function BookingFlowInner() {
               </div>
 
               <div className="flex justify-between items-center pt-8 mt-10 border-t border-white/10">
-                <button type="button" onClick={() => setStep(1)} className="text-white/60 hover:text-white px-6 py-3 font-bold transition-colors">Back to details</button>
+                <button type="button" onClick={() => setStep(2)} className="text-white/60 hover:text-white px-6 py-3 font-bold transition-colors">Back to review</button>
                 <button type="submit" disabled={isLoading} className="bg-emerald-500 hover:bg-emerald-400 text-white px-10 py-4 rounded-2xl font-bold text-lg transition-all flex items-center gap-3 disabled:opacity-70 group shadow-[0_10px_30px_rgba(16,185,129,0.4)] hover:shadow-[0_10px_40px_rgba(16,185,129,0.6)] hover:-translate-y-1">
                   {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <ShieldCheck className="w-6 h-6" />}
                   {isLoading ? 'Processing securely...' : `Pay ₹${Math.max(0, Math.round(totalPrice + (totalPrice * 0.18)) - (useWallet ? Math.min(Math.round(totalPrice + (totalPrice * 0.18)), userWalletBalance) : 0)).toLocaleString()}`}
@@ -1230,8 +1296,8 @@ function BookingFlowInner() {
             </form>
           )}
 
-          {/* STEP 3: CONFIRMATION */}
-          {step === 3 && (
+          {/* STEP 4: CONFIRMATION */}
+          {step === 4 && (
             <div className="animate-in zoom-in-95 duration-700 flex flex-col items-center text-center py-12">
               <div className={`w-32 h-32 rounded-full flex items-center justify-center mb-8 border relative ${bookingResult.status === 'Verification Pending' ? 'bg-orange-500/20 border-orange-500/50 shadow-[0_0_50px_rgba(249,115,22,0.4)]' : 'bg-emerald-500/20 border-emerald-500/50 shadow-[0_0_50px_rgba(16,185,129,0.4)]'}`}>
                 <div className={`absolute inset-0 rounded-full animate-ping duration-1000 ${bookingResult.status === 'Verification Pending' ? 'bg-orange-400/20' : 'bg-emerald-400/20'}`} />

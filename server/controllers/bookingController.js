@@ -6,7 +6,7 @@ const Settings = require('../models/Settings');
 
 exports.createBooking = async (req, res) => {
   try {
-    const { trainId, serviceId, serviceType, trainClass, serviceClass, quota, passengers, totalPrice, walletAmountUsed, bookingRef, journeyDate, from, to, departureTime, pantryItems } = req.body;
+    const { trainId, serviceId, serviceType, trainClass, serviceClass, quota, passengers, totalPrice, walletAmountUsed, bookingRef, journeyDate, from, to, departureTime, pantryItems, orderedItems } = req.body;
     
     const cls = serviceClass || trainClass || 'SL';
     const qta = quota || 'General';
@@ -125,12 +125,14 @@ exports.createBooking = async (req, res) => {
       commissionAmount,
       status: 'Pending',
       pnr,
-      bookingRef: bookingRef || `REF${Date.now()}`,
-      journeyDate,
+      bookingRef,
+      journeyDate: new Date(journeyDate).toISOString(),
       from,
       to,
       departureTime,
-      pantryItems
+      pantryItems,
+      orderedItems,
+      expireAt: new Date(Date.now() + 15 * 60000)
     });
 
     await booking.save();
