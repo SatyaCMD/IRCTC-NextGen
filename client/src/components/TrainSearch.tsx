@@ -34,11 +34,11 @@ export default function TrainSearch({ defaultServiceType = 'Train' }: { defaultS
     }
     if (serviceType === 'E Catering') {
       if (!destination || destination.length !== 10 || isNaN(Number(destination))) {
-        alert('Please enter a valid 10-digit PNR Number.');
+        import('react-hot-toast').then(mod => mod.default.error('Please enter a valid 10-digit PNR Number.'));
         return;
       }
       if (!mobile || mobile.length !== 10 || isNaN(Number(mobile))) {
-        alert('Please enter a valid 10-digit Mobile Number.');
+        import('react-hot-toast').then(mod => mod.default.error('Please enter a valid 10-digit Mobile Number.'));
         return;
       }
     }
@@ -245,7 +245,7 @@ export default function TrainSearch({ defaultServiceType = 'Train' }: { defaultS
              {serviceType === 'Bus' && <><option>General</option><option>Ladies</option></>}
              {serviceType === 'Hill Railways' && <><option>General</option><option>Tourist Quota</option></>}
              {(serviceType === 'Charter Train' || serviceType === 'Tourist Train') && <><option>General</option><option>Foreign Tourist</option></>}
-             {serviceType === 'Train' && <><option>General</option><option>Tatkal</option><option>Premium Tatkal</option><option>Ladies</option><option>Divyangjan</option></>}
+             {(serviceType === 'Train' || serviceType === 'Tatkal' || serviceType === 'Premium Tatkal') && <><option>General</option><option>Tatkal</option><option>Premium Tatkal</option><option>Ladies</option><option>Divyangjan</option></>}
            </select>
         </div>
         <div>
@@ -255,7 +255,7 @@ export default function TrainSearch({ defaultServiceType = 'Train' }: { defaultS
              {serviceType === 'Bus' && <><option>All Classes</option><option>AC Seater</option><option>Non-AC Seater</option><option>Volvo AC Sleeper</option><option>Non-AC Sleeper</option></>}
              {serviceType === 'Hill Railways' && <><option>All Classes</option><option>First Class (FC)</option><option>Second Class (2S)</option><option>Vistadome</option></>}
              {(serviceType === 'Charter Train' || serviceType === 'Tourist Train') && <><option>All Classes</option><option>Deluxe Cabin</option><option>Junior Suite</option><option>Presidential Suite</option></>}
-             {serviceType === 'Train' && <><option>All Classes</option><option>1AC</option><option>2AC</option><option>3AC</option><option>Sleeper (SL)</option></>}
+             {(serviceType === 'Train' || serviceType === 'Tatkal' || serviceType === 'Premium Tatkal') && <><option>All Classes</option><option>1AC</option><option>2AC</option><option>3AC</option><option>Sleeper (SL)</option></>}
            </select>
         </div>
       </div>

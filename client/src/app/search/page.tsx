@@ -201,8 +201,21 @@ function SearchResults() {
               const currentHour = now.getHours();
               const currentMin = now.getMinutes();
               let isDeparted = false;
+              let statusTag = 'Departed';
               
-              if (isToday && train.timings?.departure) {
+              if (type === 'E Catering' && train.timings?.arrival) {
+                 const [closeHour, closeMin] = train.timings.arrival.split(':').map(Number);
+                 const closeTime = new Date();
+                 closeTime.setHours(closeHour, closeMin, 0, 0);
+                 const diffMins = (closeTime.getTime() - now.getTime()) / (1000 * 60);
+                 if (diffMins <= 10 && diffMins > 0) {
+                     isDeparted = true;
+                     statusTag = 'Closing Soon';
+                 } else if (diffMins <= 0) {
+                     isDeparted = true;
+                     statusTag = 'Closed';
+                 }
+              } else if (isToday && train.timings?.departure) {
                  const [depHour, depMin] = train.timings.departure.split(':').map(Number);
                  if (currentHour > depHour || (currentHour === depHour && currentMin > depMin)) {
                     isDeparted = true;
@@ -216,7 +229,7 @@ function SearchResults() {
                     <h3 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
                       <Icon className={`w-5 h-5 ${iconColor}`} />
                       {train.name} <span className="text-sm text-gray-400 font-normal ml-2">({train.trainNumber})</span>
-                      {isDeparted && <span className="ml-3 px-2 py-0.5 rounded text-[10px] font-black bg-red-500/20 text-red-500 uppercase tracking-widest border border-red-500/30">Departed</span>}
+                      {isDeparted && <span className="ml-3 px-2 py-0.5 rounded text-[10px] font-black bg-red-500/20 text-red-500 uppercase tracking-widest border border-red-500/30">{statusTag}</span>}
                     </h3>
                     <p className="text-sm text-gray-400">
                       <span className={`px-2 py-0.5 rounded text-xs font-bold mr-2 ${type === 'Flight' ? 'bg-indigo-500/20 text-indigo-400' : type === 'Bus' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
@@ -224,7 +237,7 @@ function SearchResults() {
                       </span>
                       {type === 'E Catering' ? (
                         <>Opens On: {train.daysOfRun?.join(', ') || 'Daily'}</>
-                      ) : (type !== 'Hotels' && type !== 'Retiring Room') ? (
+                      ) : (type !== 'Hotels' && type !== 'Retiring Room' && type !== 'Holiday Packs') ? (
                         <>Runs On: {train.daysOfRun?.join(', ') || 'Daily'}</>
                       ) : null}
                     </p>

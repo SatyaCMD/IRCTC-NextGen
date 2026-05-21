@@ -122,7 +122,7 @@ exports.searchTrains = async (req, res) => {
               
               const r = Math.random();
               
-              if (type === 'Hotels' || type === 'Retiring Room') {
+              if (type === 'Hotels' || type === 'Retiring Room' || type === 'Holiday Packs') {
                   if (r < 0.25) {
                      return `Welcome to ${name} in ${locationName}. We offer a ${a1} and ${a2} stay perfectly balancing comfort and convenience. Recharge your spirit and ${act} in our beautifully maintained spaces. With ${f1}, your satisfaction is our priority.`; // ~40 words
                   } else if (r < 0.5) {
@@ -207,13 +207,13 @@ exports.searchTrains = async (req, res) => {
              const roomTypes = ['AC Dormitory', 'Non-AC Dormitory', 'AC Double Bed', 'Non-AC Double Bed', 'AC Single Bed', 'Family Room', 'Premium Suite AC'];
              const roomCount = Math.floor(25 + Math.random() * 10);
              const rImages = [
-              'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=500&auto=format&fit=crop',
-              'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=500&auto=format&fit=crop',
-              'https://images.unsplash.com/photo-1629140727571-9b5c6f6267b4?w=500&auto=format&fit=crop',
-              'https://images.unsplash.com/photo-1497366216548-37526070297c?w=500&auto=format&fit=crop',
-              'https://images.unsplash.com/photo-1540518614846-7eded433c457?w=500&auto=format&fit=crop',
-              'https://images.unsplash.com/photo-1554995207-c18c203602cb?w=500&auto=format&fit=crop',
-              'https://images.unsplash.com/photo-1505693314120-0d443867891c?w=500&auto=format&fit=crop'
+              'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1445019980597-93fa8acb246c?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=500&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=500&auto=format&fit=crop'
              ];
              for (let i = 0; i < roomCount; i++) {
                 const roomType = roomTypes[Math.floor(Math.random() * roomTypes.length)];
@@ -340,19 +340,45 @@ exports.searchTrains = async (req, res) => {
           } else if (type === 'Holiday Packs') {
              const packNames = ['Golden Triangle Tour', 'Kerala Backwaters', 'Goa Beach Retreat', 'Kashmir Paradise', 'Rajasthan Heritage', 'Himachal Escapade', 'North East Explorer', 'Andaman Delight'];
              const packCount = Math.floor(15 + Math.random() * 10);
+             const hpImages = [
+               'https://images.unsplash.com/photo-1526761122248-c31c93f8b2b9?w=500&auto=format&fit=crop',
+               'https://images.unsplash.com/photo-1498307833015-e7b400441eb8?w=500&auto=format&fit=crop',
+               'https://images.unsplash.com/photo-1501504905252-473c47e087f8?w=500&auto=format&fit=crop',
+               'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=500&auto=format&fit=crop',
+               'https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?w=500&auto=format&fit=crop',
+               'https://images.unsplash.com/photo-1503220317375-aaad61436b1b?w=500&auto=format&fit=crop',
+               'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=500&auto=format&fit=crop',
+               'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=500&auto=format&fit=crop',
+               'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=500&auto=format&fit=crop'
+             ];
              for (let i = 0; i < packCount; i++) {
                 const pName = packNames[Math.floor(Math.random() * packNames.length)];
                 const duration = Math.floor(3 + Math.random() * 10);
                 const baseP = Math.floor(15000 + Math.random() * 25000);
                 const userDest = req.query.destination ? req.query.destination.split(' - ')[0] : 'Anywhere';
+                
+                const selectedHP = [...hpImages].sort(() => 0.5 - Math.random()).slice(0, 3);
+                
+                const numReviews = Math.floor(50 + Math.random() * 500);
+                const mockReviews = [];
+                for(let r=0; r<Math.min(numReviews, 15); r++) {
+                   const reviewNames = ['Amit', 'Rahul', 'Priya', 'Sneha', 'Vikram', 'Anjali', 'Karan', 'Pooja', 'Rohan', 'Neha'];
+                   const rName = reviewNames[Math.floor(Math.random()*reviewNames.length)];
+                   const rScore = Number((3.5 + Math.random()*1.5).toFixed(1));
+                   const reviewTexts = ["Absolutely breathtaking experience! The guides were fantastic.", "Well organized and totally worth the money.", "A memorable trip for my family. Highly recommended.", "Good arrangements, though travel took longer than expected.", "Everything from hotels to sightseeing was top notch."];
+                   const rText = reviewTexts[Math.floor(Math.random()*reviewTexts.length)];
+                   mockReviews.push({ user: rName, rating: rScore, comment: rText, date: new Date(Date.now() - Math.random() * 10000000000).toISOString() });
+                }
+
                 newServices.push({
                   trainNumber: `HP-${Math.floor(1000 + Math.random() * 9000)}`,
                   name: `${pName} from ${userDest}`, serviceType: "Holiday Packs", source: userDest, destination: "Multiple Attractions",
                   timings: { departure: "09:00", arrival: "18:00", duration: `${duration} Days` },
-                  image: "https://images.unsplash.com/photo-1512100356356-de1b84283e18?w=500&auto=format&fit=crop",
-                  description: `A breathtaking ${duration}-day journey exploring the very best of ${pName}. All-inclusive tour with expert guides.`,
+                  image: selectedHP.join(','),
+                  description: getLongDesc('Holiday Packs', pName, userDest),
                   rating: Number((4.0 + Math.random() * 1.0).toFixed(1)),
-                  reviews: Math.floor(50 + Math.random() * 500),
+                  reviews: numReviews,
+                  reviewsList: mockReviews,
                   classes: [
                     { type: 'Standard Package', price: baseP, availableSeats: getSeats(30) },
                     { type: 'Comfort Package', price: Math.floor(baseP * 1.5), availableSeats: getSeats(20) },
