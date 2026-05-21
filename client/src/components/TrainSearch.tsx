@@ -14,6 +14,7 @@ export default function TrainSearch({ defaultServiceType = 'Train' }: { defaultS
   const [date, setDate] = useState(tomorrow.toISOString().split('T')[0]);
   const [ticketType, setTicketType] = useState('General');
   const [className, setClassName] = useState('All Classes');
+  const [mobile, setMobile] = useState('');
 
   const [serviceType, setServiceType] = useState(defaultServiceType);
   const serviceTypes = ['Train', 'Flights', 'Bus', 'Hill Railways', 'Charter Train', 'Tourist Train'];
@@ -31,7 +32,18 @@ export default function TrainSearch({ defaultServiceType = 'Train' }: { defaultS
       router.push('/login?redirect=auth-required');
       return;
     }
-    router.push(`/search?source=${encodeURIComponent(source)}&destination=${encodeURIComponent(destination)}&date=${encodeURIComponent(date)}&quota=${encodeURIComponent(ticketType)}&class=${encodeURIComponent(className)}&type=${encodeURIComponent(serviceType)}`);
+    if (serviceType === 'E Catering') {
+      if (!destination || destination.length !== 10 || isNaN(Number(destination))) {
+        alert('Please enter a valid 10-digit PNR Number.');
+        return;
+      }
+      if (!mobile || mobile.length !== 10 || isNaN(Number(mobile))) {
+        alert('Please enter a valid 10-digit Mobile Number.');
+        return;
+      }
+    }
+    
+    router.push(`/search?source=${encodeURIComponent(source)}&destination=${encodeURIComponent(destination)}&date=${encodeURIComponent(date)}&quota=${encodeURIComponent(ticketType)}&class=${encodeURIComponent(className)}&type=${encodeURIComponent(serviceType)}&mobile=${encodeURIComponent(mobile)}`);
   };
 
   const isHotel = defaultServiceType === 'Hotels' || defaultServiceType === 'Retiring Room';
@@ -88,7 +100,15 @@ export default function TrainSearch({ defaultServiceType = 'Train' }: { defaultS
                   PNR Number
                 </label>
                 <div className="relative flex items-center">
-                  <input type="text" placeholder="Enter 10-digit PNR..." value={destination} onChange={e => setDestination(e.target.value)} maxLength={10} className="w-full bg-[#131418] border-2 border-[#272a31] rounded-2xl px-5 py-4 text-white text-lg font-medium focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all outline-none" />
+                  <input type="text" placeholder="Enter 10-digit PNR..." value={destination} onChange={e => setDestination(e.target.value)} maxLength={10} className="w-full bg-[#131418] border-2 border-[#272a31] rounded-2xl px-5 py-4 text-white text-lg font-medium focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all outline-none" required />
+                </div>
+              </div>
+              <div className="flex-1 w-full relative group">
+                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 block group-focus-within:text-blue-400 transition-colors">
+                  Mobile Number
+                </label>
+                <div className="relative flex items-center">
+                  <input type="tel" placeholder="10-digit Mobile No." value={mobile} onChange={e => setMobile(e.target.value)} maxLength={10} className="w-full bg-[#131418] border-2 border-[#272a31] rounded-2xl px-5 py-4 text-white text-lg font-medium focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all outline-none" required />
                 </div>
               </div>
               <div className="flex-1 w-full">
