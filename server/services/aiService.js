@@ -1,7 +1,7 @@
 const { GoogleGenerativeAI, SchemaType } = require('@google/generative-ai');
 
 async function recommendTrain(input, trains) {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'AIzaSyCMAzIWcDgX_At-nvRkI6918dOZDW5IsZk');
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({
     model: 'gemini-1.5-flash',
     generationConfig: {
