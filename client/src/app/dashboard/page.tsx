@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<'history' | 'profile'>(initialTab);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteErrorModal, setDeleteErrorModal] = useState(false);
   const [showKYCModal, setShowKYCModal] = useState(false);
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [phoneStep, setPhoneStep] = useState<'phone' | 'otp'>('phone');
@@ -987,22 +988,27 @@ export default function Dashboard() {
                 onClick={async () => {
                   setIsDeleting(true);
                   try {
-                    await axios.delete('http://localhost:5000/api/auth/delete', {
+                    await axios.delete('http://localhost:5000/api/auth/delete-account', {
                       headers: { Authorization: `Bearer ${Cookies.get('token')}` }
                     });
                     import('react-hot-toast').then(mod => mod.default.success('Account deleted permanently.'));
+                    setShowDeleteModal(false);
                     Cookies.remove('token');
                     Cookies.remove('user');
                     setTimeout(() => {
                       router.push('/');
                     }, 1500);
                   } catch (err: any) {
-                    if (err.response && err.response.data && err.response.data.error) {
+                    if (err.response && err.response.data && err.response.data.hasBookings) {
+                      setShowDeleteModal(false);
+                      setDeleteErrorModal(true);
+                    } else if (err.response && err.response.data && err.response.data.error) {
                       import('react-hot-toast').then(mod => mod.default.error(err.response.data.error, { duration: 5000 }));
+                      setShowDeleteModal(false);
                     } else {
                       import('react-hot-toast').then(mod => mod.default.error('Failed to delete account. Please try again later.'));
+                      setShowDeleteModal(false);
                     }
-                    setShowDeleteModal(false);
                   } finally {
                     setIsDeleting(false);
                   }
@@ -1013,6 +1019,27 @@ export default function Dashboard() {
                 {isDeleting ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Yes, Delete'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Account Error Modal */}
+      {deleteErrorModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-[#111] border border-white/10 rounded-2xl max-w-sm w-full p-8 shadow-2xl animate-in zoom-in-95 duration-200 text-center">
+            <div className="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mx-auto mb-5 border border-blue-500/30">
+              <Shield className="w-8 h-8 text-blue-400" />
+            </div>
+            <h3 className="text-xl font-bold mb-3 text-white">Action Blocked</h3>
+            <p className="text-gray-400 mb-8 text-sm leading-relaxed">
+              As you are having bookings associated with this account, your account cannot be deleted. Please wait until your bookings are completed or cancelled before trying again.
+            </p>
+            <button 
+              onClick={() => setDeleteErrorModal(false)}
+              className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all shadow-[0_0_15px_rgba(37,99,235,0.4)]"
+            >
+              OK
+            </button>
           </div>
         </div>
       )}

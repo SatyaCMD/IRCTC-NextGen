@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
+const { startCronJobs } = require('./services/cronJobs');
 
 const app = express();
 
@@ -33,6 +34,7 @@ const Service = require('./models/Service');
 mongoose.connect(MONGODB_URI)
   .then(async () => {
     console.log('Connected to MongoDB');
+    startCronJobs();
 
     try {
       const serviceCount = await Service.countDocuments();

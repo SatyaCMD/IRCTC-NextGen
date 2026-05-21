@@ -4,6 +4,8 @@ const User = require('../models/User');
 const Service = require('../models/Service');
 const Booking = require('../models/Booking');
 const Settings = require('../models/Settings');
+const Train = require('../models/Train');
+const emailService = require('../services/emailService');
 
 // GET all users
 router.get('/users', async (req, res) => {
@@ -123,6 +125,75 @@ router.put('/settings', async (req, res) => {
     res.json(settings);
   } catch (err) {
     res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+// UPDATE user wallet
+router.put('/users/:id/wallet', async (req, res) => {
+  try {
+    const { amount, action, reason } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    
+    const numAmount = Number(amount);
+    if (action === 'credit') {
+      user.walletBalance = (user.walletBalance || 0) + numAmount;
+    } else if (action === 'debit') {
+      user.walletBalance = (user.walletBalance || 0) - numAmount;
+    }
+    await user.save();
+
+    emailService.sendAdminWalletAdjustmentEmail(user.email, user.name, numAmount, action, reason).catch(console.error);
+
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update wallet' });
+  }
+});
+
+// UPDATE train status (Delay/Reschedule)
+router.put('/trains/:id/status', async (req, res) => {
+  try {
+    const { statusMessage, oldTime, newTime } = req.body;
+    const train = await Train.findById(req.params.id);
+    if (!train) return res.status(404).json({ error: 'Train not found' });
+    
+    // Find all bookings for this train
+    const bookings = await Booking.find({ trainId: train._id, status: 'Confirmed' }).populate('userId');
+    for (const booking of bookings) {
+      if (booking.userId && booking.userId.email) {
+        emailService.sendTrainDelayEmail(
+          booking.userId.email,
+          booking.userId.name,
+          booking.pnr,
+          train.name,
+          oldTime,
+          newTime,
+          statusMessage
+        ).catch(console.error);
+      }
+    }
+
+    res.json({ message: 'Train status updated and users notified.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update train status' });
+  }
+});
+
+// SEND Promotional Emails
+router.post('/promo', async (req, res) => {
+  try {
+    const { subject, htmlBody } = req.body;
+    const users = await User.find({ isEmailVerified: true });
+    
+    // Asynchronous blast
+    for (const user of users) {
+      emailService.sendPromotionalEmail(user.email, subject, htmlBody).catch(console.error);
+    }
+
+    res.json({ message: `Promo blast dispatched to ${users.length} verified users.` });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to dispatch promo emails' });
   }
 });
 

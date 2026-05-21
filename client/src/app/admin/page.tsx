@@ -10,7 +10,7 @@ import {
   Users, Activity, Server, Ticket, Settings, Search, 
   Plus, Edit2, Trash2, MoreVertical, ShieldAlert,
   TrendingUp, Train, Plane, Hotel, CheckCircle2, XCircle,
-  Utensils, LogOut, Loader2, Download, Bus
+  Utensils, LogOut, Loader2, Download, Bus, Mail, Send
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -233,6 +233,7 @@ export default function AdminDashboard() {
               { id: 'users', label: 'Manage Users', icon: <Users className="w-5 h-5" /> },
               { id: 'services', label: 'Services', icon: <Server className="w-5 h-5" /> },
               { id: 'bookings', label: 'Bookings', icon: <Ticket className="w-5 h-5" /> },
+              { id: 'marketing', label: 'Marketing', icon: <Mail className="w-5 h-5" /> },
               { id: 'settings', label: 'System Settings', icon: <Settings className="w-5 h-5" /> },
             ].map(item => (
               <button
@@ -806,6 +807,76 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+          {/* MARKETING TAB */}
+          {activeTab === 'marketing' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mt-12 mx-auto">
+              <h2 className="text-3xl font-bold mb-8">Email Marketing & Offers</h2>
+              
+              <div className="bg-[#111] border border-white/5 p-6 rounded-2xl mb-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20">
+                    <Mail className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">Mass Promotional Blasts</h3>
+                    <p className="text-gray-400 text-sm">Send a promotional email to all verified users in the database.</p>
+                  </div>
+                </div>
+
+                <form 
+                  onSubmit={async (e: any) => {
+                    e.preventDefault();
+                    const subject = e.target.subject.value;
+                    const htmlBody = e.target.htmlBody.value;
+                    const btn = e.nativeEvent.submitter;
+                    btn.disabled = true;
+                    btn.innerText = 'Sending...';
+                    
+                    try {
+                      const res = await axios.post('http://localhost:5000/api/admin/promo', { subject, htmlBody });
+                      toast.success(res.data.message);
+                      e.target.reset();
+                    } catch (err: any) {
+                      toast.error('Failed to send promotional blast.');
+                    } finally {
+                      btn.disabled = false;
+                      btn.innerText = 'Send Blast';
+                    }
+                  }}
+                  className="space-y-6"
+                >
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Subject Line</label>
+                    <input 
+                      name="subject"
+                      required
+                      placeholder="e.g. 🚂 Diwali Special: 10% Cashback on Top-ups!"
+                      className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">HTML Content</label>
+                    <textarea 
+                      name="htmlBody"
+                      required
+                      rows={8}
+                      placeholder="<p>Dear Customer, get 10% cashback this Diwali...</p>"
+                      className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500"
+                    ></textarea>
+                    <p className="text-xs text-gray-500 mt-2">The content will be automatically wrapped in the standard IRCTC template with logos and footer.</p>
+                  </div>
+                  
+                  <div className="flex justify-end">
+                    <button type="submit" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-[0_0_15px_rgba(37,99,235,0.3)]">
+                      <Send className="w-4 h-4" /> Send Blast
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
 
       {/* Custom Logout Modal */}
       {showLogoutModal && (

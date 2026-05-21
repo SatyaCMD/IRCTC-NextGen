@@ -177,9 +177,45 @@ exports.getMe = async (req, res) => {
       await user.save();
     }
     
-    res.json(user);
+    res.json(req.user);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Check if user has bookings
+    const bookingCount = await Booking.countDocuments({ userId: userId });
+    
+    if (bookingCount > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete account with active or past bookings. Please contact support.',
+        hasBookings: true
+      });
+    }
+
+    // Capture details for email before deletion
+    const userEmail = user.email;
+    const userName = user.name;
+
+    // Proceed with deletion
+    await User.findByIdAndDelete(userId);
+
+    // Send confirmation email
+    emailService.sendAccountDeletionEmail(userEmail, userName).catch(console.error);
+
+    res.status(200).json({ message: 'Account successfully deleted.' });
+  } catch (error) {
+    console.error('Delete Account Error:', error);
+    res.status(500).json({ error: 'Server error during account deletion.' });
   }
 };
 
@@ -268,7 +304,13 @@ exports.updateProfile = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // Update only allowed fields (no email change)
+    const changedFields = [];
+    if (phone && user.phone !== phone) changedFields.push('Phone Number');
+    if (address && user.address !== address) changedFields.push('Address');
+    if (state && user.state !== state) changedFields.push('State');
+    if (pincode && user.pincode !== pincode) changedFields.push('Pincode');
+    if (name && user.name !== name) changedFields.push('Name');
+
     if (name) user.name = name;
     if (phone) user.phone = phone;
     if (age) user.preferences.age = age;
@@ -281,11 +323,9 @@ exports.updateProfile = async (req, res) => {
 
     await user.save();
 
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
-    const geo = geoip.lookup(ip);
-    const location = geo ? `${geo.city || 'Unknown'}, ${geo.country || 'Unknown'}` : 'Local/Unknown';
-    const device = req.headers['user-agent'] || 'Unknown Device';
-    emailService.sendSecurityAlert(user.email, 'Profile Updated', ip, device, location).catch(console.error);
+    if (changedFields.length > 0) {
+      emailService.sendProfileModificationEmail(user.email, user.name, changedFields).catch(console.error);
+    }
 
     res.json({ message: 'Profile updated successfully', user });
   } catch (error) {

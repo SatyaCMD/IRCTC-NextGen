@@ -574,3 +574,195 @@ exports.sendVerificationEmail = async (userEmail, token) => {
         console.log(`Verification Email sent to ${userEmail}.`);
     }
 };
+
+exports.sendAccountDeletionEmail = async (userEmail, userName) => {
+    if (!transporter) return;
+
+    const content = `
+        <h2 style="color: #0f172a; margin-top: 0; text-align: center;">Account Successfully Deleted</h2>
+        <p>Dear ${userName},</p>
+        <p>As per your request, your IRCTC NextGen account associated with this email address has been permanently deleted from our systems.</p>
+        <p>All your personal data has been securely wiped in accordance with our data privacy policies.</p>
+        <p>If you did not authorize this action, please contact our security desk immediately.</p>
+        <p style="margin-top: 30px; margin-bottom: 0;">Warm Regards,<br><strong>IRCTC Security Team</strong></p>
+    `;
+
+    const message = {
+        from: `"IRCTC NextGen Security" <${process.env.SMTP_USER}>`,
+        to: userEmail,
+        subject: `[Notice] Your IRCTC NextGen Account has been Deleted`,
+        html: getBaseHtml('Account Deletion', content, `Your IRCTC NextGen account has been permanently removed.`),
+        attachments: [
+            { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../../client/public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../../client/public/ir-logo.png'), cid: 'irlogo' }
+        ]
+    };
+
+    const info = await transporter.sendMail(message);
+    if (!process.env.SMTP_HOST) {
+        console.log(`Account Deletion Email sent to ${userEmail}. Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
+    } else {
+        console.log(`Account Deletion Email sent to ${userEmail}.`);
+    }
+};
+
+exports.sendChartPreparationEmail = async (userEmail, userName, pnr, trainName, departureTime, seatDetails) => {
+    if (!transporter) return;
+    const content = `
+        <h2 style="color: #0f172a; margin-top: 0;">Chart Prepared - Seat Confirmed</h2>
+        <p>Dear ${userName},</p>
+        <p>The reservation chart for your upcoming journey has been prepared. Your final seating details for PNR <strong>${pnr}</strong> on train <strong>${trainName}</strong> are confirmed:</p>
+        <div style="background-color: #f0fdf4; border-left: 4px solid #22c55e; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0; font-size: 16px; color: #166534;"><strong>Coach & Seat:</strong> ${seatDetails}</p>
+        </div>
+        <p>Your train departs at <strong>${departureTime}</strong>. Please ensure you arrive at the station at least 30 minutes prior to departure with a valid Government ID.</p>
+        <p>Wishing you a safe and pleasant journey!</p>
+    `;
+    const message = {
+        from: `"IRCTC NextGen" <${process.env.SMTP_USER}>`,
+        to: userEmail,
+        subject: `[Chart Prepared] Your Seat is Confirmed for PNR ${pnr}`,
+        html: getBaseHtml('Chart Preparation', content, `Your seat ${seatDetails} is confirmed.`),
+        attachments: [{ filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../../client/public/ashokstambh_logo.jpg'), cid: 'ashokstambh' }, { filename: 'ir-logo.png', path: require('path').join(__dirname, '../../client/public/ir-logo.png'), cid: 'irlogo' }]
+    };
+    await transporter.sendMail(message);
+};
+
+exports.sendJourneyReminderEmail = async (userEmail, userName, pnr, trainName, departureTime) => {
+    if (!transporter) return;
+    const content = `
+        <h2 style="color: #0f172a; margin-top: 0;">Travel Reminder</h2>
+        <p>Dear ${userName},</p>
+        <p>This is a gentle reminder that you are scheduled to travel tomorrow!</p>
+        <p>Your journey on <strong>${trainName}</strong> (PNR: ${pnr}) departs at <strong>${departureTime}</strong>.</p>
+        <h3>Travel Tips:</h3>
+        <ul>
+            <li>Carry a valid original Government ID proof.</li>
+            <li>Arrive at the station 45 minutes early.</li>
+            <li>Check the live running status before leaving for the station.</li>
+        </ul>
+        <p>Have a great trip!</p>
+    `;
+    const message = {
+        from: `"IRCTC NextGen" <${process.env.SMTP_USER}>`,
+        to: userEmail,
+        subject: `[Reminder] You are traveling tomorrow! (PNR ${pnr})`,
+        html: getBaseHtml('Journey Reminder', content, `Reminder for your journey tomorrow.`),
+        attachments: [{ filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../../client/public/ashokstambh_logo.jpg'), cid: 'ashokstambh' }, { filename: 'ir-logo.png', path: require('path').join(__dirname, '../../client/public/ir-logo.png'), cid: 'irlogo' }]
+    };
+    await transporter.sendMail(message);
+};
+
+exports.sendTrainDelayEmail = async (userEmail, userName, pnr, trainName, oldTime, newTime, statusMessage) => {
+    if (!transporter) return;
+    const content = `
+        <h2 style="color: #0f172a; margin-top: 0;">Important: Train Schedule Update</h2>
+        <p>Dear ${userName},</p>
+        <p>We wish to inform you about a change in the schedule for your booked train <strong>${trainName}</strong> (PNR: ${pnr}).</p>
+        <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0; color: #b45309;"><strong>Status:</strong> ${statusMessage}</p>
+            <p style="margin: 5px 0 0 0; color: #b45309;"><strong>Original Time:</strong> ${oldTime}</p>
+            <p style="margin: 5px 0 0 0; color: #b45309;"><strong>Revised Time:</strong> ${newTime}</p>
+        </div>
+        <p>We apologize for the inconvenience caused.</p>
+    `;
+    const message = {
+        from: `"IRCTC NextGen" <${process.env.SMTP_USER}>`,
+        to: userEmail,
+        subject: `[Schedule Update] Train ${trainName} Rescheduled`,
+        html: getBaseHtml('Schedule Update', content, `Your train schedule has been updated.`),
+        attachments: [{ filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../../client/public/ashokstambh_logo.jpg'), cid: 'ashokstambh' }, { filename: 'ir-logo.png', path: require('path').join(__dirname, '../../client/public/ir-logo.png'), cid: 'irlogo' }]
+    };
+    await transporter.sendMail(message);
+};
+
+exports.sendProfileModificationEmail = async (userEmail, userName, changedFields) => {
+    if (!transporter) return;
+    const content = `
+        <h2 style="color: #0f172a; margin-top: 0;">Security Alert: Profile Updated</h2>
+        <p>Dear ${userName},</p>
+        <p>We noticed that your IRCTC NextGen profile has been recently updated. The following details were modified:</p>
+        <ul>
+            ${changedFields.map(field => `<li><strong>${field}</strong></li>`).join('')}
+        </ul>
+        <p>If you made these changes, no further action is required.</p>
+        <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin-top: 20px;">
+            <p style="margin: 0; color: #991b1b; font-size: 14px;">
+                <strong>Did you not authorize this?</strong><br>
+                If you did not authorize these changes, please reset your password and contact support immediately.
+            </p>
+        </div>
+    `;
+    const message = {
+        from: `"IRCTC NextGen Security" <${process.env.SMTP_USER}>`,
+        to: userEmail,
+        subject: `[Security Alert] Profile Information Changed`,
+        html: getBaseHtml('Profile Update', content, `Your profile information was recently changed.`),
+        attachments: [{ filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../../client/public/ashokstambh_logo.jpg'), cid: 'ashokstambh' }, { filename: 'ir-logo.png', path: require('path').join(__dirname, '../../client/public/ir-logo.png'), cid: 'irlogo' }]
+    };
+    await transporter.sendMail(message);
+};
+
+exports.sendAdminWalletAdjustmentEmail = async (userEmail, userName, amount, action, reason) => {
+    if (!transporter) return;
+    const isCredit = action === 'credit';
+    const color = isCredit ? '#22c55e' : '#ef4444';
+    const actionText = isCredit ? 'Credited to' : 'Deducted from';
+    const content = `
+        <h2 style="color: #0f172a; margin-top: 0;">Wallet Adjustment Notice</h2>
+        <p>Dear ${userName},</p>
+        <p>A manual adjustment has been made to your IRCTC NextGen Wallet by our Support Team.</p>
+        <div style="background-color: #f8fafc; border-left: 4px solid ${color}; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0; font-size: 18px; color: ${color};"><strong>₹${amount} ${actionText} your wallet.</strong></p>
+            <p style="margin: 10px 0 0 0; color: #475569;"><strong>Reason:</strong> ${reason}</p>
+        </div>
+        <p>Please check your wallet dashboard for the updated balance.</p>
+    `;
+    const message = {
+        from: `"IRCTC NextGen Support" <${process.env.SMTP_USER}>`,
+        to: userEmail,
+        subject: `[Wallet] ₹${amount} ${actionText} your account`,
+        html: getBaseHtml('Wallet Adjustment', content, `A manual adjustment was made to your wallet.`),
+        attachments: [{ filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../../client/public/ashokstambh_logo.jpg'), cid: 'ashokstambh' }, { filename: 'ir-logo.png', path: require('path').join(__dirname, '../../client/public/ir-logo.png'), cid: 'irlogo' }]
+    };
+    await transporter.sendMail(message);
+};
+
+exports.sendPromotionalEmail = async (userEmail, subject, htmlBody) => {
+    if (!transporter) return;
+    const content = `
+        ${htmlBody}
+        <br><br>
+        <p style="font-size: 11px; color: #94a3b8; text-align: center;">You are receiving this email because you are a registered user of IRCTC NextGen.</p>
+    `;
+    const message = {
+        from: `"IRCTC NextGen Offers" <${process.env.SMTP_USER}>`,
+        to: userEmail,
+        subject: subject,
+        html: getBaseHtml('Special Offer', content, `Exciting news from IRCTC NextGen!`),
+        attachments: [{ filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../../client/public/ashokstambh_logo.jpg'), cid: 'ashokstambh' }, { filename: 'ir-logo.png', path: require('path').join(__dirname, '../../client/public/ir-logo.png'), cid: 'irlogo' }]
+    };
+    await transporter.sendMail(message);
+};
+
+exports.sendFeedbackEmail = async (userEmail, userName, pnr, trainName) => {
+    if (!transporter) return;
+    const content = `
+        <h2 style="color: #0f172a; margin-top: 0;">How was your journey?</h2>
+        <p>Dear ${userName},</p>
+        <p>We hope you had a pleasant journey on <strong>${trainName}</strong> (PNR: ${pnr}).</p>
+        <p>At IRCTC, we constantly strive to improve our services. We would love to hear your feedback regarding cleanliness, catering, and punctuality.</p>
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="http://localhost:3000/dashboard?tab=history" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Rate Your Journey</a>
+        </div>
+        <p>Thank you for choosing Indian Railways.</p>
+    `;
+    const message = {
+        from: `"IRCTC NextGen Feedback" <${process.env.SMTP_USER}>`,
+        to: userEmail,
+        subject: `[Feedback] Rate your journey on ${trainName}`,
+        html: getBaseHtml('Journey Feedback', content, `We'd love to hear about your recent trip.`),
+        attachments: [{ filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../../client/public/ashokstambh_logo.jpg'), cid: 'ashokstambh' }, { filename: 'ir-logo.png', path: require('path').join(__dirname, '../../client/public/ir-logo.png'), cid: 'irlogo' }]
+    };
+    await transporter.sendMail(message);
+};
