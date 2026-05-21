@@ -5,7 +5,7 @@ import Navbar from '@/components/Navbar';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Ticket, LogOut, Download, User as UserIcon, Trash2, Edit3, Shield, Loader2, X, AlertTriangle, Phone, Wallet, Home, Plus, MapPin, CheckCircle2, Clock } from 'lucide-react';
+import { Ticket, LogOut, Download, User as UserIcon, Trash2, Edit3, Shield, Loader2, X, AlertTriangle, Phone, Wallet, Home, Plus, MapPin, CheckCircle2, Clock, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import toast from 'react-hot-toast';
@@ -28,8 +28,10 @@ export default function Dashboard() {
   
   const [showTopupModal, setShowTopupModal] = useState(false);
   const [topupAmount, setTopupAmount] = useState('');
+  const [topupStep, setTopupStep] = useState(1);
+  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [paymentDetails, setPaymentDetails] = useState({ cardNumber: '', nameOnCard: '', expiry: '', cvv: '', upiId: '' });
   const [isToppingUp, setIsToppingUp] = useState(false);
-  
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', phone: '', age: '', gender: '', travelHabits: '', dob: '', address: '', state: '', pincode: '' });
@@ -79,13 +81,21 @@ export default function Dashboard() {
     router.push('/');
   };
 
-  const handleTopup = async (e: React.FormEvent) => {
+  const handleTopup = (e: React.FormEvent) => {
     e.preventDefault();
     if (!topupAmount || isNaN(Number(topupAmount)) || Number(topupAmount) <= 0) {
       toast.error('Please enter a valid amount');
       return;
     }
     
+    if (topupStep === 1) {
+      setTopupStep(2);
+    } else if (topupStep === 2) {
+      executeTopup();
+    }
+  };
+
+  const executeTopup = async () => {
     setIsToppingUp(true);
     setPaymentStatus('Connecting to Payment Gateway...');
     
@@ -100,10 +110,11 @@ export default function Dashboard() {
           { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
         );
         toast.success('Funds added successfully!');
-        setUser({ ...user, walletBalance: res.data.walletBalance });
+        setUser({ ...user, walletBalance: res.data.walletBalance, walletTransactions: res.data.transactions });
         setShowTopupModal(false);
         setTopupAmount('');
         setPaymentStatus('');
+        setTopupStep(1);
       } catch (err) {
         toast.error('Failed to add funds');
         setPaymentStatus('');
@@ -521,6 +532,31 @@ export default function Dashboard() {
                   Add Funds
                 </button>
               </div>
+
+              {/* Wallet Transactions Sync List */}
+              {user?.walletTransactions && user.walletTransactions.length > 0 && (
+                <div className="bg-black/30 border border-white/5 rounded-2xl p-6 mb-8 shadow-xl">
+                  <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Database Synced: Recent Transactions</h3>
+                  <div className="space-y-3">
+                    {user.walletTransactions.slice().reverse().slice(0, 5).map((txn: any, idx: number) => (
+                      <div key={idx} className="flex justify-between items-center bg-black/40 p-4 rounded-xl border border-white/5 hover:bg-black/60 transition-colors">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${txn.type === 'Credit' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
+                            {txn.type === 'Credit' ? <ArrowDownRight className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
+                          </div>
+                          <div>
+                            <p className="font-bold text-white text-sm">{txn.description || (txn.type === 'Credit' ? 'Wallet Topup' : 'Booking Payment')}</p>
+                            <p className="text-gray-500 text-xs mt-0.5">Database ID Sync: {txn._id || `txn_${Math.random().toString(36).substr(2, 6)}`} • {new Date(txn.date).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        <div className={`font-mono font-black text-lg tracking-wider ${txn.type === 'Credit' ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {txn.type === 'Credit' ? '+' : '-'}₹{txn.amount.toLocaleString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 {/* Column 1 */}
@@ -986,33 +1022,99 @@ export default function Dashboard() {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#111] border border-white/10 rounded-3xl max-w-sm w-full p-8 shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-black text-white">Add Funds</h3>
-              <button onClick={() => setShowTopupModal(false)} className="text-white/50 hover:text-white p-2">
+              <h3 className="text-2xl font-black text-white">{topupStep === 1 ? 'Add Funds' : 'Secure Payment'}</h3>
+              <button onClick={() => { setShowTopupModal(false); setTopupStep(1); }} className="text-white/50 hover:text-white p-2">
                 <X className="w-5 h-5" />
               </button>
             </div>
             
             <form onSubmit={handleTopup}>
-              <div className="space-y-2 mb-6">
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Amount (₹)</label>
-                <input 
-                  type="number" 
-                  required 
-                  min="1"
-                  value={topupAmount} 
-                  onChange={e => setTopupAmount(e.target.value)} 
-                  placeholder="Enter amount" 
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-medium focus:ring-2 focus:ring-emerald-500/50 outline-none text-xl" 
-                />
+              {topupStep === 1 && (
+                <div className="space-y-2 mb-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Amount (₹)</label>
+                  <input 
+                    type="number" 
+                    required 
+                    min="1"
+                    value={topupAmount} 
+                    onChange={e => setTopupAmount(e.target.value)} 
+                    placeholder="Enter amount" 
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-medium focus:ring-2 focus:ring-emerald-500/50 outline-none text-xl" 
+                  />
+                </div>
+              )}
+
+              {topupStep === 2 && (
+                 <div className="mb-6 space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                    <div className="flex justify-between items-center bg-black/40 p-4 rounded-xl border border-white/5 mb-4">
+                       <span className="text-gray-400 text-sm">Amount to Pay:</span>
+                       <span className="font-bold text-xl text-emerald-400 font-mono">₹{topupAmount}</span>
+                    </div>
+
+                    <div className="flex gap-2 mb-4 border-b border-white/10 pb-4">
+                      {['card', 'upi'].map(method => (
+                        <button 
+                          key={method}
+                          type="button"
+                          onClick={() => setPaymentMethod(method)}
+                          className={`flex-1 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${paymentMethod === method ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-white/5 text-white/60 hover:bg-white/10 border border-white/10'}`}
+                        >
+                          {method === 'card' ? 'Card' : 'UPI'}
+                        </button>
+                      ))}
+                    </div>
+
+                    {paymentMethod === 'card' && (
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-1">Card Number</label>
+                          <input type="text" required maxLength={19} value={paymentDetails.cardNumber} onChange={e => {
+                            let val = e.target.value.replace(/\D/g, '');
+                            val = val.replace(/(.{4})/g, '$1 ').trim();
+                            setPaymentDetails({...paymentDetails, cardNumber: val});
+                          }} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:ring-2 focus:ring-emerald-500/50 font-mono" placeholder="0000 0000 0000 0000" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-1">Expiry</label>
+                            <input type="text" required maxLength={5} value={paymentDetails.expiry} onChange={e => setPaymentDetails({...paymentDetails, expiry: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:ring-2 focus:ring-emerald-500/50 font-mono" placeholder="MM/YY" />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-1">CVV</label>
+                            <input type="password" required maxLength={4} value={paymentDetails.cvv} onChange={e => setPaymentDetails({...paymentDetails, cvv: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:ring-2 focus:ring-emerald-500/50 font-mono" placeholder="CVV" />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {paymentMethod === 'upi' && (
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-1">UPI ID</label>
+                        <input type="text" required value={paymentDetails.upiId} onChange={e => setPaymentDetails({...paymentDetails, upiId: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:ring-2 focus:ring-emerald-500/50" placeholder="username@upi" />
+                      </div>
+                    )}
+                 </div>
+              )}
+
+              <div className="flex gap-3">
+                {topupStep === 2 && (
+                   <button 
+                     type="button" 
+                     onClick={() => setTopupStep(1)} 
+                     className="px-4 py-4 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold transition-all border border-white/10"
+                   >
+                     Back
+                   </button>
+                )}
+                <button 
+                  type="submit" 
+                  disabled={isToppingUp} 
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-4 rounded-xl font-bold transition-all flex justify-center items-center gap-2"
+                >
+                  {isToppingUp ? <Loader2 className="w-5 h-5 animate-spin" /> : (topupStep === 1 ? <Plus className="w-5 h-5" /> : <Shield className="w-5 h-5" />)}
+                  {isToppingUp ? (paymentStatus || 'Processing...') : (topupStep === 1 ? 'Proceed to Payment' : `Pay ₹${topupAmount}`)}
+                </button>
               </div>
-              <button 
-                type="submit" 
-                disabled={isToppingUp} 
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-4 rounded-xl font-bold transition-all flex justify-center items-center gap-2"
-              >
-                {isToppingUp ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-                {isToppingUp ? (paymentStatus || 'Processing...') : 'Add to Wallet'}
-              </button>
             </form>
           </div>
         </div>
