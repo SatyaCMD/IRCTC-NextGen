@@ -3,6 +3,7 @@ const Train = require('../models/Train');
 const Service = require('../models/Service');
 const User = require('../models/User');
 const Settings = require('../models/Settings');
+const emailService = require('../services/emailService');
 
 exports.createBooking = async (req, res) => {
   try {
@@ -164,7 +165,7 @@ exports.createBooking = async (req, res) => {
 exports.confirmBookingPayment = async (req, res) => {
   try {
     const { paymentId, status } = req.body;
-    const booking = await Booking.findById(req.params.id);
+    const booking = await Booking.findById(req.params.id).populate('trainId serviceId userId');
     
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
     
@@ -220,10 +221,11 @@ exports.confirmBookingPayment = async (req, res) => {
     };
 
     if (booking.status === 'Confirmed') {
-      const user = await User.findById(booking.userId);
+      const user = await User.findById(booking.userId._id || booking.userId);
       if (user) {
         user.loyaltyPoints = (user.loyaltyPoints || 0) + (booking.passengers.length * 50);
         await user.save();
+        emailService.sendBookingConfirmation(user.email, booking).catch(console.error);
       }
       await processSeatAllocation(booking);
     } else if (booking.status === 'Verification Pending') {
@@ -234,10 +236,12 @@ exports.confirmBookingPayment = async (req, res) => {
            const b = await Booking.findById(booking._id);
            if (!b || b.status !== 'Verification Pending') return;
            b.status = 'Confirmed';
-           const u = await User.findById(b.userId);
+           const u = await User.findById(b.userId._id || b.userId);
            if (u) {
               u.loyaltyPoints = (u.loyaltyPoints || 0) + (b.passengers.length * 50);
               await u.save();
+              const fullB = await Booking.findById(b._id).populate('trainId serviceId');
+              emailService.sendBookingConfirmation(u.email, fullB).catch(console.error);
            }
            await processSeatAllocation(b);
          } catch(e) {
@@ -255,7 +259,7 @@ exports.confirmBookingPayment = async (req, res) => {
 
 exports.cancelBooking = async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id);
+    const booking = await Booking.findById(req.params.id).populate('trainId serviceId');
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
     if (booking.userId.toString() !== req.user.userId) return res.status(403).json({ error: 'Unauthorized' });
     
@@ -297,6 +301,7 @@ exports.cancelBooking = async (req, res) => {
            referenceId: booking.pnr || booking.bookingRef
          });
          await user.save();
+         emailService.sendCancellationNotice(user.email, booking).catch(console.error);
       }
     }
     

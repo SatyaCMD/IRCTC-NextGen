@@ -12,6 +12,14 @@ export default function Navbar() {
   const router = useRouter();
 
   useEffect(() => {
+    // ENFORCE BROWSER CLOSE LOGOUT (Bypasses Chrome 'continue where you left off' for cookies)
+    if (Cookies.get('token') && !sessionStorage.getItem('session_active')) {
+      Cookies.remove('token');
+      Cookies.remove('user');
+      localStorage.removeItem('sessionExpiresAt');
+    }
+    sessionStorage.setItem('session_active', 'true');
+
     // Check if user is logged in
     const checkAuth = () => {
       const token = Cookies.get('token');

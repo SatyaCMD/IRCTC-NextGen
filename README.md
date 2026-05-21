@@ -66,7 +66,33 @@ PORT=5000
 MONGODB_URI=mongodb://127.0.0.1:27017/irctc-clone
 JWT_SECRET=super_secret_jwt_key_1234
 GEMINI_API_KEY=your_google_ai_key_here
+
+# ----------------------------------------------------
+# IRCTC NEXTGEN EMAIL SETTINGS
+# ----------------------------------------------------
+# Your SMTP Server Host (e.g. smtp.gmail.com, smtp.sendgrid.net)
+SMTP_HOST=smtp.gmail.com
+# SMTP Port (Usually 587 for TLS, or 465 for SSL)
+SMTP_PORT=587
+# Enable Secure connection (true for 465, false for 587)
+SMTP_SECURE=false
+# Your email address or SMTP Username
+SMTP_USER=your_email@gmail.com
+# Your email password (or App Password if using Gmail/2FA)
+SMTP_PASS=your_app_password_here
 ```
+
+> [!TIP]
+> **If you are using Gmail:**
+> You cannot use your standard Gmail password. You must generate an App Password:
+> 1. Go to your Google Account Settings -> **Security**.
+> 2. Ensure **2-Step Verification** is turned ON.
+> 3. Click on **App passwords** (you might need to search for it at the top).
+> 4. Generate a new password for "Mail" / "Other (IRCTC App)".
+> 5. Copy that 16-character password and paste it into `SMTP_PASS` in your `.env` file.
+> 
+> Once you add these keys and save the `.env` file, simply restart your backend server. The backend will instantly detect the keys and start delivering highly professional HTML emails and PDF tickets directly to real inboxes! While those keys are missing, the system will continue gracefully falling back to the Ethereal Email testing logs in your terminal so nothing breaks.
+
 Run the server:
 ```bash
 node index.js

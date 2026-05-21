@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const Booking = require('../models/Booking');
 const jwt = require('jsonwebtoken');
+const emailService = require('../services/emailService');
+const geoip = require('geoip-lite');
 
 exports.register = async (req, res) => {
   try {
@@ -39,6 +41,20 @@ exports.login = async (req, res) => {
     if (!isMatch) return res.status(400).json({ error: 'Invalid credentials ckeck userid and password' });
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+    
+    // Send Login Alert
+    let ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    
+    // Mock localhost IP to a Delhi IP for testing purposes so geoip works
+    if (ip === '::1' || ip === '127.0.0.1') {
+      ip = '103.155.223.11'; // A random Delhi IP
+    }
+
+    const geo = geoip.lookup(ip);
+    const location = geo ? `${geo.city || 'Delhi'}, ${geo.country || 'IN'}` : 'Delhi, IN';
+    const device = req.headers['user-agent'] || 'Unknown Device';
+    emailService.sendSecurityAlert(user.email, 'Account Login', ip, device, location).catch(console.error);
+
     res.json({ token, user: { id: user._id, name: user.name, email: user.email, preferences: user.preferences } });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -105,6 +121,12 @@ exports.resetPassword = async (req, res) => {
     user.password = newPassword;
     await user.save();
 
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    const geo = geoip.lookup(ip);
+    const location = geo ? `${geo.city || 'Unknown'}, ${geo.country || 'Unknown'}` : 'Local/Unknown';
+    const device = req.headers['user-agent'] || 'Unknown Device';
+    emailService.sendSecurityAlert(user.email, 'Password Changed', ip, device, location).catch(console.error);
+
     res.json({ message: 'Password reset successful' });
   } catch (error) {
     console.error('Reset Password Error:', error);
@@ -129,6 +151,9 @@ exports.addMoneyToWallet = async (req, res) => {
     });
 
     await user.save();
+    
+    emailService.sendWalletReceipt(user.email, amount, user.walletBalance).catch(console.error);
+    
     res.json({ message: 'Wallet recharged successfully', walletBalance: user.walletBalance, transactions: user.walletTransactions });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -181,6 +206,12 @@ exports.updateProfile = async (req, res) => {
     if (pincode) user.pincode = pincode;
 
     await user.save();
+
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    const geo = geoip.lookup(ip);
+    const location = geo ? `${geo.city || 'Unknown'}, ${geo.country || 'Unknown'}` : 'Local/Unknown';
+    const device = req.headers['user-agent'] || 'Unknown Device';
+    emailService.sendSecurityAlert(user.email, 'Profile Updated', ip, device, location).catch(console.error);
 
     res.json({ message: 'Profile updated successfully', user });
   } catch (error) {
