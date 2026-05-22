@@ -18,6 +18,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const getCookieOptions = () => {
+    if (typeof window !== 'undefined' && window.location.hostname.includes('irctcv2.co.in')) {
+      return { domain: '.irctcv2.co.in' };
+    }
+    return {};
+  };
+
   const fetchUser = async (token: string) => {
     try {
       const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
@@ -27,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       console.error('Auth check failed:', err);
       // Clean up invalid tokens
-      Cookies.remove('token');
+      Cookies.remove('token', getCookieOptions());
       localStorage.removeItem('token');
       setUser(null);
     } finally {
@@ -50,14 +57,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = (token: string) => {
-    Cookies.set('token', token);
+    Cookies.set('token', token, getCookieOptions());
     localStorage.setItem('token', token);
     setLoading(true);
     fetchUser(token);
   };
 
   const logout = () => {
-    Cookies.remove('token');
+    Cookies.remove('token', getCookieOptions());
     localStorage.removeItem('token');
     setUser(null);
     setLoading(false);

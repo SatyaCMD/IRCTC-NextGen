@@ -58,10 +58,11 @@ export default function SupportPage() {
         formData.append('documents', file);
       });
 
+      const token = localStorage.getItem('token') || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
       const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/support`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${token}`
         }
       });
 
