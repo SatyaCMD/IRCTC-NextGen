@@ -48,18 +48,21 @@ app.get("/", (req, res) => {
 mongoose.connect(MONGODB_URI)
   .then(async () => {
     console.log('Connected to MongoDB');
-    startCronJobs();
-
-    try {
-      const serviceCount = await Service.countDocuments();
-      if (serviceCount === 0) {
-        console.log('Database is empty. Running auto-seeding scripts...');
-        execSync('node massive_seed.js', { stdio: 'inherit' });
-        execSync('node mega_seed.js', { stdio: 'inherit' });
-        console.log('Auto-seeding completed successfully.');
+    
+    // Only run Cron Jobs and Auto-Seeding locally or on a persistent server, not on Vercel Serverless
+    if (!process.env.VERCEL) {
+      startCronJobs();
+      try {
+        const serviceCount = await Service.countDocuments();
+        if (serviceCount === 0) {
+          console.log('Database is empty. Running auto-seeding scripts...');
+          execSync('node massive_seed.js', { stdio: 'inherit' });
+          execSync('node mega_seed.js', { stdio: 'inherit' });
+          console.log('Auto-seeding completed successfully.');
+        }
+      } catch (seedErr) {
+        console.error('Error during auto-seeding:', seedErr);
       }
-    } catch (seedErr) {
-      console.error('Error during auto-seeding:', seedErr);
     }
 
     if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
