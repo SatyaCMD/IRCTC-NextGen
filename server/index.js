@@ -50,8 +50,7 @@ if (MONGODB_URI) {
   .then(async () => {
     console.log('Connected to MongoDB');
     
-    // Only run Cron Jobs and Auto-Seeding locally or on a persistent server, not on Vercel Serverless
-    if (!process.env.VERCEL) {
+    if (require.main === module) {
       startCronJobs();
       try {
         const serviceCount = await Service.countDocuments();
@@ -66,7 +65,7 @@ if (MONGODB_URI) {
       }
     }
 
-    if (!process.env.VERCEL) {
+    if (require.main === module) {
       app.listen(PORT || 10000, () => {
         console.log(`Server running on port ${PORT || 10000}`);
       });
@@ -76,8 +75,7 @@ if (MONGODB_URI) {
 } else {
   console.error('CRITICAL: MONGODB_URI is not defined! Serverless function will fail.');
   
-  // If Vercel tries to boot without a DB, at least start the server to return the error
-  if (!process.env.VERCEL) {
+  if (require.main === module) {
       app.listen(PORT || 10000, () => console.log(`Server running on port ${PORT || 10000} (NO DB)`));
   }
 }
