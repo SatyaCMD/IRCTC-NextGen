@@ -25,7 +25,7 @@ export default function PnrStatusPage() {
     setResult(null);
 
     // API Call
-    axios.get(`http://localhost:5000/api/bookings/pnr/${pnr}`, {
+    axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/bookings/pnr/${pnr}`, {
       headers: { Authorization: `Bearer ${Cookies.get('token')}` }
     })
       .then(res => {

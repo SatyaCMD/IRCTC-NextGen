@@ -55,11 +55,11 @@ export default function AdminDashboard() {
   const fetchData = async () => {
     try {
       const [usersRes, servicesRes, statsRes, bookingsRes, settingsRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/admin/users'),
-        axios.get('http://localhost:5000/api/admin/services'),
-        axios.get('http://localhost:5000/api/admin/stats'),
-        axios.get('http://localhost:5000/api/admin/bookings'),
-        axios.get('http://localhost:5000/api/admin/settings')
+        axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/admin/users`),
+        axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/admin/services`),
+        axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/admin/stats`),
+        axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/admin/bookings`),
+        axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/admin/settings`)
       ]);
       setUsers(usersRes.data);
       setServices(servicesRes.data);
@@ -95,7 +95,7 @@ export default function AdminDashboard() {
   // Handlers
   const handleDeleteUser = async (id: string) => {
     try {
-      await axios.delete(`http://localhost:5000/api/admin/users/${id}`);
+      await axios.delete(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/admin/users/${id}`);
       setUsers(users.filter(u => u._id !== id));
       toast.success('User deleted successfully from DB');
     } catch (err) {
@@ -107,7 +107,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     try {
       if (editingUser) {
-        const res = await axios.put(`http://localhost:5000/api/admin/users/${editingUser._id}`, formData);
+        const res = await axios.put(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/admin/users/${editingUser._id}`, formData);
         setUsers(users.map(u => u._id === editingUser._id ? res.data : u));
         toast.success('User updated successfully in DB');
         setEditingUser(null);
@@ -131,7 +131,7 @@ export default function AdminDashboard() {
     try {
       const serviceToToggle = services.find(s => s._id === id);
       const newStatus = serviceToToggle.status === 'Active' ? 'Maintenance' : 'Active';
-      const res = await axios.put(`http://localhost:5000/api/admin/services/${id}`, { status: newStatus });
+      const res = await axios.put(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/admin/services/${id}`, { status: newStatus });
       setServices(services.map(s => s._id === id ? res.data : s));
       toast.success(`${serviceToToggle.name} marked as ${newStatus} in DB`);
       fetchData(); // Refresh active services stat
@@ -143,7 +143,7 @@ export default function AdminDashboard() {
   const handleSaveService = async (e: any) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/admin/services', serviceFormData);
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/admin/services`, serviceFormData);
       toast.success('Service added successfully');
       setIsAddServiceModalOpen(false);
       fetchData();
@@ -565,7 +565,7 @@ export default function AdminDashboard() {
                     onClick={async () => { 
                       const newVal = !systemSettings.maintenanceMode;
                       setSystemSettings({...systemSettings, maintenanceMode: newVal}); 
-                      try { await axios.put('http://localhost:5000/api/admin/settings', { maintenanceMode: newVal }); toast.success('Maintenance mode saved to DB!'); } catch(e) { toast.error('Failed to save'); }
+                      try { await axios.put(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/admin/settings`, { maintenanceMode: newVal }); toast.success('Maintenance mode saved to DB!'); } catch(e) { toast.error('Failed to save'); }
                     }}
                     className={`w-14 h-7 rounded-full transition-colors relative ${systemSettings.maintenanceMode ? 'bg-red-500' : 'bg-gray-600'}`}
                   >
@@ -582,7 +582,7 @@ export default function AdminDashboard() {
                     onClick={async () => { 
                       const newVal = !systemSettings.aiAssistant;
                       setSystemSettings({...systemSettings, aiAssistant: newVal}); 
-                      try { await axios.put('http://localhost:5000/api/admin/settings', { aiAssistant: newVal }); toast.success('AI settings saved to DB!'); } catch(e) { toast.error('Failed to save'); }
+                      try { await axios.put(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/admin/settings`, { aiAssistant: newVal }); toast.success('AI settings saved to DB!'); } catch(e) { toast.error('Failed to save'); }
                     }}
                     className={`w-14 h-7 rounded-full transition-colors relative ${systemSettings.aiAssistant ? 'bg-emerald-500' : 'bg-gray-600'}`}
                   >
@@ -603,7 +603,7 @@ export default function AdminDashboard() {
                     <button 
                       onClick={async () => {
                         try {
-                          await axios.put('http://localhost:5000/api/admin/settings', { bookingCommission: systemSettings.bookingCommission });
+                          await axios.put(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/admin/settings`, { bookingCommission: systemSettings.bookingCommission });
                           toast.success('Commission rate saved to Database!');
                         } catch(e) {
                           toast.error('Failed to save commission rate.');
@@ -834,7 +834,7 @@ export default function AdminDashboard() {
                     btn.innerText = 'Sending...';
                     
                     try {
-                      const res = await axios.post('http://localhost:5000/api/admin/promo', { subject, htmlBody });
+                      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/admin/promo`, { subject, htmlBody });
                       toast.success(res.data.message);
                       e.target.reset();
                     } catch (err: any) {

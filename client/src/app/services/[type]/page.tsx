@@ -145,7 +145,7 @@ function BookingFlowInner() {
   useEffect(() => {
     const token = Cookies.get('token');
     if (token) {
-      axios.get('http://localhost:5000/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
+      axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
         .then(res => setUserWalletBalance(res.data.walletBalance || 0))
         .catch(err => console.error(err));
     }
@@ -223,7 +223,7 @@ function BookingFlowInner() {
          } catch (e) {}
       }
 
-      const bookingRes = await axios.post('http://localhost:5000/api/bookings', {
+      const bookingRes = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/bookings`, {
         trainId: urlTrainId,
         serviceType: isHotel ? 'Hotels' : isFlight ? 'Flight' : isBus ? 'Bus' : isFood ? 'E Catering' : 'Train',
         serviceClass: journeyDetails.travelClass || 'Standard',
@@ -249,7 +249,7 @@ function BookingFlowInner() {
       if (journeyDetails.quota === 'Tatkal' && Math.random() < 0.3) {
          finalStatus = 'WL';
       }
-      const confirmRes = await axios.put(`http://localhost:5000/api/bookings/${createdBooking._id}/payment`, {
+      const confirmRes = await axios.put(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/bookings/${createdBooking._id}/payment`, {
         passengers,
         contactInfo,
         totalAmount: totalPrice,
@@ -275,7 +275,7 @@ function BookingFlowInner() {
          if (pnrToPoll) {
            const pollInterval = setInterval(async () => {
              try {
-               const pnrRes = await axios.get(`http://localhost:5000/api/bookings/pnr/${pnrToPoll}`);
+               const pnrRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/bookings/pnr/${pnrToPoll}`);
                if (pnrRes.data.booking && pnrRes.data.booking.status === 'Confirmed') {
                  setBookingResult(prev => ({ ...prev, status: 'Confirmed' }));
                  toast.success('ID Verification Successful! Ticket Confirmed.');
@@ -315,7 +315,7 @@ function BookingFlowInner() {
     if (!reviewComment.trim()) return;
     setIsSubmittingReview(true);
     try {
-      await axios.post(`http://localhost:5000/api/trains/${urlTrainId}/reviews`, {
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/trains/${urlTrainId}/reviews`, {
         user: contactInfo.email ? contactInfo.email.split('@')[0] : "Guest User",
         rating: reviewRating,
         comment: reviewComment

@@ -23,7 +23,7 @@ export default function RefundHistory() {
         router.push('/login');
         return;
       }
-      const res = await axios.get('http://localhost:5000/api/bookings/history', {
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/bookings/history`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       // Filter only Cancelled bookings with a refundAmount > 0 OR refundStatus !== 'None'

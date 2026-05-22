@@ -540,7 +540,7 @@ exports.sendLoginOtpEmail = async (userEmail, otp) => {
 exports.sendVerificationEmail = async (userEmail, token) => {
     if (!transporter) return;
 
-    const verifyUrl = `http://localhost:3000/verify-email?token=${token}`;
+    const verifyUrl = `${process.env.CLIENT_URL || 'http://localhost:3000'}/verify-email?token=${token}`;
 
     const content = `
         <h2 style="color: #0f172a; margin-top: 0; text-align: center;">Verify Your Email</h2>
@@ -753,7 +753,7 @@ exports.sendFeedbackEmail = async (userEmail, userName, pnr, trainName) => {
         <p>We hope you had a pleasant journey on <strong>${trainName}</strong> (PNR: ${pnr}).</p>
         <p>At IRCTC, we constantly strive to improve our services. We would love to hear your feedback regarding cleanliness, catering, and punctuality.</p>
         <div style="text-align: center; margin: 30px 0;">
-            <a href="http://localhost:3000/dashboard?tab=history" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Rate Your Journey</a>
+            <a href="${process.env.CLIENT_URL || 'http://localhost:3000'}/dashboard?tab=history" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Rate Your Journey</a>
         </div>
         <p>Thank you for choosing Indian Railways.</p>
     `;

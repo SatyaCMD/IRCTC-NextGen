@@ -48,7 +48,7 @@ export default function Dashboard() {
     }
 
     // Get user Profile
-    axios.get('http://localhost:5000/api/auth/me', {
+    axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/me`, {
       headers: { Authorization: `Bearer ${token}` }
     }).then(res => {
       const userData = res.data;
@@ -70,7 +70,7 @@ export default function Dashboard() {
     }).catch(() => router.push('/login'));
 
     // Get Booking History
-    axios.get('http://localhost:5000/api/bookings/history', {
+    axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/bookings/history`, {
       headers: { Authorization: `Bearer ${token}` }
     }).then(res => setHistory(res.data)).catch(console.error);
 
@@ -106,7 +106,7 @@ export default function Dashboard() {
     
     setTimeout(async () => {
       try {
-        const res = await axios.post('http://localhost:5000/api/auth/wallet/add', 
+        const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/wallet/add`, 
           { amount: Number(topupAmount) }, 
           { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
         );
@@ -759,7 +759,7 @@ export default function Dashboard() {
                 onClick={async () => {
                   setIsProcessing(true);
                   try {
-                    await axios.put('http://localhost:5000/api/auth/profile', 
+                    await axios.put(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/profile`, 
                       { ...editForm, age: Number(editForm.age) }, 
                       { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
                     );
@@ -844,7 +844,7 @@ export default function Dashboard() {
                     if (otpInput === generatedOtp) {
                       setIsProcessing(true);
                       try {
-                        await axios.put('http://localhost:5000/api/auth/profile', 
+                        await axios.put(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/profile`, 
                           { phone: phoneInput }, 
                           { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
                         );
@@ -936,7 +936,7 @@ export default function Dashboard() {
                   }
                   setIsProcessing(true);
                   try {
-                    const res = await axios.post('http://localhost:5000/api/auth/kyc', 
+                    const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/kyc`, 
                       kycForm, 
                       { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
                     );
@@ -988,7 +988,7 @@ export default function Dashboard() {
                 onClick={async () => {
                   setIsDeleting(true);
                   try {
-                    await axios.delete('http://localhost:5000/api/auth/delete-account', {
+                    await axios.delete(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/delete-account`, {
                       headers: { Authorization: `Bearer ${Cookies.get('token')}` }
                     });
                     import('react-hot-toast').then(mod => mod.default.success('Account deleted permanently.'));

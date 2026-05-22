@@ -80,7 +80,7 @@ export default function OTPPage() {
 
     if (isLoginType) {
       try {
-        const res = await fetch('http://localhost:5000/api/auth/verify-login-otp', {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/verify-login-otp`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, otp: otpValue })

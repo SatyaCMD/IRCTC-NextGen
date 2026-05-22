@@ -27,7 +27,7 @@ export default function BookingHistory() {
     try {
       const token = Cookies.get('token');
       if (token) {
-        const res = await axios.get('http://localhost:5000/api/auth/me', { headers: { Authorization: `Bearer ${token}` }});
+        const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` }});
         setUser(res.data);
       }
     } catch (err) {
@@ -42,7 +42,7 @@ export default function BookingHistory() {
         router.push('/login');
         return;
       }
-      const res = await axios.get('http://localhost:5000/api/bookings/history', {
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/bookings/history`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       // Sort by date descending
@@ -59,7 +59,7 @@ export default function BookingHistory() {
     setIsCancelling(true);
     try {
       const token = Cookies.get('token');
-      await axios.put(`http://localhost:5000/api/bookings/${id}/cancel`, {}, {
+      await axios.put(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/bookings/${id}/cancel`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       toast.success('Ticket cancelled successfully. Refund initiated to wallet.');
