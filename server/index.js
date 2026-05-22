@@ -23,6 +23,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const supportRoutes = require('./routes/supportRoutes');
+const testEmailRoute = require('./routes/testEmailRoute');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/trains', trainRoutes);
@@ -31,6 +32,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/support', supportRoutes);
+app.use('/api/test-email', testEmailRoute);
 
 // Serve public directory for email images and uploaded documents
 app.use(express.static(path.join(__dirname, 'public')));
