@@ -30,7 +30,7 @@ export default function Footer() {
           <h4 className="text-white font-medium mb-4">Contact</h4>
           <ul className="space-y-2 text-sm text-gray-400">
             <li>1800-111-139</li>
-            <li>care@irctc2.co.in</li>
+            <li><Link href="/support" className="hover:text-blue-500 transition-colors">support.irctcv2.co.in</Link></li>
           </ul>
         </div>
       </div>
