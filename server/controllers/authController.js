@@ -46,7 +46,10 @@ exports.login = async (req, res) => {
     if (!user) return res.status(400).json({ error: 'Invalid credentials ckeck userid and password' });
 
     const isMatch = await user.comparePassword(password);
-    if (!isMatch) return res.status(400).json({ error: 'Invalid credentials ckeck userid and password' });
+    if (!isMatch) {
+      emailService.sendSecurityAlert(user.email, 'Failed Login Attempt', 'Someone tried to log in to your account with an incorrect password.').catch(console.error);
+      return res.status(400).json({ error: 'Invalid credentials ckeck userid and password' });
+    }
 
     if (user.role !== 'Admin' && !user.isEmailVerified) {
       return res.status(403).json({ error: 'Please verify your email address before logging in. Check your inbox.' });
@@ -86,6 +89,7 @@ exports.verifyLoginOtp = async (req, res) => {
     }
 
     if (user.loginOtp !== otp) {
+      emailService.sendSecurityAlert(user.email, 'Failed 2FA Attempt', 'Someone entered an incorrect OTP while trying to access your account.').catch(console.error);
       return res.status(400).json({ error: 'Invalid OTP' });
     }
 
@@ -359,6 +363,24 @@ exports.updateKYC = async (req, res) => {
     res.json({ message: 'KYC submitted successfully and is under review.', user });
   } catch (error) {
     console.error('KYC Update Error:', error);
-    res.status(500).json({ error: 'Server error during KYC update' });
+    res.status(500).json({ error: 'Failed to update KYC' });
+  }
+};
+
+exports.reportTransactionFailure = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { amount, serviceType } = req.body;
+    
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Send the failure alert email
+    emailService.sendTransactionFailedAlert(user.email, amount, serviceType).catch(console.error);
+
+    res.json({ message: 'Transaction failure reported and email alert dispatched.' });
+  } catch (error) {
+    console.error('Transaction Failure Report Error:', error);
+    res.status(500).json({ error: 'Server error while reporting failure' });
   }
 };

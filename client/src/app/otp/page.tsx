@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { ShieldCheck, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 

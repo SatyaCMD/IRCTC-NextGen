@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Navbar from '@/components/Navbar';
 import axios from 'axios';
 import Cookies from 'js-cookie';
@@ -12,7 +12,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import toast from 'react-hot-toast';
 
-export default function Dashboard() {
+function DashboardContent() {
   const [user, setUser] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const searchParams = useSearchParams();
@@ -101,6 +101,28 @@ export default function Dashboard() {
   const executeTopup = async () => {
     setIsToppingUp(true);
     setPaymentStatus('Connecting to Payment Gateway...');
+
+    // Simulate Payment Failure if CVV is '000'
+    if (paymentMethod === 'card' && paymentDetails.cvv === '000') {
+      setTimeout(() => setPaymentStatus('Processing Payment...'), 800);
+      setTimeout(async () => {
+        setPaymentStatus('Payment Failed: Bank Declined');
+        toast.error('Transaction failed. Your bank declined the payment.');
+        try {
+          await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/report-failure`, {
+            amount: Number(topupAmount),
+            serviceType: 'Wallet Topup'
+          }, { headers: { Authorization: `Bearer ${Cookies.get('token')}` } });
+        } catch (e) {
+          console.error('Failed to report failure', e);
+        }
+        setTimeout(() => {
+          setIsToppingUp(false);
+          setPaymentStatus('');
+        }, 1500);
+      }, 2000);
+      return;
+    }
 
     // Simulate payment gateway steps
     setTimeout(() => setPaymentStatus('Processing Payment...'), 800);
@@ -1232,5 +1254,13 @@ export default function Dashboard() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function Dashboard() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#050505] flex items-center justify-center text-white"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }

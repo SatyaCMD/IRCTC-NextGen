@@ -207,8 +207,28 @@ function BookingFlowInner() {
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
+    const token = Cookies.get('token');
+    const finalAmount = Math.max(0, Math.round(totalPrice + (totalPrice * 0.18)) - (useWallet ? Math.min(Math.round(totalPrice + (totalPrice * 0.18)), userWalletBalance) : 0));
+
+    // Simulate Payment Failure if CVV is '000'
+    if (paymentMethod === 'card' && paymentDetails.cvv === '000') {
+      setTimeout(async () => {
+        setIsLoading(false);
+        toast.error('Transaction failed. Your bank declined the payment.');
+        try {
+          await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/report-failure`, {
+            amount: finalAmount,
+            serviceType: isHotel ? 'Hotels' : isFlight ? 'Flight' : isBus ? 'Bus' : isFood ? 'E Catering' : 'Train Booking'
+          }, { headers: { Authorization: `Bearer ${token}` } });
+        } catch (e) {
+          console.error('Failed to report failure', e);
+        }
+      }, 2000);
+      return;
+    }
+
     try {
-      const token = Cookies.get('token');
       let orderedItems: any[] = [];
       if (isFood) {
          try {
@@ -1471,10 +1491,13 @@ function BookingFlowInner() {
                   </div>
                 )}
                 
-                <div className="flex gap-4 justify-center mb-6 text-xs font-bold uppercase tracking-widest text-white/60">
-                  <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-blue-600/20 border border-blue-500/50"></div> Window (+10%)</div>
-                  <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-white/5 border border-white/20"></div> Middle (-5%)</div>
-                  <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-white/10 border border-white/30"></div> Aisle</div>
+                <div className="flex flex-wrap gap-4 justify-center mb-6 text-xs font-bold uppercase tracking-widest text-white/60">
+                  <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-emerald-500/20 border border-emerald-500/50"></div> Available</div>
+                  <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-blue-600 border border-blue-500"></div> Selected</div>
+                  <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-[#201010] border border-[#602020] flex items-center justify-center"><Lock className="w-2.5 h-2.5 text-[#a03030]" strokeWidth={2.5} /></div> Booked</div>
+                  <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-pink-500/20 border border-pink-500/50"></div> Ladies</div>
+                  <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-yellow-500/20 border border-yellow-500/50"></div> Premium</div>
+                  <div className="flex items-center gap-2"><div className="w-4 h-4 rounded bg-purple-500/20 border border-purple-500/50"></div> Sleeper</div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar overscroll-contain space-y-4 pb-4">
@@ -1544,6 +1567,12 @@ function BookingFlowInner() {
                             const isMiddle = col === 'B' && !isBus;
                             const seatType = isWindow ? 'Window Seat' : isMiddle ? 'Middle Seat' : 'Aisle/Berth';
                             
+                            // Assign visual categories randomly for simulation, but consistently
+                            const numId = parseInt(seatId.replace(/\D/g, '') || '0');
+                            const isLadies = numId > 0 && numId % 14 === 0;
+                            const isPremium = numId > 0 && numId % 9 === 0;
+                            const isSleeper = ['SL', 'SU', 'L1', 'U1', 'M1', 'L2', 'U2', 'M2'].includes(col);
+                            
                             const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').toUpperCase()}`;
                             const isSelected = (!isFlight && !isBus && !isHotel && !isFood) 
                                ? passengers[showSeatMapForPassenger].pref === trainPrefStr 
@@ -1558,15 +1587,22 @@ function BookingFlowInner() {
                                   updatePassenger(showSeatMapForPassenger, 'pref', newPref);
                                   setShowSeatMapForPassenger(null);
                                 }}
-                                className={`w-11 h-11 rounded-lg font-bold text-[10px] sm:text-[11px] flex items-center justify-center transition-all ${
-                                  isBlocked ? 'bg-red-500/10 text-red-500/50 border border-red-500/20 cursor-not-allowed' :
-                                  isSelected ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40 border-emerald-400' :
-                                  isWindow ? 'bg-blue-600/20 text-blue-300 border border-blue-500/50 hover:bg-blue-600/40' :
-                                  isMiddle ? 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/20' :
-                                  'bg-white/10 text-white/80 border border-white/20 hover:bg-white/30'
+                                className={`w-11 h-11 rounded-lg font-bold text-[10px] sm:text-[11px] flex flex-col items-center justify-center transition-all ${
+                                  isBlocked ? 'bg-[#201010] text-[#a03030] border border-[#602020] cursor-not-allowed' :
+                                  isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 border border-blue-500' :
+                                  isLadies ? 'bg-pink-500/20 text-pink-400 border border-pink-500/50 hover:bg-pink-500/30' :
+                                  isPremium ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 hover:bg-yellow-500/30' :
+                                  isSleeper ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50 hover:bg-purple-500/30' :
+                                  'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 hover:bg-emerald-500/30'
                                 }`}
                               >
-                                {isBlocked ? <Lock className="w-4 h-4" /> : displayCol}
+                                {isBlocked ? <Lock className="w-5 h-5" strokeWidth={2} /> : 
+                                 isLadies ? <span className="text-xs mb-0.5">👩</span> : 
+                                 isPremium ? <span className="text-xs mb-0.5">✨</span> : 
+                                 isSleeper ? <span className="text-xs mb-0.5">🛏️</span> : null}
+                                {!isBlocked && (
+                                  <span className={isLadies || isPremium || isSleeper ? 'text-[8px] opacity-80' : ''}>{displayCol}</span>
+                                )}
                               </button>
                             );
                           })}
@@ -1604,6 +1640,12 @@ function BookingFlowInner() {
                             const isMiddle = col === 'E';
                             const seatType = isWindow ? 'Window Seat' : isMiddle ? 'Middle Seat' : 'Aisle/Berth';
                             
+                            // Assign visual categories randomly for simulation, but consistently
+                            const numId = parseInt(seatId.replace(/\D/g, '') || '0');
+                            const isLadies = numId > 0 && numId % 14 === 0;
+                            const isPremium = numId > 0 && numId % 9 === 0;
+                            const isSleeper = ['SL', 'SU', 'L1', 'U1', 'M1', 'L2', 'U2', 'M2'].includes(col);
+                            
                             const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').toUpperCase()}`;
                             const isSelected = (!isFlight && !isBus && !isHotel && !isFood) 
                                ? passengers[showSeatMapForPassenger].pref === trainPrefStr 
@@ -1618,15 +1660,22 @@ function BookingFlowInner() {
                                   updatePassenger(showSeatMapForPassenger, 'pref', newPref);
                                   setShowSeatMapForPassenger(null);
                                 }}
-                                className={`w-11 h-11 rounded-lg font-bold text-[10px] sm:text-[11px] flex items-center justify-center transition-all ${
-                                  isBlocked ? 'bg-red-500/10 text-red-500/50 border border-red-500/20 cursor-not-allowed' :
-                                  isSelected ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/40 border-emerald-400' :
-                                  isWindow ? 'bg-blue-600/20 text-blue-300 border border-blue-500/50 hover:bg-blue-600/40' :
-                                  isMiddle ? 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/20' :
-                                  'bg-white/10 text-white/80 border border-white/20 hover:bg-white/30'
+                                className={`w-11 h-11 rounded-lg font-bold text-[10px] sm:text-[11px] flex flex-col items-center justify-center transition-all ${
+                                  isBlocked ? 'bg-[#201010] text-[#a03030] border border-[#602020] cursor-not-allowed' :
+                                  isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 border border-blue-500' :
+                                  isLadies ? 'bg-pink-500/20 text-pink-400 border border-pink-500/50 hover:bg-pink-500/30' :
+                                  isPremium ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 hover:bg-yellow-500/30' :
+                                  isSleeper ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50 hover:bg-purple-500/30' :
+                                  'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 hover:bg-emerald-500/30'
                                 }`}
                               >
-                                {isBlocked ? <Lock className="w-4 h-4" /> : displayCol}
+                                {isBlocked ? <Lock className="w-5 h-5" strokeWidth={2} /> : 
+                                 isLadies ? <span className="text-xs mb-0.5">👩</span> : 
+                                 isPremium ? <span className="text-xs mb-0.5">✨</span> : 
+                                 isSleeper ? <span className="text-xs mb-0.5">🛏️</span> : null}
+                                {!isBlocked && (
+                                  <span className={isLadies || isPremium || isSleeper ? 'text-[8px] opacity-80' : ''}>{displayCol}</span>
+                                )}
                               </button>
                             );
                           })}

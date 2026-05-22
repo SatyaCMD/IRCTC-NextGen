@@ -766,3 +766,58 @@ exports.sendFeedbackEmail = async (userEmail, userName, pnr, trainName) => {
     };
     await transporter.sendMail(message);
 };
+
+exports.sendSecurityAlert = async (userEmail, title, alertMessage) => {
+    if (!transporter) return;
+    const content = `
+        <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 20px; margin-bottom: 20px;">
+            <h2 style="color: #991b1b; margin-top: 0;">${title}</h2>
+            <p style="color: #7f1d1d; font-weight: bold;">Security Alert on your IRCTC Account</p>
+            <p style="color: #991b1b;">${alertMessage}</p>
+        </div>
+        <p>If this was you, you can safely ignore this email.</p>
+        <p><strong>If you did not initiate this action, your account may be compromised.</strong> Please reset your password immediately and contact IRCTC Support.</p>
+    `;
+    const message = {
+        from: `"IRCTC Security Alert" <${process.env.SMTP_USER}>`,
+        to: userEmail,
+        subject: `[URGENT] Security Alert: ${title}`,
+        html: getBaseHtml(title, content, `Urgent security alert regarding your account.`),
+        attachments: [{ filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../../client/public/ashokstambh_logo.jpg'), cid: 'ashokstambh' }, { filename: 'ir-logo.png', path: require('path').join(__dirname, '../../client/public/ir-logo.png'), cid: 'irlogo' }]
+    };
+    await transporter.sendMail(message);
+};
+
+exports.sendTransactionFailedAlert = async (userEmail, amount, serviceType) => {
+    if (!transporter) return;
+    const content = `
+        <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 20px; margin-bottom: 20px;">
+            <h2 style="color: #b45309; margin-top: 0;">Transaction Failed</h2>
+            <p style="color: #92400e;">We're sorry, but your recent payment attempt could not be processed.</p>
+        </div>
+        <table width="100%" cellpadding="10" cellspacing="0" border="1" style="border-collapse: collapse; border-color: #e5e7eb; margin: 20px 0;">
+            <tr>
+                <td style="background-color: #f9fafb; font-weight: bold; width: 40%;">Service</td>
+                <td>${serviceType}</td>
+            </tr>
+            <tr>
+                <td style="background-color: #f9fafb; font-weight: bold;">Attempted Amount</td>
+                <td style="color: #dc2626; font-weight: bold;">₹${amount}</td>
+            </tr>
+            <tr>
+                <td style="background-color: #f9fafb; font-weight: bold;">Status</td>
+                <td style="color: #dc2626; font-weight: bold;">FAILED / DECLINED</td>
+            </tr>
+        </table>
+        <p><strong>Note:</strong> If the amount was deducted from your bank account, it will automatically be refunded within 3-5 working days by your bank.</p>
+        <p>Please try again using a different payment method or verify your card details.</p>
+    `;
+    const message = {
+        from: `"IRCTC Payments" <${process.env.SMTP_USER}>`,
+        to: userEmail,
+        subject: `[Payment Failed] Your transaction of ₹${amount} was declined`,
+        html: getBaseHtml('Transaction Failed', content, `Your payment of ₹${amount} could not be processed.`),
+        attachments: [{ filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../../client/public/ashokstambh_logo.jpg'), cid: 'ashokstambh' }, { filename: 'ir-logo.png', path: require('path').join(__dirname, '../../client/public/ir-logo.png'), cid: 'irlogo' }]
+    };
+    await transporter.sendMail(message);
+};

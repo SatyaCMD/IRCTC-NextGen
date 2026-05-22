@@ -14,5 +14,6 @@ router.post('/wallet/add', authMiddleware, authController.addMoneyToWallet);
 router.put('/profile', authMiddleware, authController.updateProfile);
 router.post('/kyc', authMiddleware, authController.updateKYC);
 router.delete('/delete-account', authMiddleware, authController.deleteAccount);
+router.post('/report-failure', authMiddleware, authController.reportTransactionFailure);
 
 module.exports = router;
