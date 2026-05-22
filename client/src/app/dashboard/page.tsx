@@ -5,7 +5,7 @@ import Navbar from '@/components/Navbar';
 import axios from 'axios';
 import Cookies from 'js-cookie';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Ticket, LogOut, Download, User as UserIcon, Trash2, Edit3, Shield, Loader2, X, AlertTriangle, Phone, Wallet, Home, Plus, MapPin, CheckCircle2, Clock, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Ticket, LogOut, Download, User as UserIcon, Trash2, Edit3, Shield, Loader2, X, AlertTriangle, Phone, Wallet, Home, Plus, MapPin, CheckCircle2, Clock, ArrowUpRight, ArrowDownRight, Utensils } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import toast from 'react-hot-toast';
