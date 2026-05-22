@@ -34,6 +34,10 @@ const MONGODB_URI = process.env.MONGODB_URI;
 const { execSync } = require('child_process');
 const Service = require('./models/Service');
 
+app.get("/", (req, res) => {
+  res.send("IRCTC Backend API Running");
+});
+
 mongoose.connect(MONGODB_URI)
   .then(async () => {
     console.log('Connected to MongoDB');
