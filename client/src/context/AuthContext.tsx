@@ -53,10 +53,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    // Automatically upgrade existing cookies to be cross-domain for support.irctcv2.co.in
-    const currentToken = Cookies.get('token');
-    if (currentToken && typeof window !== 'undefined' && window.location.hostname === 'www.irctcv2.co.in') {
+    // Automatically upgrade existing tokens to be cross-domain
+    const currentToken = Cookies.get('token') || localStorage.getItem('token');
+    if (currentToken && typeof window !== 'undefined') {
       Cookies.set('token', currentToken, getCookieOptions());
+      if (!localStorage.getItem('token')) {
+        localStorage.setItem('token', currentToken);
+      }
     }
     refreshUser();
   }, []);

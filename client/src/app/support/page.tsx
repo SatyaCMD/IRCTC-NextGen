@@ -94,6 +94,9 @@ export default function SupportPage() {
           <UploadCloud className="w-16 h-16 text-blue-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-white mb-2">Login Required</h2>
           <p className="text-white/60 mb-6">You must be logged in to access the Support Portal and raise tickets.</p>
+          <a href="/login?redirect=/support" className="w-full inline-block py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-900/20">
+            Go to Login
+          </a>
         </div>
       </div>
     );
