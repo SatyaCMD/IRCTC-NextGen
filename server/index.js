@@ -50,7 +50,7 @@ if (MONGODB_URI) {
   .then(async () => {
     console.log('Connected to MongoDB');
     
-    if (require.main === module) {
+    if (!process.env.VERCEL && !process.env.VERCEL_REGION) {
       startCronJobs();
       try {
         const serviceCount = await Service.countDocuments();
@@ -64,20 +64,18 @@ if (MONGODB_URI) {
         console.error('Error during auto-seeding:', seedErr);
       }
     }
-
-    if (require.main === module) {
-      app.listen(PORT || 10000, () => {
-        console.log(`Server running on port ${PORT || 10000}`);
-      });
-    }
   })
   .catch(err => console.error('MongoDB connection error:', err));
 } else {
-  console.error('CRITICAL: MONGODB_URI is not defined! Serverless function will fail.');
-  
-  if (require.main === module) {
-      app.listen(PORT || 10000, () => console.log(`Server running on port ${PORT || 10000} (NO DB)`));
-  }
+  console.error('CRITICAL: MONGODB_URI is not defined!');
+}
+
+// BIND THE PORT IMMEDIATELY FOR RENDER HEALTH CHECKS
+if (!process.env.VERCEL && !process.env.VERCEL_REGION) {
+  const port = process.env.PORT || 10000;
+  app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+  });
 }
 
 // Export the Express API for Vercel Serverless Functions
