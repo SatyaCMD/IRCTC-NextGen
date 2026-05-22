@@ -88,15 +88,24 @@ const getBaseHtml = (title, content, preheader = "") => `
                         <td style="background-color: #f8fafc; padding: 25px 30px; border-top: 1px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px; line-height: 1.5;">
                             <p style="margin: 0 0 10px 0;">
                                 <strong>Need Help?</strong> Contact our 24/7 customer support at<br>
-                                <a href="mailto:support@irctc-nextgen.com" style="color: #2563eb; text-decoration: none;">support@irctc-nextgen.com</a> | 1800-111-139
+                                <a href="${process.env.CLIENT_URL || 'https://irctc-nextgen.vercel.app'}/support" style="color: #2563eb; text-decoration: none;">support.irctcv2.co.in</a> | 1800-111-139
                             </p>
                             <p style="margin: 0 0 15px 0;">
                                 You are receiving this email because of an automated action performed on your IRCTC NextGen account. 
                                 Please do not reply directly to this message.
                             </p>
                             <div style="padding-top: 15px; border-top: 1px solid #cbd5e1;">
-                                <p style="margin: 0;">&copy; ${new Date().getFullYear()} IRCTC NextGen. All rights reserved.</p>
-                                <p style="margin: 5px 0 0 0;">Ministry of Railways, Government of India</p>
+                                <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                    <tr>
+                                        <td width="30" align="left" valign="middle">
+                                            <img src="cid:irctclogo" height="24" alt="IRCTC Logo" style="display: block; border: 0;" />
+                                        </td>
+                                        <td align="left" valign="middle" style="padding-left: 10px;">
+                                            <p style="margin: 0;">&copy; ${new Date().getFullYear()} IRCTC NextGen. All rights reserved.</p>
+                                            <p style="margin: 3px 0 0 0;">Ministry of Railways, Government of India</p>
+                                        </td>
+                                    </tr>
+                                </table>
                             </div>
                         </td>
                     </tr>
@@ -140,7 +149,8 @@ exports.sendSecurityAlert = async (userEmail, action, ip, device, location) => {
         html: getBaseHtml('Security Notification', content, `A new ${action} event was detected on your account.`),
         attachments: [
             { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
-            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' }
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' },
+            { filename: 'IRCTC_Logo.png', path: require('path').join(__dirname, '../public/IRCTC_Logo.png'), cid: 'irctclogo' }
         ]
     };
 
@@ -181,7 +191,8 @@ exports.sendWalletReceipt = async (userEmail, amount, newBalance) => {
         html: getBaseHtml('Wallet Top-up Receipt', content, `Your wallet was successfully credited with ₹${amount}.`),
         attachments: [
             { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
-            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' }
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' },
+            { filename: 'IRCTC_Logo.png', path: require('path').join(__dirname, '../public/IRCTC_Logo.png'), cid: 'irctclogo' }
         ]
     };
 
@@ -223,7 +234,8 @@ exports.sendCancellationNotice = async (userEmail, booking) => {
         html: getBaseHtml('Cancellation Confirmation', content, `Your booking for PNR ${booking.pnrNumber} was cancelled.`),
         attachments: [
             { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
-            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' }
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' },
+            { filename: 'IRCTC_Logo.png', path: require('path').join(__dirname, '../public/IRCTC_Logo.png'), cid: 'irctclogo' }
         ]
     };
 
@@ -483,7 +495,8 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
         html: getBaseHtml('Booking Confirmation', content, `Your e-ticket for PNR ${idStr} is confirmed and attached.`),
         attachments: [
             { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
-            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' }
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' },
+            { filename: 'IRCTC_Logo.png', path: require('path').join(__dirname, '../public/IRCTC_Logo.png'), cid: 'irctclogo' }
         ]
     };
 
@@ -520,7 +533,8 @@ exports.sendLoginOtpEmail = async (userEmail, otp) => {
         html: getBaseHtml('2FA Login Code', content, `Your verification code is ${otp}`),
         attachments: [
             { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
-            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' }
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' },
+            { filename: 'IRCTC_Logo.png', path: require('path').join(__dirname, '../public/IRCTC_Logo.png'), cid: 'irctclogo' }
         ]
     };
 
@@ -558,7 +572,8 @@ exports.sendVerificationEmail = async (userEmail, token) => {
         html: getBaseHtml('Email Verification', content, `Please verify your email using this link: ${verifyUrl}`),
         attachments: [
             { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
-            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' }
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' },
+            { filename: 'IRCTC_Logo.png', path: require('path').join(__dirname, '../public/IRCTC_Logo.png'), cid: 'irctclogo' }
         ]
     };
 
@@ -589,7 +604,8 @@ exports.sendAccountDeletionEmail = async (userEmail, userName) => {
         html: getBaseHtml('Account Deletion', content, `Your IRCTC NextGen account has been permanently removed.`),
         attachments: [
             { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
-            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' }
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' },
+            { filename: 'IRCTC_Logo.png', path: require('path').join(__dirname, '../public/IRCTC_Logo.png'), cid: 'irctclogo' }
         ]
     };
 
@@ -617,7 +633,12 @@ exports.sendChartPreparationEmail = async (userEmail, userName, pnr, trainName, 
         from: `"IRCTC NextGen" <${process.env.SMTP_USER}>`,
         to: userEmail,
         subject: `[Chart Prepared] Your Seat is Confirmed for PNR ${pnr}`,
-        html: getBaseHtml('Chart Preparation', content, `Your seat ${seatDetails} is confirmed.`)
+        html: getBaseHtml('Chart Preparation', content, `Your seat ${seatDetails} is confirmed.`),
+        attachments: [
+            { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' },
+            { filename: 'IRCTC_Logo.png', path: require('path').join(__dirname, '../public/IRCTC_Logo.png'), cid: 'irctclogo' }
+        ]
     };
     await transporter.sendMail(message);
 };
@@ -641,7 +662,12 @@ exports.sendJourneyReminderEmail = async (userEmail, userName, pnr, trainName, d
         from: `"IRCTC NextGen" <${process.env.SMTP_USER}>`,
         to: userEmail,
         subject: `[Reminder] You are traveling tomorrow! (PNR ${pnr})`,
-        html: getBaseHtml('Journey Reminder', content, `Reminder for your journey tomorrow.`)
+        html: getBaseHtml('Journey Reminder', content, `Reminder for your journey tomorrow.`),
+        attachments: [
+            { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' },
+            { filename: 'IRCTC_Logo.png', path: require('path').join(__dirname, '../public/IRCTC_Logo.png'), cid: 'irctclogo' }
+        ]
     };
     await transporter.sendMail(message);
 };
@@ -663,7 +689,12 @@ exports.sendTrainDelayEmail = async (userEmail, userName, pnr, trainName, oldTim
         from: `"IRCTC NextGen" <${process.env.SMTP_USER}>`,
         to: userEmail,
         subject: `[Schedule Update] Train ${trainName} Rescheduled`,
-        html: getBaseHtml('Schedule Update', content, `Your train schedule has been updated.`)
+        html: getBaseHtml('Schedule Update', content, `Your train schedule has been updated.`),
+        attachments: [
+            { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' },
+            { filename: 'IRCTC_Logo.png', path: require('path').join(__dirname, '../public/IRCTC_Logo.png'), cid: 'irctclogo' }
+        ]
     };
     await transporter.sendMail(message);
 };
@@ -689,7 +720,12 @@ exports.sendProfileModificationEmail = async (userEmail, userName, changedFields
         from: `"IRCTC NextGen Security" <${process.env.SMTP_USER}>`,
         to: userEmail,
         subject: `[Security Alert] Profile Information Changed`,
-        html: getBaseHtml('Profile Update', content, `Your profile information was recently changed.`)
+        html: getBaseHtml('Profile Update', content, `Your profile information was recently changed.`),
+        attachments: [
+            { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' },
+            { filename: 'IRCTC_Logo.png', path: require('path').join(__dirname, '../public/IRCTC_Logo.png'), cid: 'irctclogo' }
+        ]
     };
     await transporter.sendMail(message);
 };
@@ -713,7 +749,12 @@ exports.sendAdminWalletAdjustmentEmail = async (userEmail, userName, amount, act
         from: `"IRCTC NextGen Support" <${process.env.SMTP_USER}>`,
         to: userEmail,
         subject: `[Wallet] ₹${amount} ${actionText} your account`,
-        html: getBaseHtml('Wallet Adjustment', content, `A manual adjustment was made to your wallet.`)
+        html: getBaseHtml('Wallet Adjustment', content, `A manual adjustment was made to your wallet.`),
+        attachments: [
+            { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' },
+            { filename: 'IRCTC_Logo.png', path: require('path').join(__dirname, '../public/IRCTC_Logo.png'), cid: 'irctclogo' }
+        ]
     };
     await transporter.sendMail(message);
 };
@@ -729,7 +770,12 @@ exports.sendPromotionalEmail = async (userEmail, subject, htmlBody) => {
         from: `"IRCTC NextGen Offers" <${process.env.SMTP_USER}>`,
         to: userEmail,
         subject: subject,
-        html: getBaseHtml('Special Offer', content, `Exciting news from IRCTC NextGen!`)
+        html: getBaseHtml('Special Offer', content, `Exciting news from IRCTC NextGen!`),
+        attachments: [
+            { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' },
+            { filename: 'IRCTC_Logo.png', path: require('path').join(__dirname, '../public/IRCTC_Logo.png'), cid: 'irctclogo' }
+        ]
     };
     await transporter.sendMail(message);
 };
@@ -750,7 +796,12 @@ exports.sendFeedbackEmail = async (userEmail, userName, pnr, trainName) => {
         from: `"IRCTC NextGen Feedback" <${process.env.SMTP_USER}>`,
         to: userEmail,
         subject: `[Feedback] Rate your journey on ${trainName}`,
-        html: getBaseHtml('Journey Feedback', content, `We'd love to hear about your recent trip.`)
+        html: getBaseHtml('Journey Feedback', content, `We'd love to hear about your recent trip.`),
+        attachments: [
+            { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' },
+            { filename: 'IRCTC_Logo.png', path: require('path').join(__dirname, '../public/IRCTC_Logo.png'), cid: 'irctclogo' }
+        ]
     };
     await transporter.sendMail(message);
 };
@@ -770,7 +821,12 @@ exports.sendSecurityAlert = async (userEmail, title, alertMessage) => {
         from: `"IRCTC Security Alert" <${process.env.SMTP_USER}>`,
         to: userEmail,
         subject: `[URGENT] Security Alert: ${title}`,
-        html: getBaseHtml(title, content, `Urgent security alert regarding your account.`)
+        html: getBaseHtml(title, content, `Urgent security alert regarding your account.`),
+        attachments: [
+            { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' },
+            { filename: 'IRCTC_Logo.png', path: require('path').join(__dirname, '../public/IRCTC_Logo.png'), cid: 'irctclogo' }
+        ]
     };
     await transporter.sendMail(message);
 };
@@ -803,7 +859,102 @@ exports.sendTransactionFailedAlert = async (userEmail, amount, serviceType) => {
         from: `"IRCTC Payments" <${process.env.SMTP_USER}>`,
         to: userEmail,
         subject: `[Payment Failed] Your transaction of ₹${amount} was declined`,
-        html: getBaseHtml('Transaction Failed', content, `Your payment of ₹${amount} could not be processed.`)
+        html: getBaseHtml('Transaction Failed', content, `Your payment of ₹${amount} could not be processed.`),
+        attachments: [
+            { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' },
+            { filename: 'IRCTC_Logo.png', path: require('path').join(__dirname, '../public/IRCTC_Logo.png'), cid: 'irctclogo' }
+        ]
     };
     await transporter.sendMail(message);
 };
+// Append to end of emailService.js
+exports.sendTicketRaisedEmail = async (userEmail, userName, ticketNumber, issueType) => {
+    if (!transporter) return;
+
+    const content = `
+        <h2 style="color: #0f172a; margin-top: 0; text-align: center;">Support Ticket Raised</h2>
+        <p style="text-align: center; color: #64748b;">Dear ${userName}, we have successfully received your support request.</p>
+        
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 25px; border-radius: 8px; text-align: center; margin: 30px 0;">
+            <p style="margin: 0 0 5px 0; color: #475569; font-size: 14px; text-transform: uppercase; font-weight: 600;">Ticket Number</p>
+            <h1 style="color: #3b82f6; margin: 0; font-size: 32px; letter-spacing: 4px;">${ticketNumber}</h1>
+            <p style="margin: 15px 0 0 0; color: #475569; font-size: 14px;"><strong>Issue Type:</strong> ${issueType}</p>
+        </div>
+        
+        <p style="text-align: center; font-size: 14px; color: #334155; margin-top: 20px;">
+            Our support team is reviewing your request and will get back to you shortly. You can track this issue in your dashboard.
+        </p>
+        <p style="margin-top: 30px; margin-bottom: 0; text-align: center;">Warm Regards,<br><strong>IRCTC Support Team</strong></p>
+    `;
+
+    const message = {
+        from: `"IRCTC Support" <${process.env.SMTP_USER}>`,
+        to: userEmail,
+        subject: `[Ticket ${ticketNumber}] Support Request Received`,
+        html: getBaseHtml('Support Ticket Raised', content, `Your ticket ${ticketNumber} has been created`),
+        attachments: [
+            { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' },
+            { filename: 'IRCTC_Logo.png', path: require('path').join(__dirname, '../public/IRCTC_Logo.png'), cid: 'irctclogo' }
+        ]
+    };
+
+    try {
+        const info = await transporter.sendMail(message);
+        if (!process.env.SMTP_HOST) {
+            console.log(`Ticket Raised Email sent to ${userEmail}. Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
+        } else {
+            console.log(`Ticket Raised Email sent to ${userEmail}.`);
+        }
+    } catch (err) {
+        console.error('Failed to send Ticket Raised Email:', err);
+    }
+};
+
+exports.sendTicketResolvedEmail = async (userEmail, userName, ticketNumber, issueType) => {
+    if (!transporter) return;
+
+    const content = `
+        <h2 style="color: #0f172a; margin-top: 0; text-align: center;">Support Ticket Resolved</h2>
+        <p style="text-align: center; color: #64748b;">Dear ${userName}, your support request has been successfully resolved by our team.</p>
+        
+        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 25px; border-radius: 8px; text-align: center; margin: 30px 0;">
+            <div style="width: 48px; height: 48px; background-color: #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto;">
+                <span style="color: white; font-size: 24px;">✓</span>
+            </div>
+            <p style="margin: 0 0 5px 0; color: #166534; font-size: 14px; text-transform: uppercase; font-weight: 600;">Ticket Number</p>
+            <h2 style="color: #15803d; margin: 0; font-size: 24px;">${ticketNumber}</h2>
+            <p style="margin: 10px 0 0 0; color: #166534; font-size: 14px;"><strong>Issue Type:</strong> ${issueType}</p>
+        </div>
+        
+        <p style="text-align: center; font-size: 14px; color: #334155; margin-top: 20px;">
+            If you are still experiencing issues, please raise a new support ticket. Thank you for choosing IRCTC.
+        </p>
+        <p style="margin-top: 30px; margin-bottom: 0; text-align: center;">Warm Regards,<br><strong>IRCTC Support Team</strong></p>
+    `;
+
+    const message = {
+        from: `"IRCTC Support" <${process.env.SMTP_USER}>`,
+        to: userEmail,
+        subject: `[Ticket ${ticketNumber}] Issue Resolved`,
+        html: getBaseHtml('Support Ticket Resolved', content, `Your ticket ${ticketNumber} has been resolved`),
+        attachments: [
+            { filename: 'ashokstambh_logo.jpg', path: require('path').join(__dirname, '../public/ashokstambh_logo.jpg'), cid: 'ashokstambh' },
+            { filename: 'ir-logo.png', path: require('path').join(__dirname, '../public/ir-logo.png'), cid: 'irlogo' },
+            { filename: 'IRCTC_Logo.png', path: require('path').join(__dirname, '../public/IRCTC_Logo.png'), cid: 'irctclogo' }
+        ]
+    };
+
+    try {
+        const info = await transporter.sendMail(message);
+        if (!process.env.SMTP_HOST) {
+            console.log(`Ticket Resolved Email sent to ${userEmail}. Preview URL: ${nodemailer.getTestMessageUrl(info)}`);
+        } else {
+            console.log(`Ticket Resolved Email sent to ${userEmail}.`);
+        }
+    } catch (err) {
+        console.error('Failed to send Ticket Resolved Email:', err);
+    }
+};
+
