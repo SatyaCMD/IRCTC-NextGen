@@ -143,7 +143,7 @@ router.put('/users/:id/wallet', async (req, res) => {
     }
     await user.save();
 
-    await emailService.sendAdminWalletAdjustmentEmail(user.email, user.name, numAmount, action, reason);
+    try { await emailService.sendAdminWalletAdjustmentEmail(user.email, user.name, numAmount, action, reason); } catch(err) { console.error("Email silently failed:", err.message); }
 
     res.json(user);
   } catch (err) {
@@ -188,7 +188,7 @@ router.post('/promo', async (req, res) => {
     
     // Asynchronous blast
     for (const user of users) {
-      await emailService.sendPromotionalEmail(user.email, subject, htmlBody);
+      try { await emailService.sendPromotionalEmail(user.email, subject, htmlBody); } catch(err) { console.error("Email silently failed:", err.message); }
     }
 
     res.json({ message: `Promo blast dispatched to ${users.length} verified users.` });

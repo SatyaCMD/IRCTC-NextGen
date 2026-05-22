@@ -30,7 +30,7 @@ exports.register = async (req, res) => {
     await user.save();
 
     // Dispatch verification email
-    await emailService.sendVerificationEmail(user.email, verificationToken);
+    try { await emailService.sendVerificationEmail(user.email, verificationToken); } catch(err) { console.error("Email silently failed:", err.message); }
 
     res.status(201).json({ requiresVerification: true, message: 'Registration successful! Please check your email to verify your account.' });
   } catch (error) {
@@ -47,7 +47,7 @@ exports.login = async (req, res) => {
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      await emailService.sendSecurityAlert(user.email, 'Failed Login Attempt', 'Someone tried to log in to your account with an incorrect password.');
+      try { await emailService.sendSecurityAlert(user.email, 'Failed Login Attempt', 'Someone tried to log in to your account with an incorrect password.'); } catch(err) { console.error("Email silently failed:", err.message); }
       return res.status(400).json({ error: 'Invalid credentials ckeck userid and password' });
     }
 
@@ -64,7 +64,7 @@ exports.login = async (req, res) => {
     await user.save();
 
     // Send OTP Email
-    await emailService.sendLoginOtpEmail(user.email, otp);
+    try { await emailService.sendLoginOtpEmail(user.email, otp); } catch(err) { console.error("Email silently failed:", err.message); }
 
     // Return requiresOtp flag and debugOtp (as requested for network fallbacks)
     res.json({ requiresOtp: true, debugOtp: otp, email: user.email });
@@ -89,7 +89,7 @@ exports.verifyLoginOtp = async (req, res) => {
     }
 
     if (user.loginOtp !== otp) {
-      await emailService.sendSecurityAlert(user.email, 'Failed 2FA Attempt', 'Someone entered an incorrect OTP while trying to access your account.');
+      try { await emailService.sendSecurityAlert(user.email, 'Failed 2FA Attempt', 'Someone entered an incorrect OTP while trying to access your account.'); } catch(err) { console.error("Email silently failed:", err.message); }
       return res.status(400).json({ error: 'Invalid OTP' });
     }
 
@@ -106,7 +106,7 @@ exports.verifyLoginOtp = async (req, res) => {
     const geo = geoip.lookup(ip);
     const location = geo ? `${geo.city || 'Delhi'}, ${geo.country || 'IN'}` : 'Delhi, IN';
     const device = req.headers['user-agent'] || 'Unknown Device';
-    await emailService.sendSecurityAlert(user.email, 'Account Login', ip, device, location);
+    try { await emailService.sendSecurityAlert(user.email, 'Account Login', ip, device, location); } catch(err) { console.error("Email silently failed:", err.message); }
 
     res.json({ token, user: { id: user._id, name: user.name, email: user.email, preferences: user.preferences, role: user.role } });
   } catch (error) {
@@ -214,7 +214,7 @@ exports.deleteAccount = async (req, res) => {
     await User.findByIdAndDelete(userId);
 
     // Send confirmation email
-    await emailService.sendAccountDeletionEmail(userEmail, userName);
+    try { await emailService.sendAccountDeletionEmail(userEmail, userName); } catch(err) { console.error("Email silently failed:", err.message); }
 
     res.status(200).json({ message: 'Account successfully deleted.' });
   } catch (error) {
@@ -239,7 +239,7 @@ exports.resetPassword = async (req, res) => {
     const geo = geoip.lookup(ip);
     const location = geo ? `${geo.city || 'Unknown'}, ${geo.country || 'Unknown'}` : 'Local/Unknown';
     const device = req.headers['user-agent'] || 'Unknown Device';
-    await emailService.sendSecurityAlert(user.email, 'Password Changed', ip, device, location);
+    try { await emailService.sendSecurityAlert(user.email, 'Password Changed', ip, device, location); } catch(err) { console.error("Email silently failed:", err.message); }
 
     res.json({ message: 'Password reset successful' });
   } catch (error) {
@@ -266,7 +266,7 @@ exports.addMoneyToWallet = async (req, res) => {
 
     await user.save();
     
-    await emailService.sendWalletReceipt(user.email, amount, user.walletBalance);
+    try { await emailService.sendWalletReceipt(user.email, amount, user.walletBalance); } catch(err) { console.error("Email silently failed:", err.message); }
     
     res.json({ message: 'Wallet recharged successfully', walletBalance: user.walletBalance, transactions: user.walletTransactions });
   } catch (error) {
@@ -328,7 +328,7 @@ exports.updateProfile = async (req, res) => {
     await user.save();
 
     if (changedFields.length > 0) {
-      await emailService.sendProfileModificationEmail(user.email, user.name, changedFields);
+      try { await emailService.sendProfileModificationEmail(user.email, user.name, changedFields); } catch(err) { console.error("Email silently failed:", err.message); }
     }
 
     res.json({ message: 'Profile updated successfully', user });
@@ -376,7 +376,7 @@ exports.reportTransactionFailure = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     // Send the failure alert email
-    await emailService.sendTransactionFailedAlert(user.email, amount, serviceType);
+    try { await emailService.sendTransactionFailedAlert(user.email, amount, serviceType); } catch(err) { console.error("Email silently failed:", err.message); }
 
     res.json({ message: 'Transaction failure reported and email alert dispatched.' });
   } catch (error) {
