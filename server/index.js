@@ -28,7 +28,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/ai', aiRoutes);
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 const { execSync } = require('child_process');
