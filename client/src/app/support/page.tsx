@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import axios from 'axios';
 
 export default function SupportPage() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [issueType, setIssueType] = useState('Booking Issue');
   const [description, setDescription] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -78,6 +78,14 @@ export default function SupportPage() {
       setIsLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center pt-24">
+        <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+      </div>
+    );
+  }
 
   if (!user) {
     return (
