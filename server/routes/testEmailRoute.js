@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
 
         // Try to send a test email
         const info = await transporter.sendMail({
-            from: \`"IRCTC NextGen Test" <\${process.env.SMTP_USER}>\`,
+            from: `"IRCTC NextGen Test" <${process.env.SMTP_USER}>`,
             to: process.env.SMTP_USER, // Send to themselves
             subject: 'SMTP Diagnostic Test',
             text: 'If you are reading this, your Render SMTP configuration is working perfectly on port 465!'
