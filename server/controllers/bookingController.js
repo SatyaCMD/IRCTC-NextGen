@@ -225,7 +225,7 @@ exports.confirmBookingPayment = async (req, res) => {
       if (user) {
         user.loyaltyPoints = (user.loyaltyPoints || 0) + (booking.passengers.length * 50);
         await user.save();
-        emailService.sendBookingConfirmation(user.email, booking).catch(console.error);
+        await emailService.sendBookingConfirmation(user.email, booking);
       }
       await processSeatAllocation(booking);
     } else if (booking.status === 'Verification Pending') {
@@ -241,7 +241,7 @@ exports.confirmBookingPayment = async (req, res) => {
               u.loyaltyPoints = (u.loyaltyPoints || 0) + (b.passengers.length * 50);
               await u.save();
               const fullB = await Booking.findById(b._id).populate('trainId serviceId');
-              emailService.sendBookingConfirmation(u.email, fullB).catch(console.error);
+              await emailService.sendBookingConfirmation(u.email, fullB);
            }
            await processSeatAllocation(b);
          } catch(e) {
@@ -301,7 +301,7 @@ exports.cancelBooking = async (req, res) => {
            referenceId: booking.pnr || booking.bookingRef
          });
          await user.save();
-         emailService.sendCancellationNotice(user.email, booking).catch(console.error);
+         await emailService.sendCancellationNotice(user.email, booking);
       }
     }
     

@@ -28,7 +28,7 @@ exports.createTicket = async (req, res) => {
         const user = await User.findById(userId);
 
         // Send Email asynchronously
-        emailService.sendTicketRaisedEmail(user.email, user.name || 'User', ticketNumber, issueType).catch(console.error);
+        await emailService.sendTicketRaisedEmail(user.email, user.name || 'User', ticketNumber, issueType);
 
         res.status(201).json({ message: 'Ticket raised successfully', ticketNumber });
     } catch (err) {
@@ -67,7 +67,7 @@ exports.resolveTicket = async (req, res) => {
         await ticket.save();
 
         // Send resolution email
-        emailService.sendTicketResolvedEmail(ticket.user.email, ticket.user.name || 'User', ticket.ticketNumber, ticket.issueType).catch(console.error);
+        await emailService.sendTicketResolvedEmail(ticket.user.email, ticket.user.name || 'User', ticket.ticketNumber, ticket.issueType);
 
         res.json({ message: 'Ticket marked as resolved successfully', ticket });
     } catch (err) {

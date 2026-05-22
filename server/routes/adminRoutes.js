@@ -143,7 +143,7 @@ router.put('/users/:id/wallet', async (req, res) => {
     }
     await user.save();
 
-    emailService.sendAdminWalletAdjustmentEmail(user.email, user.name, numAmount, action, reason).catch(console.error);
+    await emailService.sendAdminWalletAdjustmentEmail(user.email, user.name, numAmount, action, reason);
 
     res.json(user);
   } catch (err) {
@@ -188,7 +188,7 @@ router.post('/promo', async (req, res) => {
     
     // Asynchronous blast
     for (const user of users) {
-      emailService.sendPromotionalEmail(user.email, subject, htmlBody).catch(console.error);
+      await emailService.sendPromotionalEmail(user.email, subject, htmlBody);
     }
 
     res.json({ message: `Promo blast dispatched to ${users.length} verified users.` });
