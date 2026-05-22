@@ -4,7 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { createTicket, getAllTickets, resolveTicket } = require('../controllers/supportController');
-const { protect, admin } = require('../middleware/authMiddleware');
+const authMiddleware = require('../middleware/authMiddleware');
 
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, '../public/uploads');
@@ -28,8 +28,8 @@ const upload = multer({
 });
 
 // Routes
-router.post('/', protect, upload.array('documents', 5), createTicket);
-router.get('/admin', protect, admin, getAllTickets);
-router.put('/admin/:id/resolve', protect, admin, resolveTicket);
+router.post('/', authMiddleware, upload.array('documents', 5), createTicket);
+router.get('/admin', authMiddleware, getAllTickets);
+router.put('/admin/:id/resolve', authMiddleware, resolveTicket);
 
 module.exports = router;
