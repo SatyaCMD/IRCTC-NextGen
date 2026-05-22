@@ -19,6 +19,7 @@ export default function OTPPage() {
   // Using a try-catch or optional handling for search params.
   const [email, setEmail] = useState('');
   const [isLoginType, setIsLoginType] = useState(false);
+  const [redirectUrl, setRedirectUrl] = useState('/');
 
   useEffect(() => {
     // Generate random 6-digit OTP
@@ -30,9 +31,11 @@ export default function OTPPage() {
       const emailParam = params.get('email');
       const typeParam = params.get('type');
       const debugParam = params.get('debug');
+      const redirectParam = params.get('redirect');
       if (emailParam) setEmail(emailParam);
       if (typeParam === 'login') setIsLoginType(true);
       if (debugParam) setDebugOtp(debugParam);
+      if (redirectParam) setRedirectUrl(redirectParam);
     }
   }, []);
 
@@ -93,7 +96,7 @@ export default function OTPPage() {
             localStorage.removeItem('sessionExpiresAt'); 
           });
           toast.success('Successfully logged in!');
-          router.push('/');
+          router.push(redirectUrl);
         } else {
           toast.error(data.error || 'Invalid OTP');
           setIsVerifying(false);

@@ -81,15 +81,18 @@ export default function LoginPage() {
         password: formData.password
       });
       
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectPath = searchParams.get('redirect') || '/';
+
       if (res.data.requiresOtp) {
         toast.success('Credentials verified! OTP sent to your email.');
         // Pass debugOtp in URL for fallback purposes as requested by user
-        router.push(`/otp?email=${encodeURIComponent(formData.email)}&type=login&debug=${res.data.debugOtp}`);
+        router.push(`/otp?email=${encodeURIComponent(formData.email)}&type=login&debug=${res.data.debugOtp}&redirect=${encodeURIComponent(redirectPath)}`);
       } else {
         // Fallback if OTP is bypassed
         import('js-cookie').then((Cookies) => {
           Cookies.default.set('token', res.data.token);
-          router.push('/');
+          router.push(redirectPath);
         });
       }
     } catch (err: any) {
