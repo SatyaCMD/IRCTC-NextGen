@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -26,7 +28,7 @@ export default function Dashboard() {
   const [otpInput, setOtpInput] = useState('');
   const [generatedOtp, setGeneratedOtp] = useState('');
   const [trackingBooking, setTrackingBooking] = useState<any>(null);
-  
+
   const [showTopupModal, setShowTopupModal] = useState(false);
   const [topupAmount, setTopupAmount] = useState('');
   const [topupStep, setTopupStep] = useState(1);
@@ -88,7 +90,7 @@ export default function Dashboard() {
       toast.error('Please enter a valid amount');
       return;
     }
-    
+
     if (topupStep === 1) {
       setTopupStep(2);
     } else if (topupStep === 2) {
@@ -99,15 +101,15 @@ export default function Dashboard() {
   const executeTopup = async () => {
     setIsToppingUp(true);
     setPaymentStatus('Connecting to Payment Gateway...');
-    
+
     // Simulate payment gateway steps
     setTimeout(() => setPaymentStatus('Processing Payment...'), 800);
     setTimeout(() => setPaymentStatus('Payment Successful! Adding funds...'), 2000);
-    
+
     setTimeout(async () => {
       try {
-        const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/wallet/add`, 
-          { amount: Number(topupAmount) }, 
+        const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/wallet/add`,
+          { amount: Number(topupAmount) },
           { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
         );
         toast.success('Funds added successfully!');
@@ -226,7 +228,7 @@ export default function Dashboard() {
     const rawTrainName = booking.trainId?.name?.toUpperCase() || booking.serviceType?.toUpperCase() || 'TRAIN';
     const trainName = rawTrainName === 'TRAIN' ? (booking.from ? `${booking.from.split(' ')[0]} EXPRESS` : 'KAMRUP EXPRESS') : rawTrainName;
     const trainNum = booking.trainId?.trainNumber || (!booking.from ? '15959' : booking.mockTrainId?.substring(booking.mockTrainId.length - 5) || '12345');
-    
+
     const trainDesc = `${trainNum} / ${trainName}`.toUpperCase();
     doc.text(trainDesc.length > 45 ? trainDesc.substring(0, 43) + '...' : trainDesc, 105, 62, { align: 'center' });
 
@@ -257,14 +259,14 @@ export default function Dashboard() {
     const passRows = booking.passengers.map((p: any, idx: number) => {
       let seat = booking.seatNumbers && booking.seatNumbers[idx] ? booking.seatNumbers[idx] : '';
       if (!seat) {
-         if (isFlight) seat = `${idx + 1}A (WINDOW)`;
-         else if (isBus) seat = `${idx + 1}W (WINDOW)`;
-         else seat = `S6/${60 + idx}/MIDDLE`;
+        if (isFlight) seat = `${idx + 1}A (WINDOW)`;
+        else if (isBus) seat = `${idx + 1}W (WINDOW)`;
+        else seat = `S6/${60 + idx}/MIDDLE`;
       } else {
-         if (isFlight || isBus) {
-             const parts = seat.split('/');
-             seat = parts[parts.length - 1]; // Removes 'S4/70/' part
-         }
+        if (isFlight || isBus) {
+          const parts = seat.split('/');
+          seat = parts[parts.length - 1]; // Removes 'S4/70/' part
+        }
       }
       const bStatus = `CNF / ${seat}`;
       const cStatus = booking.status === 'Confirmed' ? bStatus : (booking.status === 'Verification Pending' ? 'Pending' : booking.status);
@@ -287,16 +289,16 @@ export default function Dashboard() {
     doc.setFontSize(6);
     doc.setFont("helvetica", "bold");
     doc.text("Acronyms:             RLWL: REMOTE LOCATION WAITLIST                 PQWL: POOLED QUOTA WAITLIST                 RSWL: ROAD-SIDE WAITLIST", 12, py + 6);
-    
+
     let offsetY = py + 10;
-    
+
     if (user && user.accountType === 'Employee') {
       doc.setTextColor(0, 51, 153);
       doc.text(`Employee Details:    ID: ${user.employeeId || 'N/A'}                 Status: Verified (Staff Discount Applied)`, 12, offsetY);
       doc.setTextColor(0);
       offsetY += 4;
     }
-    
+
     doc.text(`Contact Details:     Email: ${user.email}                 Mobile: ${user.phone || 'N/A'}`, 12, offsetY);
 
     // Transaction ID
@@ -369,7 +371,7 @@ export default function Dashboard() {
     doc.text("Customer Support / Helpline:", 12, py + 102);
     doc.setFont("helvetica", "normal");
     doc.text("For any queries, please contact IRCTC Customer Care: 14646 / 0755-6610661 OR Email: care@irctc.co.in", 12, py + 107);
-    
+
     doc.setFont("helvetica", "bold");
     doc.text("Important Rules & Instructions:", 12, py + 114);
     doc.setFont("helvetica", "normal");
@@ -425,7 +427,7 @@ export default function Dashboard() {
               <button onClick={() => setShowDeleteModal(true)} className="w-full flex items-center px-5 py-3.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-all font-bold">
                 <Trash2 className="w-5 h-5 mr-3" /> Delete Account
               </button>
-              
+
               <button onClick={handleLogout} className="w-full flex items-center px-5 py-3.5 text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all font-bold group mt-2">
                 <LogOut className="w-5 h-5 mr-3 group-hover:-translate-x-1 transition-transform" /> Logout
               </button>
@@ -526,7 +528,7 @@ export default function Dashboard() {
                     <p className="text-3xl font-black text-white mt-1">₹{(user?.walletBalance || 0).toLocaleString()}</p>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowTopupModal(true)}
                   className="hidden sm:block bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:-translate-y-0.5"
                 >
@@ -634,7 +636,7 @@ export default function Dashboard() {
           )}
         </div>
       </div>
-      
+
       {/* Edit Profile Modal */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
@@ -647,25 +649,25 @@ export default function Dashboard() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-1">Email (Cannot be changed)</label>
-                  <input 
-                    type="email" 
-                    value={user?.email} 
+                  <input
+                    type="email"
+                    value={user?.email}
                     disabled
                     className="w-full bg-black/50 border border-white/5 rounded-xl py-2 px-3 text-gray-500 cursor-not-allowed"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-1">Full Name</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     value={editForm.name}
-                    onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                     className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50"
                   />
                 </div>
@@ -674,18 +676,18 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-1">Date of Birth</label>
-                  <input 
-                    type="date" 
+                  <input
+                    type="date"
                     value={editForm.dob}
-                    onChange={(e) => setEditForm({...editForm, dob: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, dob: e.target.value })}
                     className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50 color-scheme-dark"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-1">Gender</label>
-                  <select 
+                  <select
                     value={editForm.gender}
-                    onChange={(e) => setEditForm({...editForm, gender: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })}
                     className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50"
                   >
                     <option value="Male" className="bg-[#111]">Male</option>
@@ -697,10 +699,10 @@ export default function Dashboard() {
 
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1">Address</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={editForm.address}
-                  onChange={(e) => setEditForm({...editForm, address: e.target.value})}
+                  onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
                   className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50"
                   placeholder="Enter full address"
                 />
@@ -709,9 +711,9 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-1">State</label>
-                  <select 
+                  <select
                     value={editForm.state}
-                    onChange={(e) => setEditForm({...editForm, state: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, state: e.target.value })}
                     className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50"
                   >
                     <option value="" className="bg-[#111]">Select State</option>
@@ -733,11 +735,11 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-1">Pincode</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     maxLength={6}
                     value={editForm.pincode}
-                    onChange={(e) => setEditForm({...editForm, pincode: e.target.value})}
+                    onChange={(e) => setEditForm({ ...editForm, pincode: e.target.value })}
                     className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50"
                     placeholder="6-digit Pincode"
                   />
@@ -746,21 +748,21 @@ export default function Dashboard() {
 
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1">Travel Habits</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={editForm.travelHabits}
                   placeholder="e.g. Frequent Flyer, Budget Traveler"
-                  onChange={(e) => setEditForm({...editForm, travelHabits: e.target.value})}
+                  onChange={(e) => setEditForm({ ...editForm, travelHabits: e.target.value })}
                   className="w-full bg-white/5 border border-white/10 rounded-xl py-2 px-3 text-white focus:outline-none focus:border-blue-500/50"
                 />
               </div>
 
-              <button 
+              <button
                 onClick={async () => {
                   setIsProcessing(true);
                   try {
-                    await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile`, 
-                      { ...editForm, age: Number(editForm.age) }, 
+                    await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile`,
+                      { ...editForm, age: Number(editForm.age) },
                       { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
                     );
                     import('react-hot-toast').then(mod => mod.default.success('Profile updated successfully!'));
@@ -793,15 +795,15 @@ export default function Dashboard() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             {phoneStep === 'phone' ? (
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-1">Mobile Number</label>
                   <div className="flex bg-white/5 border border-white/10 rounded-xl overflow-hidden">
                     <span className="px-3 py-3 bg-black/50 text-gray-400 border-r border-white/10 font-bold">+91</span>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       maxLength={10}
                       value={phoneInput}
                       onChange={(e) => setPhoneInput(e.target.value.replace(/\D/g, ''))}
@@ -810,7 +812,7 @@ export default function Dashboard() {
                     />
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => {
                     if (phoneInput.length === 10) {
                       const newOtp = Math.floor(1000 + Math.random() * 9000).toString();
@@ -831,21 +833,21 @@ export default function Dashboard() {
                 <p className="text-sm text-gray-400 text-center mb-4">Enter the 4-digit OTP sent to +91 {phoneInput}</p>
                 <div>
                   <label className="block text-xs font-medium text-gray-400 mb-1 text-center">Enter OTP</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     maxLength={4}
                     value={otpInput}
                     onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
                     className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-center text-2xl font-mono tracking-[1em] text-white focus:outline-none focus:border-blue-500/50"
                   />
                 </div>
-                <button 
+                <button
                   onClick={async () => {
                     if (otpInput === generatedOtp) {
                       setIsProcessing(true);
                       try {
-                        await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile`, 
-                          { phone: phoneInput }, 
+                        await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile`,
+                          { phone: phoneInput },
                           { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
                         );
                         import('react-hot-toast').then(mod => mod.default.success('Phone number linked successfully!'));
@@ -881,13 +883,13 @@ export default function Dashboard() {
             <p className="text-gray-400 text-center mb-6 text-sm">
               As per government regulations, you must complete your KYC to book tickets and use the IRCTC Wallet. This is a one-time process.
             </p>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1">Document Type</label>
-                <select 
+                <select
                   value={kycForm.documentType}
-                  onChange={(e) => setKycForm({...kycForm, documentType: e.target.value})}
+                  onChange={(e) => setKycForm({ ...kycForm, documentType: e.target.value })}
                   className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-blue-500/50"
                 >
                   <option value="Aadhaar" className="bg-[#111]">Aadhaar Card</option>
@@ -898,10 +900,10 @@ export default function Dashboard() {
 
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1">Document Number</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={kycForm.documentNumber}
-                  onChange={(e) => setKycForm({...kycForm, documentNumber: e.target.value.toUpperCase()})}
+                  onChange={(e) => setKycForm({ ...kycForm, documentNumber: e.target.value.toUpperCase() })}
                   placeholder="Enter Document Number"
                   className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-blue-500/50 uppercase"
                 />
@@ -909,14 +911,14 @@ export default function Dashboard() {
 
               <div>
                 <label className="block text-xs font-medium text-gray-400 mb-1">Document Image</label>
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   accept="image/*"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) {
                       const reader = new FileReader();
-                      reader.onloadend = () => setKycForm({...kycForm, documentImage: reader.result as string});
+                      reader.onloadend = () => setKycForm({ ...kycForm, documentImage: reader.result as string });
                       reader.readAsDataURL(file);
                     }
                   }}
@@ -924,7 +926,7 @@ export default function Dashboard() {
                 />
               </div>
 
-              <button 
+              <button
                 onClick={async () => {
                   if (!kycForm.documentNumber || kycForm.documentNumber.length < 5) {
                     import('react-hot-toast').then(mod => mod.default.error('Please enter a valid document number'));
@@ -936,8 +938,8 @@ export default function Dashboard() {
                   }
                   setIsProcessing(true);
                   try {
-                    const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/kyc`, 
-                      kycForm, 
+                    const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/kyc`,
+                      kycForm,
                       { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
                     );
                     import('react-hot-toast').then(mod => mod.default.success(res.data.message || 'KYC submitted! Under review for 5 minutes.'));
@@ -975,16 +977,16 @@ export default function Dashboard() {
                 Note: If you have active confirmed bookings, your account cannot be deleted until they are completed or cancelled.
               </span>
             </p>
-            
+
             <div className="flex gap-4">
-              <button 
+              <button
                 onClick={() => setShowDeleteModal(false)}
                 disabled={isDeleting}
                 className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold transition-colors border border-white/10"
               >
                 No, Keep It
               </button>
-              <button 
+              <button
                 onClick={async () => {
                   setIsDeleting(true);
                   try {
@@ -1034,7 +1036,7 @@ export default function Dashboard() {
             <p className="text-gray-400 mb-8 text-sm leading-relaxed">
               As you are having bookings associated with this account, your account cannot be deleted. Please wait until your bookings are completed or cancelled before trying again.
             </p>
-            <button 
+            <button
               onClick={() => setDeleteErrorModal(false)}
               className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all shadow-[0_0_15px_rgba(37,99,235,0.4)]"
             >
@@ -1054,88 +1056,88 @@ export default function Dashboard() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleTopup}>
               {topupStep === 1 && (
                 <div className="space-y-2 mb-6 animate-in fade-in slide-in-from-right-4 duration-300">
                   <label className="text-xs font-bold text-gray-500 uppercase tracking-widest ml-1">Amount (₹)</label>
-                  <input 
-                    type="number" 
-                    required 
+                  <input
+                    type="number"
+                    required
                     min="1"
-                    value={topupAmount} 
-                    onChange={e => setTopupAmount(e.target.value)} 
-                    placeholder="Enter amount" 
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-medium focus:ring-2 focus:ring-emerald-500/50 outline-none text-xl" 
+                    value={topupAmount}
+                    onChange={e => setTopupAmount(e.target.value)}
+                    placeholder="Enter amount"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white font-medium focus:ring-2 focus:ring-emerald-500/50 outline-none text-xl"
                   />
                 </div>
               )}
 
               {topupStep === 2 && (
-                 <div className="mb-6 space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
-                    <div className="flex justify-between items-center bg-black/40 p-4 rounded-xl border border-white/5 mb-4">
-                       <span className="text-gray-400 text-sm">Amount to Pay:</span>
-                       <span className="font-bold text-xl text-emerald-400 font-mono">₹{topupAmount}</span>
-                    </div>
+                <div className="mb-6 space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="flex justify-between items-center bg-black/40 p-4 rounded-xl border border-white/5 mb-4">
+                    <span className="text-gray-400 text-sm">Amount to Pay:</span>
+                    <span className="font-bold text-xl text-emerald-400 font-mono">₹{topupAmount}</span>
+                  </div>
 
-                    <div className="flex gap-2 mb-4 border-b border-white/10 pb-4">
-                      {['card', 'upi'].map(method => (
-                        <button 
-                          key={method}
-                          type="button"
-                          onClick={() => setPaymentMethod(method)}
-                          className={`flex-1 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${paymentMethod === method ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-white/5 text-white/60 hover:bg-white/10 border border-white/10'}`}
-                        >
-                          {method === 'card' ? 'Card' : 'UPI'}
-                        </button>
-                      ))}
-                    </div>
+                  <div className="flex gap-2 mb-4 border-b border-white/10 pb-4">
+                    {['card', 'upi'].map(method => (
+                      <button
+                        key={method}
+                        type="button"
+                        onClick={() => setPaymentMethod(method)}
+                        className={`flex-1 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${paymentMethod === method ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-white/5 text-white/60 hover:bg-white/10 border border-white/10'}`}
+                      >
+                        {method === 'card' ? 'Card' : 'UPI'}
+                      </button>
+                    ))}
+                  </div>
 
-                    {paymentMethod === 'card' && (
-                      <div className="space-y-4">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-1">Card Number</label>
-                          <input type="text" required maxLength={19} value={paymentDetails.cardNumber} onChange={e => {
-                            let val = e.target.value.replace(/\D/g, '');
-                            val = val.replace(/(.{4})/g, '$1 ').trim();
-                            setPaymentDetails({...paymentDetails, cardNumber: val});
-                          }} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:ring-2 focus:ring-emerald-500/50 font-mono" placeholder="0000 0000 0000 0000" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-1">Expiry</label>
-                            <input type="text" required maxLength={5} value={paymentDetails.expiry} onChange={e => setPaymentDetails({...paymentDetails, expiry: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:ring-2 focus:ring-emerald-500/50 font-mono" placeholder="MM/YY" />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-1">CVV</label>
-                            <input type="password" required maxLength={4} value={paymentDetails.cvv} onChange={e => setPaymentDetails({...paymentDetails, cvv: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:ring-2 focus:ring-emerald-500/50 font-mono" placeholder="CVV" />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {paymentMethod === 'upi' && (
+                  {paymentMethod === 'card' && (
+                    <div className="space-y-4">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-1">UPI ID</label>
-                        <input type="text" required value={paymentDetails.upiId} onChange={e => setPaymentDetails({...paymentDetails, upiId: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:ring-2 focus:ring-emerald-500/50" placeholder="username@upi" />
+                        <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-1">Card Number</label>
+                        <input type="text" required maxLength={19} value={paymentDetails.cardNumber} onChange={e => {
+                          let val = e.target.value.replace(/\D/g, '');
+                          val = val.replace(/(.{4})/g, '$1 ').trim();
+                          setPaymentDetails({ ...paymentDetails, cardNumber: val });
+                        }} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:ring-2 focus:ring-emerald-500/50 font-mono" placeholder="0000 0000 0000 0000" />
                       </div>
-                    )}
-                 </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-1">Expiry</label>
+                          <input type="text" required maxLength={5} value={paymentDetails.expiry} onChange={e => setPaymentDetails({ ...paymentDetails, expiry: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:ring-2 focus:ring-emerald-500/50 font-mono" placeholder="MM/YY" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-1">CVV</label>
+                          <input type="password" required maxLength={4} value={paymentDetails.cvv} onChange={e => setPaymentDetails({ ...paymentDetails, cvv: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:ring-2 focus:ring-emerald-500/50 font-mono" placeholder="CVV" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'upi' && (
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-white/50 uppercase tracking-widest ml-1">UPI ID</label>
+                      <input type="text" required value={paymentDetails.upiId} onChange={e => setPaymentDetails({ ...paymentDetails, upiId: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm font-bold focus:ring-2 focus:ring-emerald-500/50" placeholder="username@upi" />
+                    </div>
+                  )}
+                </div>
               )}
 
               <div className="flex gap-3">
                 {topupStep === 2 && (
-                   <button 
-                     type="button" 
-                     onClick={() => setTopupStep(1)} 
-                     className="px-4 py-4 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold transition-all border border-white/10"
-                   >
-                     Back
-                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setTopupStep(1)}
+                    className="px-4 py-4 bg-white/5 hover:bg-white/10 text-white rounded-xl font-bold transition-all border border-white/10"
+                  >
+                    Back
+                  </button>
                 )}
-                <button 
-                  type="submit" 
-                  disabled={isToppingUp} 
+                <button
+                  type="submit"
+                  disabled={isToppingUp}
                   className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-4 rounded-xl font-bold transition-all flex justify-center items-center gap-2"
                 >
                   {isToppingUp ? <Loader2 className="w-5 h-5 animate-spin" /> : (topupStep === 1 ? <Plus className="w-5 h-5" /> : <Shield className="w-5 h-5" />)}
@@ -1154,77 +1156,77 @@ export default function Dashboard() {
             <button onClick={() => setTrackingBooking(null)} className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors bg-white/5 hover:bg-white/10 p-2 rounded-full">
               <X className="w-5 h-5" />
             </button>
-            
+
             <div className="flex items-center gap-4 mb-8">
-               <div className="w-14 h-14 bg-orange-500/20 text-orange-500 rounded-2xl flex items-center justify-center border border-orange-500/30">
-                  <Utensils className="w-6 h-6" />
-               </div>
-               <div>
-                  <h3 className="text-2xl font-black text-white tracking-tight">Order Status</h3>
-                  <p className="text-orange-400 text-sm mt-1">{trackingBooking.trainId?.name || 'Restaurant'}</p>
-               </div>
+              <div className="w-14 h-14 bg-orange-500/20 text-orange-500 rounded-2xl flex items-center justify-center border border-orange-500/30">
+                <Utensils className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-black text-white tracking-tight">Order Status</h3>
+                <p className="text-orange-400 text-sm mt-1">{trackingBooking.trainId?.name || 'Restaurant'}</p>
+              </div>
             </div>
 
             {trackingBooking.orderedItems && trackingBooking.orderedItems.length > 0 && (
-               <div className="mb-6 bg-[#1a1c23] border border-white/5 rounded-xl p-4">
-                 <h4 className="text-xs font-bold text-gray-400 uppercase mb-3">Items Ordered</h4>
-                 <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
-                   {trackingBooking.orderedItems.map((item: any, idx: number) => (
-                     <div key={idx} className="flex justify-between items-center text-sm">
-                       <span className="text-gray-300"><span className="text-orange-400 font-bold mr-2">{item.quantity}x</span>{item.name}</span>
-                       <span className="text-emerald-400 font-mono">₹{item.price * item.quantity}</span>
-                     </div>
-                   ))}
-                 </div>
-               </div>
+              <div className="mb-6 bg-[#1a1c23] border border-white/5 rounded-xl p-4">
+                <h4 className="text-xs font-bold text-gray-400 uppercase mb-3">Items Ordered</h4>
+                <div className="space-y-2 max-h-32 overflow-y-auto pr-2">
+                  {trackingBooking.orderedItems.map((item: any, idx: number) => (
+                    <div key={idx} className="flex justify-between items-center text-sm">
+                      <span className="text-gray-300"><span className="text-orange-400 font-bold mr-2">{item.quantity}x</span>{item.name}</span>
+                      <span className="text-emerald-400 font-mono">₹{item.price * item.quantity}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
 
             <div className="relative pl-8 space-y-8 before:absolute before:inset-0 before:ml-[1.1rem] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-orange-500 before:via-orange-500/50 before:to-transparent">
-               
-               {/* Order Placed */}
-               <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full border-4 border-[#111318] bg-orange-500 text-white shrink-0 absolute left-0 md:left-1/2 md:-translate-x-1/2 -ml-4 md:ml-0 shadow shadow-orange-500/50">
-                     <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                  <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 shadow-lg">
-                     <div className="flex items-center justify-between space-x-2 mb-1">
-                        <div className="font-bold text-white">Order Placed</div>
-                        <time className="font-mono text-xs font-medium text-orange-400">{new Date(trackingBooking.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</time>
-                     </div>
-                     <div className="text-gray-400 text-xs">Your order has been received by the restaurant.</div>
-                  </div>
-               </div>
 
-               {/* Preparing */}
-               <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full border-4 border-[#111318] bg-orange-500 text-white shrink-0 absolute left-0 md:left-1/2 md:-translate-x-1/2 -ml-4 md:ml-0 shadow shadow-orange-500/50">
-                     <Utensils className="w-4 h-4" />
+              {/* Order Placed */}
+              <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full border-4 border-[#111318] bg-orange-500 text-white shrink-0 absolute left-0 md:left-1/2 md:-translate-x-1/2 -ml-4 md:ml-0 shadow shadow-orange-500/50">
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
+                <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 shadow-lg">
+                  <div className="flex items-center justify-between space-x-2 mb-1">
+                    <div className="font-bold text-white">Order Placed</div>
+                    <time className="font-mono text-xs font-medium text-orange-400">{new Date(trackingBooking.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time>
                   </div>
-                  <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl bg-[#1a1c23] border border-[#272a31] shadow">
-                     <div className="flex items-center justify-between space-x-2 mb-1">
-                        <div className="font-bold text-gray-300">Preparing</div>
-                     </div>
-                     <div className="text-gray-500 text-xs">The chef is cooking your meal.</div>
-                  </div>
-               </div>
+                  <div className="text-gray-400 text-xs">Your order has been received by the restaurant.</div>
+                </div>
+              </div>
 
-               {/* Out for Delivery */}
-               <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full border-4 border-[#111318] bg-[#272a31] text-gray-400 shrink-0 absolute left-0 md:left-1/2 md:-translate-x-1/2 -ml-4 md:ml-0">
-                     <MapPin className="w-4 h-4" />
+              {/* Preparing */}
+              <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full border-4 border-[#111318] bg-orange-500 text-white shrink-0 absolute left-0 md:left-1/2 md:-translate-x-1/2 -ml-4 md:ml-0 shadow shadow-orange-500/50">
+                  <Utensils className="w-4 h-4" />
+                </div>
+                <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl bg-[#1a1c23] border border-[#272a31] shadow">
+                  <div className="flex items-center justify-between space-x-2 mb-1">
+                    <div className="font-bold text-gray-300">Preparing</div>
                   </div>
-                  <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl bg-[#131418] border border-white/5">
-                     <div className="flex items-center justify-between space-x-2 mb-1">
-                        <div className="font-bold text-gray-500">Out for Delivery</div>
-                     </div>
-                     <div className="text-gray-600 text-xs">Delivery partner is on the way to your seat.</div>
+                  <div className="text-gray-500 text-xs">The chef is cooking your meal.</div>
+                </div>
+              </div>
+
+              {/* Out for Delivery */}
+              <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group">
+                <div className="flex items-center justify-center w-8 h-8 rounded-full border-4 border-[#111318] bg-[#272a31] text-gray-400 shrink-0 absolute left-0 md:left-1/2 md:-translate-x-1/2 -ml-4 md:ml-0">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <div className="w-[calc(100%-3rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl bg-[#131418] border border-white/5">
+                  <div className="flex items-center justify-between space-x-2 mb-1">
+                    <div className="font-bold text-gray-500">Out for Delivery</div>
                   </div>
-               </div>
+                  <div className="text-gray-600 text-xs">Delivery partner is on the way to your seat.</div>
+                </div>
+              </div>
             </div>
 
             <div className="mt-10 bg-orange-500/10 rounded-xl p-4 border border-orange-500/20 text-center">
-               <p className="text-sm text-gray-300 font-medium">Estimated arrival at your seat in</p>
-               <p className="text-2xl font-black text-white mt-1">25 - 30 mins</p>
+              <p className="text-sm text-gray-300 font-medium">Estimated arrival at your seat in</p>
+              <p className="text-2xl font-black text-white mt-1">25 - 30 mins</p>
             </div>
           </div>
         </div>
