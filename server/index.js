@@ -45,7 +45,8 @@ app.get("/", (req, res) => {
   res.send("IRCTC Backend API Running");
 });
 
-mongoose.connect(MONGODB_URI)
+if (MONGODB_URI) {
+  mongoose.connect(MONGODB_URI)
   .then(async () => {
     console.log('Connected to MongoDB');
     
@@ -65,13 +66,21 @@ mongoose.connect(MONGODB_URI)
       }
     }
 
-    if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-      app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
+    if (!process.env.VERCEL) {
+      app.listen(PORT || 10000, () => {
+        console.log(`Server running on port ${PORT || 10000}`);
       });
     }
   })
   .catch(err => console.error('MongoDB connection error:', err));
+} else {
+  console.error('CRITICAL: MONGODB_URI is not defined! Serverless function will fail.');
+  
+  // If Vercel tries to boot without a DB, at least start the server to return the error
+  if (!process.env.VERCEL) {
+      app.listen(PORT || 10000, () => console.log(`Server running on port ${PORT || 10000} (NO DB)`));
+  }
+}
 
 // Export the Express API for Vercel Serverless Functions
 module.exports = app;
