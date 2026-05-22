@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://upload.wikimedia.org/wikipedia/en/thumb/4/45/IRCTC_Logo.svg/1200px-IRCTC_Logo.svg.png" alt="IRCTC Logo" width="150" />
+  <img src="https://upload.wikimedia.org/wikipedia/en/4/45/IRCTC_Logo.svg" alt="IRCTC Logo" width="150" />
 
   # IRCTC NextGen (IRCTC 2.0)
   
