@@ -141,11 +141,12 @@ function BookingFlowInner() {
   const [bank, setBank] = useState('');
   const [userWalletBalance, setUserWalletBalance] = useState(0);
   const [useWallet, setUseWallet] = useState(false);
+  const [detailsConfirmed, setDetailsConfirmed] = useState(false);
 
   useEffect(() => {
     const token = Cookies.get('token');
     if (token) {
-      axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+      axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
         .then(res => setUserWalletBalance(res.data.walletBalance || 0))
         .catch(err => console.error(err));
     }
@@ -223,7 +224,7 @@ function BookingFlowInner() {
          } catch (e) {}
       }
 
-      const bookingRes = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/bookings`, {
+      const bookingRes = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/bookings`, {
         trainId: urlTrainId,
         serviceType: isHotel ? 'Hotels' : isFlight ? 'Flight' : isBus ? 'Bus' : isFood ? 'E Catering' : 'Train',
         serviceClass: journeyDetails.travelClass || 'Standard',
@@ -249,7 +250,7 @@ function BookingFlowInner() {
       if (journeyDetails.quota === 'Tatkal' && Math.random() < 0.3) {
          finalStatus = 'WL';
       }
-      const confirmRes = await axios.put(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/bookings/${createdBooking._id}/payment`, {
+      const confirmRes = await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/bookings/${createdBooking._id}/payment`, {
         passengers,
         contactInfo,
         totalAmount: totalPrice,
@@ -275,7 +276,7 @@ function BookingFlowInner() {
          if (pnrToPoll) {
            const pollInterval = setInterval(async () => {
              try {
-               const pnrRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/bookings/pnr/${pnrToPoll}`);
+               const pnrRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/bookings/pnr/${pnrToPoll}`);
                if (pnrRes.data.booking && pnrRes.data.booking.status === 'Confirmed') {
                  setBookingResult(prev => ({ ...prev, status: 'Confirmed' }));
                  toast.success('ID Verification Successful! Ticket Confirmed.');
@@ -315,7 +316,7 @@ function BookingFlowInner() {
     if (!reviewComment.trim()) return;
     setIsSubmittingReview(true);
     try {
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/trains/${urlTrainId}/reviews`, {
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/trains/${urlTrainId}/reviews`, {
         user: contactInfo.email ? contactInfo.email.split('@')[0] : "Guest User",
         rating: reviewRating,
         comment: reviewComment
@@ -1131,11 +1132,31 @@ function BookingFlowInner() {
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center pt-4">
-                  <button type="button" onClick={() => setStep(1)} className="text-white/60 hover:text-white px-6 py-3 font-bold transition-colors">Edit Details</button>
-                  <button type="button" onClick={() => setStep(3)} className="bg-emerald-500 hover:bg-emerald-400 text-white px-10 py-4 rounded-2xl font-bold text-lg transition-all flex items-center gap-3 hover:-translate-y-1 shadow-[0_10px_30px_rgba(16,185,129,0.3)]">
-                    Make Payment <ChevronRight className="w-5 h-5" />
-                  </button>
+                <div className="flex flex-col gap-6 pt-4">
+                  <div className="flex items-center gap-3 bg-white/5 border border-white/10 p-4 rounded-xl">
+                    <input 
+                      type="checkbox" 
+                      id="confirmDetails" 
+                      checked={detailsConfirmed} 
+                      onChange={(e) => setDetailsConfirmed(e.target.checked)} 
+                      className="w-5 h-5 accent-emerald-500 cursor-pointer" 
+                    />
+                    <label htmlFor="confirmDetails" className="text-white font-medium cursor-pointer">
+                      I confirm that all details are correct
+                    </label>
+                  </div>
+                  
+                  <div className="flex justify-between items-center">
+                    <button type="button" onClick={() => setStep(1)} className="text-white/60 hover:text-white px-6 py-3 font-bold transition-colors">Edit Details</button>
+                    <button 
+                      type="button" 
+                      onClick={() => setStep(3)} 
+                      disabled={!detailsConfirmed}
+                      className="bg-emerald-500 hover:bg-emerald-400 text-white px-10 py-4 rounded-2xl font-bold text-lg transition-all flex items-center gap-3 hover:-translate-y-1 shadow-[0_10px_30px_rgba(16,185,129,0.3)] disabled:opacity-50 disabled:hover:translate-y-0 disabled:cursor-not-allowed disabled:shadow-none"
+                    >
+                      Make Payment <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
              </div>
           )}

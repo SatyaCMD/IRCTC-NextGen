@@ -24,7 +24,7 @@ export default function TrainStatusPage() {
     setResult(null);
 
     try {
-      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/services`);
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/services`);
       const trains = res.data.filter((s: any) => s.type === 'Train');
       
       const matchedTrain = trains.find((t: any) => t.trainNumber === trainNo);

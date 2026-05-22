@@ -93,7 +93,7 @@ export default function AdminOTPPage() {
     setIsVerifying(true);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/verify-login-otp`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/verify-login-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp: otpValue })

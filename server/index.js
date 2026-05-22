@@ -8,7 +8,7 @@ const { startCronJobs } = require('./services/cronJobs');
 const app = express();
 
 app.use(cors({
-  origin: process.env.CLIENT_URL || "http://localhost:3000",
+  origin: process.env.CLIENT_URL,
   credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));
@@ -29,7 +29,7 @@ app.use('/api/services', serviceRoutes);
 app.use('/api/ai', aiRoutes);
 
 const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/irctc-clone';
+const MONGODB_URI = process.env.MONGODB_URI;
 
 const { execSync } = require('child_process');
 const Service = require('./models/Service');

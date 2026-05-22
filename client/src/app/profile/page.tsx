@@ -33,10 +33,10 @@ export default function ProfilePage() {
 
       try {
         const [userRes, bookingsRes] = await Promise.all([
-          axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/me`, {
+          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/me`, {
             headers: { Authorization: `Bearer ${token}` }
           }),
-          axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/bookings/history`, {
+          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/bookings/history`, {
             headers: { Authorization: `Bearer ${token}` }
           })
         ]);
@@ -269,7 +269,7 @@ export default function ProfilePage() {
                 }
                 setIsProcessing(true);
                 try {
-                  await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/wallet/add`, 
+                  await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/wallet/add`, 
                     { amount: Number(walletAmount) }, 
                     { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
                   );
@@ -319,7 +319,7 @@ export default function ProfilePage() {
                 onClick={async () => {
                   setIsDeleting(true);
                   try {
-                    await axios.delete(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/delete`, {
+                    await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/delete`, {
                       headers: { Authorization: `Bearer ${Cookies.get('token')}` }
                     });
                     toast.success('Account deleted permanently.');
@@ -433,7 +433,7 @@ export default function ProfilePage() {
                 onClick={async () => {
                   setIsProcessing(true);
                   try {
-                    await axios.put(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/profile`, 
+                    await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/profile`, 
                       { ...editForm, age: Number(editForm.age) }, 
                       { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
                     );
@@ -500,7 +500,7 @@ export default function ProfilePage() {
                   }
                   setIsProcessing(true);
                   try {
-                    await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/kyc`, 
+                    await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/kyc`, 
                       kycForm, 
                       { headers: { Authorization: `Bearer ${Cookies.get('token')}` } }
                     );

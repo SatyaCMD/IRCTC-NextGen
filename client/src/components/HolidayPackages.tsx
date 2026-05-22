@@ -12,7 +12,7 @@ export default function HolidayPackages() {
   useEffect(() => {
     const fetchPackages = async () => {
       try {
-        const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/services`);
+        const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/services`);
         const activePackages = res.data.filter((s: any) => s.type === 'Package');
         setPackages(activePackages);
       } catch (err) {

@@ -45,7 +45,7 @@ export default function AdminLogin() {
         loginEmail = `${loginEmail}@irctc2.co.in`; // fallback domain mapping if they just typed 'admin'
       }
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/login`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: loginEmail, password: formData.password })

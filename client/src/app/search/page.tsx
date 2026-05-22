@@ -31,8 +31,8 @@ function SearchResults() {
   }, []);
 
   useEffect(() => {
-    axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/trains/seed`).then(() => {
-      axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/trains?source=${source}&destination=${destination}&type=${requestedType}`)
+    axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/trains/seed`).then(() => {
+      axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/trains?source=${source}&destination=${destination}&type=${requestedType}`)
         .then(res => {
           let results = res.data;
           
@@ -73,7 +73,7 @@ function SearchResults() {
     if (trainData.length === 0) return;
     setAiLoading(true);
     try {
-      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/trains/recommend`, {
+      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/trains/recommend`, {
         source, destination,
         age: 30, gender: "Male", budget: "Medium", preferences: "Speed and comfort", // mock user pref
         trainData: trainData.slice(0, 5) // send the mock/fetched trains

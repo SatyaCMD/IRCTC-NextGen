@@ -55,7 +55,7 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/register`, {
+      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`, {
         name: formData.name,
         email: formData.email,
         password: formData.password,

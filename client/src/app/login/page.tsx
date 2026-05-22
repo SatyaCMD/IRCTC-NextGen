@@ -49,7 +49,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/reset-password`, {
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/reset-password`, {
         email: resetData.email,
         newPassword: resetData.newPassword
       });
@@ -76,7 +76,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/login`, {
+      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
         email: formData.email,
         password: formData.password
       });
