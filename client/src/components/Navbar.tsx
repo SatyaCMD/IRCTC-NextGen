@@ -36,10 +36,14 @@ export default function Navbar() {
 
   const confirmLogout = () => {
     Cookies.remove('token');
+    if (typeof window !== 'undefined' && window.location.hostname.includes('irctcv2.co.in')) {
+      Cookies.remove('token', { domain: '.irctcv2.co.in' });
+    }
+    localStorage.removeItem('token');
     localStorage.removeItem('sessionExpiresAt');
     setIsLoggedIn(false);
     setShowLogoutModal(false);
-    router.push('/login');
+    window.location.href = '/login';
   };
 
   const handleLogoutClick = () => {

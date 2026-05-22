@@ -72,10 +72,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    Cookies.remove('token', getCookieOptions());
+    Cookies.remove('token');
+    if (typeof window !== 'undefined' && window.location.hostname.includes('irctcv2.co.in')) {
+      Cookies.remove('token', { domain: '.irctcv2.co.in' });
+    }
     localStorage.removeItem('token');
     setUser(null);
     setLoading(false);
+    window.location.href = '/login';
   };
 
   return (
