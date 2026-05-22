@@ -10,7 +10,7 @@ export default function Home() {
     <main className="min-h-screen bg-[var(--background)]">
       <Navbar />
       <Hero />
-      <div className="relative z-20 -mt-10 mb-10 w-full overflow-hidden whitespace-nowrap bg-red-600 shadow-xl shadow-red-600/20 py-2">
+      <div className="relative z-20 w-full overflow-hidden whitespace-nowrap bg-red-600 shadow-xl shadow-red-600/20 py-2">
         <div className="animate-marquee inline-block text-white font-medium text-sm">
           <span className="mx-4">⚠️ Use of the website implies agreement to terms... </span>
           <span className="mx-4">COVID-19 guidelines for travel inside India have been revised.</span>
