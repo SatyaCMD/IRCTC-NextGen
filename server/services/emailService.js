@@ -93,8 +93,36 @@ const getBaseHtml = (title, content, preheader = "") => `
 </html>
 `;
 
-exports.sendSecurityAlert = async (userEmail, action, ip, device, location) => {
+exports.sendSecurityAlert = async (userEmail, actionOrTitle, ipOrAlertMessage, device, location) => {
     
+    // If the 4th argument (device) or 5th argument (location) is not provided,
+    // this is a simple security alert (3 arguments: userEmail, title, alertMessage)
+    if (!device || !location) {
+        const title = actionOrTitle;
+        const alertMessage = ipOrAlertMessage;
+        
+        const content = `
+            <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 20px; margin-bottom: 20px;">
+                <h2 style="color: #991b1b; margin-top: 0;">${title}</h2>
+                <p style="color: #7f1d1d; font-weight: bold;">Security Alert on your IRCTC Account</p>
+                <p style="color: #991b1b;">${alertMessage}</p>
+            </div>
+            <p>If this was you, you can safely ignore this email.</p>
+            <p><strong>If you did not initiate this action, your account may be compromised.</strong> Please reset your password immediately and contact IRCTC Support.</p>
+        `;
+        const message = {
+            from: `"IRCTC NextGen Support" <${process.env.SMTP_USER}>`,
+            to: userEmail,
+            subject: `[URGENT] Security Alert: ${title}`,
+            html: getBaseHtml(title, content, `Urgent security alert regarding your account.`)
+        };
+        await transporter.sendMail(message);
+        return;
+    }
+
+    // Otherwise, this is the full detailed security alert (5 arguments)
+    const action = actionOrTitle;
+    const ip = ipOrAlertMessage;
 
     const content = `
         <h2 style="color: #0f172a; margin-top: 0;">Security Alert: ${action}</h2>
@@ -684,25 +712,7 @@ exports.sendFeedbackEmail = async (userEmail, userName, pnr, trainName) => {
     await transporter.sendMail(message);
 };
 
-exports.sendSecurityAlert = async (userEmail, title, alertMessage) => {
-    
-    const content = `
-        <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 20px; margin-bottom: 20px;">
-            <h2 style="color: #991b1b; margin-top: 0;">${title}</h2>
-            <p style="color: #7f1d1d; font-weight: bold;">Security Alert on your IRCTC Account</p>
-            <p style="color: #991b1b;">${alertMessage}</p>
-        </div>
-        <p>If this was you, you can safely ignore this email.</p>
-        <p><strong>If you did not initiate this action, your account may be compromised.</strong> Please reset your password immediately and contact IRCTC Support.</p>
-    `;
-    const message = {
-        from: `"IRCTC NextGen Support" <${process.env.SMTP_USER}>`,
-        to: userEmail,
-        subject: `[URGENT] Security Alert: ${title}`,
-        html: getBaseHtml(title, content, `Urgent security alert regarding your account.`)
-    };
-    await transporter.sendMail(message);
-};
+// Combined cleanly into exports.sendSecurityAlert at the top of this file to prevent naming collisions.
 
 exports.sendTransactionFailedAlert = async (userEmail, amount, serviceType) => {
     
