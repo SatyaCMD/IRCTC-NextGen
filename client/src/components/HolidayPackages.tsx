@@ -9,7 +9,7 @@ const DEFAULT_PACKAGES = [
     _id: "default-kashmir",
     type: "Package",
     name: "Kashmir Valley Retreat",
-    imgUrl: "https://images.unsplash.com/photo-1566837430227-72377b63d919?q=80&w=1000",
+    imgUrl: "https://images.unsplash.com/photo-1566837430227-72377b63d919?auto=format&fit=crop&w=800&q=60",
     description: "Experience paradise on earth with our 5-day Kashmir valley tour including Srinagar, Gulmarg, and Pahalgam.",
     highlights: ["Srinagar Houseboat Stay", "Shikara Ride on Dal Lake", "Gulmarg Gondola Ride", "Pahalgam Valley Tour"],
     fullDetails: "Discover the unmatched beauty of Jammu & Kashmir. This package takes you through the romantic Dal Lake in Srinagar, the snow-covered meadows of Gulmarg, and the pristine Lidder River in Pahalgam. Includes premium stays, private transport, and local culinary experiences."
@@ -45,7 +45,7 @@ const DEFAULT_PACKAGES = [
     _id: "default-varanasi",
     type: "Package",
     name: "Spiritual Varanasi & Ganges",
-    imgUrl: "https://images.unsplash.com/photo-1561361531-99e224be4c2a?q=80&w=1000",
+    imgUrl: "https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=800&q=60",
     description: "Experience the ancient spiritual heart of India with a 3-day sacred tour of Varanasi.",
     highlights: ["Subah-e-Banaras Boat Ride", "Ganga Aarti Ceremony", "Sarnath Buddhist Site Tour", "Weaving Village Visit"],
     fullDetails: "Journey to the oldest living city in the world. Witness the mesmerizing evening Ganga Aarti at Dashashwamedh Ghat, explore the narrow lanes filled with ancient temples, and visit Sarnath where Lord Buddha gave his first sermon."
@@ -72,7 +72,7 @@ const DEFAULT_PACKAGES = [
     _id: "default-sikkim",
     type: "Package",
     name: "Sikkim & Darjeeling Himalayan Beauty",
-    imgUrl: "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?q=80&w=1000",
+    imgUrl: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=60",
     description: "Explore the stunning tea gardens, monasteries, and viewpoints of the Eastern Himalayas.",
     highlights: ["Tiger Hill Sunrise over Kanchenjunga", "Darjeeling Toy Train Ride", "Tsomgo Lake Excursion", "Rumtek Monastery Visit"],
     fullDetails: "Discover the serene beauty of Northeast India. Watch the sunrise over Mt. Kanchenjunga, ride the UNESCO World Heritage Toy Train, and explore the tranquil monasteries and high-altitude lakes of Gangtok."
@@ -99,7 +99,7 @@ const DEFAULT_PACKAGES = [
     _id: "default-ranthambore",
     type: "Package",
     name: "Ranthambore Wildlife Safari",
-    imgUrl: "https://images.unsplash.com/photo-1602491453979-04de48866c2a?q=80&w=1000",
+    imgUrl: "https://images.unsplash.com/photo-1575550959106-5a7defe28b56?q=80&w=1000",
     description: "A thrilling 3-day wildlife expedition in Ranthambore National Park to spot Bengal Tigers.",
     highlights: ["Exclusive open-Jeep Safaris", "Ranthambore Fort Visit", "Luxury Jungle Lodge Stay", "Guided Nature Walk"],
     fullDetails: "Venture into the former hunting grounds of the Maharajas of Jaipur. Take deep-jungle safaris to observe Royal Bengal Tigers, leopards, and crocodiles in their natural habitat, and explore the ancient 10th-century Ranthambore Fort."
@@ -143,6 +143,15 @@ export default function HolidayPackages() {
     };
     fetchPackages();
   }, []);
+
+  // Standard Auto-Play Loop: scrolls next slide every 5 seconds
+  useEffect(() => {
+    if (packages.length <= 3) return;
+    const interval = setInterval(() => {
+      nextSlide();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [packages.length, currentIndex]);
 
   const nextSlide = () => {
     if (packages.length === 0) return;

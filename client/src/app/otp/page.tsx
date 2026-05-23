@@ -94,9 +94,9 @@ export default function OTPPage() {
           import('js-cookie').then((Cookies) => {
             const getCookieOptions = () => {
               if (typeof window !== 'undefined' && window.location.hostname.includes('irctcv2.co.in')) {
-                return { domain: '.irctcv2.co.in' };
+                return { domain: '.irctcv2.co.in', path: '/' };
               }
-              return {};
+              return { path: '/' };
             };
             Cookies.default.set('token', data.token, getCookieOptions());
             localStorage.removeItem('sessionExpiresAt'); 

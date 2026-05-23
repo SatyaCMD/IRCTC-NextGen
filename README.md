@@ -177,7 +177,8 @@ Open a terminal and navigate to the backend directory. Install the dependencies 
 ```bash
 cd server
 npm install
-npm start
+npm start #for production 
+node index.js #for localhost
 ```
 
 *Expected Output:*

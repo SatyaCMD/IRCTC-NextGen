@@ -20,9 +20,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const getCookieOptions = () => {
     if (typeof window !== 'undefined' && window.location.hostname.includes('irctcv2.co.in')) {
-      return { domain: '.irctcv2.co.in' };
+      return { domain: '.irctcv2.co.in', path: '/' };
     }
-    return {};
+    return { path: '/' };
   };
 
   const fetchUser = async (token: string) => {

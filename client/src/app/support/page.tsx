@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { UploadCloud, X, Loader2, Send, CheckCircle } from 'lucide-react';
+import { UploadCloud, X, Loader2, Send, CheckCircle, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
+import Link from 'next/link';
 
 export default function SupportPage() {
   const { user, loading } = useAuth();
@@ -97,6 +98,12 @@ export default function SupportPage() {
           <a href="/login?redirect=/support" className="w-full inline-block py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition-all shadow-lg shadow-blue-900/20">
             Go to Login
           </a>
+          <Link 
+            href="/" 
+            className="w-full inline-block py-3 mt-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all font-semibold"
+          >
+            Back to Home
+          </Link>
         </div>
       </div>
     );
@@ -122,6 +129,12 @@ export default function SupportPage() {
           >
             Raise Another Ticket
           </button>
+          <Link 
+            href="/" 
+            className="w-full inline-block py-4 mt-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl transition-all font-semibold shadow-lg shadow-blue-600/10"
+          >
+            Back to Home
+          </Link>
         </div>
       </div>
     );
@@ -130,6 +143,14 @@ export default function SupportPage() {
   return (
     <div className="min-h-screen bg-[#050505] pt-32 pb-20 px-4">
       <div className="max-w-3xl mx-auto">
+        <Link 
+          href="/" 
+          className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-6 group text-sm font-semibold bg-white/5 px-4 py-2 rounded-xl border border-white/5"
+        >
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          Back to Home
+        </Link>
+
         <div className="mb-10">
           <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight mb-4">Support Center</h1>
           <p className="text-xl text-white/60">Having trouble? Tell us what's wrong and we'll help you fix it.</p>
