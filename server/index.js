@@ -50,6 +50,14 @@ if (MONGODB_URI) {
   .then(async () => {
     console.log('Connected to MongoDB');
     
+    // Ensure all Mongoose model indexes are fully synchronized with the database in real-time
+    try {
+      await Promise.all(mongoose.modelNames().map(modelName => mongoose.model(modelName).syncIndexes()));
+      console.log('Database indexes synchronized successfully.');
+    } catch (syncErr) {
+      console.warn('Index synchronization warning:', syncErr);
+    }
+    
     if (!process.env.VERCEL && !process.env.VERCEL_REGION) {
       startCronJobs();
       try {

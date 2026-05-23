@@ -120,6 +120,22 @@ export default function HolidayPackages() {
   const [packages, setPackages] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(3);
+
+  // Responsive logic: 4 packages on mobile/tablet (< 1024px) and 3 on desktop (>= 1024px)
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setVisibleCount(4);
+      } else {
+        setVisibleCount(3);
+      }
+    };
+    
+    handleResize(); // Initialize on mount
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const fetchPackages = async () => {
@@ -146,12 +162,12 @@ export default function HolidayPackages() {
 
   // Standard Auto-Play Loop: scrolls next slide every 5 seconds
   useEffect(() => {
-    if (packages.length <= 3) return;
+    if (packages.length <= visibleCount) return;
     const interval = setInterval(() => {
       nextSlide();
     }, 5000);
     return () => clearInterval(interval);
-  }, [packages.length, currentIndex]);
+  }, [packages.length, currentIndex, visibleCount]);
 
   const nextSlide = () => {
     if (packages.length === 0) return;
@@ -163,13 +179,13 @@ export default function HolidayPackages() {
     setCurrentIndex((prev) => (prev - 1 + packages.length) % packages.length);
   };
 
-  // Infinite Circular Carousel logic: Slice exactly 3 elements starting at currentIndex
+  // Infinite Circular Carousel logic: Slice exactly visibleCount elements starting at currentIndex
   const getVisiblePackages = () => {
     if (packages.length === 0) return [];
-    if (packages.length <= 3) return packages;
+    if (packages.length <= visibleCount) return packages;
     
     const items = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < visibleCount; i++) {
       items.push(packages[(currentIndex + i) % packages.length]);
     }
     return items;
@@ -205,17 +221,21 @@ export default function HolidayPackages() {
           <div className="relative px-2 sm:px-12">
             
             {/* Carousel Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 transition-all duration-500">
+            <div className={`grid gap-4 sm:gap-8 transition-all duration-500 ${
+              visibleCount === 4 
+                ? 'grid-cols-2' 
+                : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+            }`}>
               {visiblePackages.map((pkg, idx) => (
                 <div 
                   key={pkg._id || idx} 
-                  className="glass-card overflow-hidden hover:-translate-y-3 transition-all duration-300 flex flex-col group relative rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md shadow-2xl hover:shadow-blue-500/10"
+                  className="glass-card overflow-hidden hover:-translate-y-3 transition-all duration-300 flex flex-col group relative rounded-[1.5rem] sm:rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md shadow-2xl hover:shadow-blue-500/10"
                 >
                   {/* Glowing hover state */}
                   <div className="absolute inset-0 bg-gradient-to-b from-blue-500/0 via-blue-500/0 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                   
                   {/* Image container */}
-                  <div className="h-56 w-full relative overflow-hidden flex-shrink-0">
+                  <div className="h-32 sm:h-48 lg:h-56 w-full relative overflow-hidden flex-shrink-0">
                     <img 
                       src={pkg.imgUrl} 
                       alt={pkg.name || pkg.title}
@@ -225,16 +245,16 @@ export default function HolidayPackages() {
                   </div>
                   
                   {/* Card Content */}
-                  <div className="p-8 flex flex-col items-center flex-grow text-center relative z-10">
-                    <h3 className="text-2xl font-bold text-white mb-4 line-clamp-1 group-hover:text-blue-400 transition-colors">
+                  <div className="p-4 sm:p-6 lg:p-8 flex flex-col items-center flex-grow text-center relative z-10">
+                    <h3 className="text-base sm:text-xl lg:text-2xl font-bold text-white mb-2 sm:mb-4 line-clamp-1 group-hover:text-blue-400 transition-colors">
                       {pkg.name || pkg.title}
                     </h3>
-                    <p className="text-gray-400 text-sm mb-8 flex-grow leading-relaxed line-clamp-3">
+                    <p className="text-gray-400 text-xs sm:text-sm mb-4 sm:mb-8 flex-grow leading-relaxed line-clamp-3">
                       {pkg.description}
                     </p>
                     <button 
                       onClick={() => setSelectedPackage(pkg)} 
-                      className="btn-primary w-full py-4 rounded-xl font-bold text-sm bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-lg shadow-blue-600/20 group-hover:shadow-blue-500/30 flex items-center justify-center gap-2"
+                      className="btn-primary w-full py-2.5 sm:py-3 lg:py-4 rounded-lg sm:rounded-xl font-bold text-xs sm:text-sm bg-blue-600 hover:bg-blue-500 text-white transition-all shadow-lg shadow-blue-600/20 group-hover:shadow-blue-500/30 flex items-center justify-center gap-2"
                     >
                       Read more
                     </button>
@@ -244,7 +264,7 @@ export default function HolidayPackages() {
             </div>
 
             {/* Navigation Chevrons */}
-            {packages.length > 3 && (
+            {packages.length > visibleCount && (
               <>
                 {/* Left Button */}
                 <button
@@ -267,7 +287,7 @@ export default function HolidayPackages() {
             )}
 
             {/* Pagination Indicator Dots */}
-            {packages.length > 3 && (
+            {packages.length > visibleCount && (
               <div className="flex justify-center items-center gap-2 mt-12">
                 {packages.map((_, idx) => (
                   <button

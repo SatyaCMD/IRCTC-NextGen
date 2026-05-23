@@ -9,6 +9,7 @@ router.get('/verify-email/:token', authController.verifyEmail);
 router.post('/login', authController.login);
 router.post('/verify-login-otp', authController.verifyLoginOtp);
 router.post('/reset-password', authController.resetPassword);
+router.get('/secure-account', authController.secureAccount);
 router.get('/me', authMiddleware, authController.getMe);
 router.post('/wallet/add', authMiddleware, authController.addMoneyToWallet);
 router.put('/profile', authMiddleware, authController.updateProfile);

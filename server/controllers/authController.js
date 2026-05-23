@@ -45,6 +45,10 @@ exports.login = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: 'Invalid credentials ckeck userid and password' });
 
+    if (user.status === 'Suspended') {
+      return res.status(403).json({ error: 'Your account has been secured and suspended due to a security notice. Please contact the security desk to restore access.' });
+    }
+
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       emailService.sendSecurityAlert(user.email, 'Failed Login Attempt', 'Someone tried to log in to your account with an incorrect password.').catch(console.error);
@@ -79,6 +83,11 @@ exports.verifyLoginOtp = async (req, res) => {
     const user = await User.findOne({ email });
 
     if (!user) return res.status(400).json({ error: 'User not found' });
+
+    if (user.status === 'Suspended') {
+      return res.status(403).json({ error: 'Your account has been secured and suspended due to a security notice. Please contact the security desk to restore access.' });
+    }
+
     if (!user.loginOtp || !user.loginOtpExpiry) return res.status(400).json({ error: 'No OTP requested or OTP expired' });
     
     if (new Date() > user.loginOtpExpiry) {
@@ -239,7 +248,7 @@ exports.resetPassword = async (req, res) => {
     const geo = geoip.lookup(ip);
     const location = geo ? `${geo.city || 'Unknown'}, ${geo.country || 'Unknown'}` : 'Local/Unknown';
     const device = req.headers['user-agent'] || 'Unknown Device';
-    emailService.sendSecurityAlert(user.email, 'Password Changed', ip, device, location).catch(console.error);
+    emailService.sendPasswordChangedEmail(user.email, ip, device, location).catch(console.error);
 
     res.json({ message: 'Password reset successful' });
   } catch (error) {
@@ -382,5 +391,35 @@ exports.reportTransactionFailure = async (req, res) => {
   } catch (error) {
     console.error('Transaction Failure Report Error:', error);
     res.status(500).json({ error: 'Server error while reporting failure' });
+  }
+};
+
+exports.secureAccount = async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) {
+      return res.status(400).json({ error: 'Verification token is required.' });
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    const email = decoded.email;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Suspend the account
+    user.status = 'Suspended';
+    await user.save();
+
+    res.json({ 
+      success: true, 
+      message: 'Account successfully secured and suspended! All active sessions have been terminated, and future logins are blocked until security review.' 
+    });
+  } catch (error) {
+    console.error('Secure Account Error:', error);
+    res.status(400).json({ error: 'Invalid or expired secure token. Please contact the security desk.' });
   }
 };

@@ -94,13 +94,13 @@ const getBaseHtml = (title, content, preheader = "") => `
 `;
 
 exports.sendSecurityAlert = async (userEmail, actionOrTitle, ipOrAlertMessage, device, location) => {
-    
+
     // If the 4th argument (device) or 5th argument (location) is not provided,
     // this is a simple security alert (3 arguments: userEmail, title, alertMessage)
     if (!device || !location) {
         const title = actionOrTitle;
         const alertMessage = ipOrAlertMessage;
-        
+
         const content = `
             <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 20px; margin-bottom: 20px;">
                 <h2 style="color: #991b1b; margin-top: 0;">${title}</h2>
@@ -158,7 +158,7 @@ exports.sendSecurityAlert = async (userEmail, actionOrTitle, ipOrAlertMessage, d
 };
 
 exports.sendWalletReceipt = async (userEmail, amount, newBalance) => {
-    
+
 
     const content = `
         <h2 style="color: #0f172a; margin-top: 0; text-align: center;">Payment Receipt</h2>
@@ -191,7 +191,7 @@ exports.sendWalletReceipt = async (userEmail, amount, newBalance) => {
 };
 
 exports.sendCancellationNotice = async (userEmail, booking) => {
-    
+
 
     const content = `
         <h2 style="color: #0f172a; margin-top: 0;">Cancellation Confirmed</h2>
@@ -225,12 +225,12 @@ exports.sendCancellationNotice = async (userEmail, booking) => {
 };
 
 exports.sendBookingConfirmation = async (userEmail, booking) => {
-    
+
 
     // --- EXACT PDF REPLICATION LOGIC ---
     const doc = new jsPDF('p', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
-    
+
     const isFood = booking.serviceType === 'E Catering';
     const isHotel = booking.serviceType === 'Hotels';
     const isSpecialService = isHotel || isFood || (booking.serviceType && booking.serviceType.toLowerCase().includes('holiday')) || (booking.serviceType && booking.serviceType.toLowerCase().includes('retiring'));
@@ -248,7 +248,7 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
     doc.setFontSize(16);
     doc.setTextColor(0, 51, 153);
     doc.text(isFlight ? "AVIATION" : isBus ? "BUS" : "IRCTC", 15, 20);
-    
+
     doc.setTextColor(255, 153, 51);
     doc.text("G20", pageWidth - 35, 20);
 
@@ -262,7 +262,7 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    
+
     if (isSpecialService) {
         doc.text(isFood ? "Delivery Station" : "City/Location", 35, 30, { align: 'center' });
         doc.text("Service Details", 105, 36, { align: 'center' });
@@ -277,7 +277,7 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
     const source = booking.from || 'STATION';
     const dest = booking.to || 'DESTINATION';
     const formatStationName = (name, maxLen = 20) => name.length > maxLen ? name.substring(0, maxLen - 2) + '...' : name;
-    
+
     doc.text(formatStationName(source.toUpperCase()), 35, 42, { align: 'center' });
     doc.text(formatStationName(isSpecialService ? dest.toUpperCase() : (isHotel ? dest.toUpperCase() : source.toUpperCase()), 30), 105, 42, { align: 'center' });
     doc.text(formatStationName(isSpecialService ? dest.toUpperCase() : (isHotel ? source.toUpperCase() : dest.toUpperCase())), 175, 42, { align: 'center' });
@@ -306,7 +306,7 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    
+
     if (isSpecialService) {
         doc.text("Booking ID", 35, 57, { align: 'center' });
         doc.text(isFood ? "Restaurant/Vendor" : "Hotel/Room Name", 105, 57, { align: 'center' });
@@ -328,7 +328,7 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
 
     doc.text(booking.serviceClass || booking.trainClass || 'Standard', 160, 62, { align: 'center' });
     doc.setFontSize(8);
-    
+
     if (isSpecialService) {
         doc.text(new Date(booking.createdAt).toLocaleDateString(), 190, 62, { align: 'center' });
         doc.line(10, 66, 200, 66);
@@ -477,7 +477,7 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
 };
 
 exports.sendLoginOtpEmail = async (userEmail, otp) => {
-    
+
 
     const content = `
         <h2 style="color: #0f172a; margin-top: 0; text-align: center;">Your Login OTP</h2>
@@ -506,7 +506,7 @@ exports.sendLoginOtpEmail = async (userEmail, otp) => {
 };
 
 exports.sendVerificationEmail = async (userEmail, token) => {
-    
+
 
     const verifyUrl = `${process.env.CLIENT_URL}/verify-email?token=${token}`;
 
@@ -536,7 +536,7 @@ exports.sendVerificationEmail = async (userEmail, token) => {
 };
 
 exports.sendAccountDeletionEmail = async (userEmail, userName) => {
-    
+
 
     const content = `
         <h2 style="color: #0f172a; margin-top: 0; text-align: center;">Account Successfully Deleted</h2>
@@ -559,7 +559,7 @@ exports.sendAccountDeletionEmail = async (userEmail, userName) => {
 };
 
 exports.sendChartPreparationEmail = async (userEmail, userName, pnr, trainName, departureTime, seatDetails) => {
-    
+
     const content = `
         <h2 style="color: #0f172a; margin-top: 0;">Chart Prepared - Seat Confirmed</h2>
         <p>Dear ${userName},</p>
@@ -580,7 +580,7 @@ exports.sendChartPreparationEmail = async (userEmail, userName, pnr, trainName, 
 };
 
 exports.sendJourneyReminderEmail = async (userEmail, userName, pnr, trainName, departureTime) => {
-    
+
     const content = `
         <h2 style="color: #0f172a; margin-top: 0;">Travel Reminder</h2>
         <p>Dear ${userName},</p>
@@ -604,7 +604,7 @@ exports.sendJourneyReminderEmail = async (userEmail, userName, pnr, trainName, d
 };
 
 exports.sendTrainDelayEmail = async (userEmail, userName, pnr, trainName, oldTime, newTime, statusMessage) => {
-    
+
     const content = `
         <h2 style="color: #0f172a; margin-top: 0;">Important: Train Schedule Update</h2>
         <p>Dear ${userName},</p>
@@ -626,7 +626,7 @@ exports.sendTrainDelayEmail = async (userEmail, userName, pnr, trainName, oldTim
 };
 
 exports.sendProfileModificationEmail = async (userEmail, userName, changedFields) => {
-    
+
     const content = `
         <h2 style="color: #0f172a; margin-top: 0;">Security Alert: Profile Updated</h2>
         <p>Dear ${userName},</p>
@@ -652,7 +652,7 @@ exports.sendProfileModificationEmail = async (userEmail, userName, changedFields
 };
 
 exports.sendAdminWalletAdjustmentEmail = async (userEmail, userName, amount, action, reason) => {
-    
+
     const isCredit = action === 'credit';
     const color = isCredit ? '#22c55e' : '#ef4444';
     const actionText = isCredit ? 'Credited to' : 'Deducted from';
@@ -676,7 +676,7 @@ exports.sendAdminWalletAdjustmentEmail = async (userEmail, userName, amount, act
 };
 
 exports.sendPromotionalEmail = async (userEmail, subject, htmlBody) => {
-    
+
     const content = `
         ${htmlBody}
         <br><br>
@@ -692,7 +692,7 @@ exports.sendPromotionalEmail = async (userEmail, subject, htmlBody) => {
 };
 
 exports.sendFeedbackEmail = async (userEmail, userName, pnr, trainName) => {
-    
+
     const content = `
         <h2 style="color: #0f172a; margin-top: 0;">How was your journey?</h2>
         <p>Dear ${userName},</p>
@@ -715,7 +715,7 @@ exports.sendFeedbackEmail = async (userEmail, userName, pnr, trainName) => {
 // Combined cleanly into exports.sendSecurityAlert at the top of this file to prevent naming collisions.
 
 exports.sendTransactionFailedAlert = async (userEmail, amount, serviceType) => {
-    
+
     const content = `
         <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 20px; margin-bottom: 20px;">
             <h2 style="color: #b45309; margin-top: 0;">Transaction Failed</h2>
@@ -748,7 +748,7 @@ exports.sendTransactionFailedAlert = async (userEmail, amount, serviceType) => {
 };
 // Append to end of emailService.js
 exports.sendTicketRaisedEmail = async (userEmail, userName, ticketNumber, issueType) => {
-    
+
 
     const content = `
         <h2 style="color: #0f172a; margin-top: 0; text-align: center;">Support Ticket Raised</h2>
@@ -782,7 +782,7 @@ exports.sendTicketRaisedEmail = async (userEmail, userName, ticketNumber, issueT
 };
 
 exports.sendTicketResolvedEmail = async (userEmail, userName, ticketNumber, issueType) => {
-    
+
 
     const content = `
         <h2 style="color: #0f172a; margin-top: 0; text-align: center;">Support Ticket Resolved</h2>
@@ -815,6 +815,55 @@ exports.sendTicketResolvedEmail = async (userEmail, userName, ticketNumber, issu
         console.log(`Ticket Resolved Email sent to ${userEmail}`);
     } catch (err) {
         console.error('Failed to send Ticket Resolved Email:', err);
+    }
+};
+
+exports.sendPasswordChangedEmail = async (userEmail, ip, device, location) => {
+    const jwt = require('jsonwebtoken');
+    const secureToken = jwt.sign({ email: userEmail }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+    const secureLink = `${process.env.CLIENT_URL || 'https://www.irctcv2.co.in'}/secure-account?token=${secureToken}`;
+
+    const title = 'Password Changed Successfully';
+    const content = `
+        <div style="background-color: #f0fdf4; border-left: 4px solid #16a34a; padding: 20px; margin-bottom: 25px; border-radius: 6px;">
+            <h2 style="color: #14532d; margin-top: 0; font-size: 18px;">Password Updated Successfully</h2>
+            <p style="color: #166534; margin: 5px 0 0 0; font-size: 14px;">The password for your IRCTC NextGen account has been successfully changed.</p>
+        </div>
+        <p>Dear Customer,</p>
+        <p>This email confirms that the password for your IRCTC NextGen account has been changed. If you performed this action, no further steps are required.</p>
+        
+        <h4 style="color: #334155; margin: 25px 0 10px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">Change Details</h4>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; background-color: #f8fafc; border-radius: 6px; overflow: hidden; border: 1px solid #e2e8f0;">
+            <tr><td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #475569; width: 35%;"><strong>Event</strong></td><td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #0f172a; font-weight: 600;">Password Change</td></tr>
+            <tr><td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #475569;"><strong>Date & Time</strong></td><td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} (IST)</td></tr>
+            <tr><td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #475569;"><strong>IP Address</strong></td><td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${ip}</td></tr>
+            <tr><td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #475569;"><strong>Location</strong></td><td style="padding: 12px 15px; border-bottom: 1px solid #e2e8f0; color: #0f172a;">${location}</td></tr>
+            <tr><td style="padding: 12px 15px; color: #475569;"><strong>Device/Browser</strong></td><td style="padding: 12px 15px; color: #0f172a;">${device}</td></tr>
+        </table>
+        
+        <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; margin-top: 25px; border-radius: 4px;">
+            <p style="margin: 0; color: #991b1b; font-size: 14px;">
+                <strong>Did you not authorize this change?</strong><br>
+                If you did not change your password, please secure your account immediately by clicking the link below:<br>
+                <a href="${secureLink}" style="color: #dc2626; text-decoration: underline; font-weight: 700; display: inline-block; margin-top: 8px;">SECURE & SUSPEND MY ACCOUNT NOW</a>
+            </p>
+        </div>
+        
+        <p style="margin-top: 30px; margin-bottom: 0;">Warm Regards,<br><strong>IRCTC Security Desk</strong></p>
+    `;
+
+    const message = {
+        from: `"IRCTC NextGen Support" <${process.env.SMTP_USER}>`,
+        to: userEmail,
+        subject: `[IRCTC Security] Password Changed Successfully`,
+        html: getBaseHtml('Password Changed', content, `The password for your account was successfully changed.`)
+    };
+
+    try {
+        const info = await transporter.sendMail(message);
+        console.log(`Password Change confirmation email sent to ${userEmail}`);
+    } catch (err) {
+        console.error('Failed to send Password Change Email:', err);
     }
 };
 
