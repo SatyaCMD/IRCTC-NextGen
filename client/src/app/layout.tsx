@@ -4,6 +4,7 @@ import "./globals.css";
 import DishaAI from "@/components/DishaAI";
 import { AuthProvider } from "@/context/AuthContext";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/next";
 
 export const metadata: Metadata = {
   title: "IRCTC 2.0 - Next Gen Indian Railways",
@@ -46,6 +47,7 @@ export default function RootLayout({
           {children}
           <DishaAI />
           <SpeedInsights />
+          <Analytics />
         </AuthProvider>
       </body>
     </html>
