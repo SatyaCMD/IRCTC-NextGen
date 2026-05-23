@@ -93,10 +93,10 @@ export default function SignupPage() {
   };
 
   return (
-    <main className="min-h-screen flex bg-[#050505] text-white selection:bg-blue-500/30">
+    <main className="min-h-screen flex flex-col lg:flex-row bg-[#050505] text-white selection:bg-blue-500/30">
       
       {/* Left side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12 lg:p-16 relative order-2 lg:order-1">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 sm:p-12 lg:p-16 relative order-2 lg:order-2">
         <div className="absolute top-8 left-8 lg:hidden flex items-center gap-2">
           <Train className="w-6 h-6 text-white" />
           <span className="font-bold tracking-tight">IRCTC 2.0</span>
@@ -290,12 +290,12 @@ export default function SignupPage() {
       </div>
 
       {/* Right side - Branding & Image */}
-      <div className="hidden lg:flex w-1/2 relative overflow-hidden order-1 lg:order-2">
+      <div className="flex lg:w-1/2 h-72 sm:h-96 lg:h-auto relative overflow-hidden order-1 lg:order-1 flex-shrink-0">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1541427468627-a89a96e5ca1d?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center transition-transform duration-10000 hover:scale-110" />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
         <div className="absolute inset-0 bg-indigo-900/20 mix-blend-multiply" />
         
-        <div className="relative z-10 flex flex-col justify-between p-16 w-full items-end text-right">
+        <div className="relative z-10 flex flex-col justify-between p-8 sm:p-12 lg:p-16 w-full items-end text-right">
           <Link href="/" className="flex items-center gap-3 w-fit group">
             <span className="text-2xl font-bold tracking-tight">IRCTC 2.0</span>
             <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20 group-hover:bg-white/20 transition-all">
@@ -303,11 +303,11 @@ export default function SignupPage() {
             </div>
           </Link>
 
-          <div className="max-w-md">
-            <h1 className="text-5xl font-bold leading-tight mb-6 tracking-tight">
+          <div className="max-w-md mt-4 lg:mt-0">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight mb-2 sm:mb-4 tracking-tight">
               Unlock the World.
             </h1>
-            <p className="text-lg text-gray-300 font-light">
+            <p className="text-sm sm:text-base lg:text-lg text-gray-300 font-light hidden sm:block">
               Join thousands of travelers who use IRCTC 2.0 to explore destinations, book tickets effortlessly, and manage their trips.
             </p>
           </div>

@@ -74,15 +74,15 @@ export default function AdminLogin() {
   };
 
   return (
-    <main className="min-h-screen flex bg-[#050505] text-white selection:bg-purple-500/30">
+    <main className="min-h-screen flex flex-col lg:flex-row bg-[#050505] text-white selection:bg-purple-500/30">
       
       {/* Left side - Dark Admin Branding */}
-      <div className="hidden lg:flex w-1/2 relative overflow-hidden bg-[#0a0a0a]">
+      <div className="flex lg:w-1/2 h-72 sm:h-96 lg:h-auto relative overflow-hidden bg-[#0a0a0a] flex-shrink-0">
         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-20 transition-transform duration-10000 hover:scale-110" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent" />
         <div className="absolute inset-0 border-r border-white/5" />
         
-        <div className="relative z-10 flex flex-col justify-between p-16 w-full">
+        <div className="relative z-10 flex flex-col justify-between p-8 sm:p-12 lg:p-16 w-full">
           <Link href="/" className="flex items-center gap-3 w-fit group">
             <div className="w-12 h-12 rounded-xl bg-purple-500/10 backdrop-blur-md flex items-center justify-center border border-purple-500/30 group-hover:bg-purple-500/20 transition-all">
               <ShieldAlert className="w-6 h-6 text-purple-400" />
@@ -90,14 +90,14 @@ export default function AdminLogin() {
             <span className="text-2xl font-bold tracking-tight">IRCTC <span className="text-purple-400">Admin</span></span>
           </Link>
 
-          <div className="max-w-md">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold mb-6">
+          <div className="max-w-md mt-4 lg:mt-0">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold mb-2 sm:mb-4">
               <Lock className="w-3 h-3" /> RESTRICTED ACCESS
             </div>
-            <h1 className="text-5xl font-bold leading-tight mb-6 tracking-tight">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight mb-2 sm:mb-4 tracking-tight">
               System Control Portal.
             </h1>
-            <p className="text-lg text-gray-400 font-light">
+            <p className="text-sm sm:text-base lg:text-lg text-gray-400 font-light hidden sm:block">
               Authorized personnel only. Accessing this system without proper authorization is strictly prohibited.
             </p>
           </div>

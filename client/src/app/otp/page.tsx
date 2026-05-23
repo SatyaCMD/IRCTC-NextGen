@@ -92,7 +92,13 @@ export default function OTPPage() {
         
         if (res.ok) {
           import('js-cookie').then((Cookies) => {
-            Cookies.default.set('token', data.token);
+            const getCookieOptions = () => {
+              if (typeof window !== 'undefined' && window.location.hostname.includes('irctcv2.co.in')) {
+                return { domain: '.irctcv2.co.in' };
+              }
+              return {};
+            };
+            Cookies.default.set('token', data.token, getCookieOptions());
             localStorage.removeItem('sessionExpiresAt'); 
           });
           toast.success('Successfully logged in!');
