@@ -3,6 +3,7 @@ import { Toaster } from "react-hot-toast";
 import "./globals.css";
 import DishaAI from "@/components/DishaAI";
 import { AuthProvider } from "@/context/AuthContext";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "IRCTC 2.0 - Next Gen Indian Railways",
@@ -44,6 +45,7 @@ export default function RootLayout({
           />
           {children}
           <DishaAI />
+          <SpeedInsights />
         </AuthProvider>
       </body>
     </html>
