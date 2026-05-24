@@ -5,6 +5,7 @@ import Navbar from '@/components/Navbar';
 import { useRouter } from 'next/navigation';
 import { ShieldCheck, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
+import Cookies from 'js-cookie';
 
 export default function OTPPage() {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -91,16 +92,14 @@ export default function OTPPage() {
         const data = await res.json();
         
         if (res.ok) {
-          import('js-cookie').then((Cookies) => {
-            const getCookieOptions = () => {
-              if (typeof window !== 'undefined' && window.location.hostname.includes('irctcv2.co.in')) {
-                return { domain: '.irctcv2.co.in', path: '/' };
-              }
-              return { path: '/' };
-            };
-            Cookies.default.set('token', data.token, getCookieOptions());
-            localStorage.removeItem('sessionExpiresAt'); 
-          });
+          const getCookieOptions = () => {
+            if (typeof window !== 'undefined' && window.location.hostname.includes('irctcv2.co.in')) {
+              return { domain: '.irctcv2.co.in', path: '/' };
+            }
+            return { path: '/' };
+          };
+          Cookies.set('token', data.token, getCookieOptions());
+          localStorage.removeItem('sessionExpiresAt'); 
           toast.success('Successfully logged in!');
           router.push(redirectUrl);
         } else {

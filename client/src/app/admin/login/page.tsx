@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, ShieldAlert, ArrowRight, Lock } from 'lucide-react';
 import toast from 'react-hot-toast';
+import Cookies from 'js-cookie';
 
 export default function AdminLogin() {
   const [formData, setFormData] = useState({ adminId: '', password: '', captcha: '' });
@@ -58,10 +59,8 @@ export default function AdminLogin() {
           router.push(`/admin/otp?email=${encodeURIComponent(loginEmail)}&type=login&debug=${data.debugOtp}`);
         } else {
           // Fallback if OTP is bypassed
-          import('js-cookie').then((Cookies) => {
-            Cookies.default.set('token', data.token);
-            router.push('/admin/dashboard');
-          });
+          Cookies.set('token', data.token);
+          router.push('/admin/dashboard');
         }
       } else {
         toast.error(data.error || 'Access Denied: Invalid admin credentials.');

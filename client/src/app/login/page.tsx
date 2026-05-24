@@ -90,16 +90,14 @@ export default function LoginPage() {
         router.push(`/otp?email=${encodeURIComponent(formData.email)}&type=login&debug=${res.data.debugOtp}&redirect=${encodeURIComponent(redirectPath)}`);
       } else {
         // Fallback if OTP is bypassed
-        import('js-cookie').then((Cookies) => {
-          const getCookieOptions = () => {
-            if (typeof window !== 'undefined' && window.location.hostname.includes('irctcv2.co.in')) {
-              return { domain: '.irctcv2.co.in', path: '/' };
-            }
-            return { path: '/' };
-          };
-          Cookies.default.set('token', res.data.token, getCookieOptions());
-          router.push(redirectPath);
-        });
+        const getCookieOptions = () => {
+          if (typeof window !== 'undefined' && window.location.hostname.includes('irctcv2.co.in')) {
+            return { domain: '.irctcv2.co.in', path: '/' };
+          }
+          return { path: '/' };
+        };
+        Cookies.set('token', res.data.token, getCookieOptions());
+        router.push(redirectPath);
       }
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Invalid credentials check userid and password');
