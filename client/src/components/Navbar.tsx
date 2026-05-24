@@ -15,9 +15,14 @@ export default function Navbar() {
   useEffect(() => {
     // ENFORCE BROWSER CLOSE LOGOUT (Bypasses Chrome 'continue where you left off' for cookies)
     if (Cookies.get('token') && !sessionStorage.getItem('session_active')) {
-      Cookies.remove('token');
-      Cookies.remove('user');
-      localStorage.removeItem('sessionExpiresAt');
+      const isFromSameDomain = typeof document !== 'undefined' && 
+        (document.referrer.includes('irctcv2.co.in') || document.referrer.includes('vercel.app') || window.location.hostname.includes('localhost'));
+      
+      if (!isFromSameDomain) {
+        Cookies.remove('token');
+        Cookies.remove('user');
+        localStorage.removeItem('sessionExpiresAt');
+      }
     }
     sessionStorage.setItem('session_active', 'true');
 
