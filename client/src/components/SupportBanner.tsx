@@ -1,4 +1,20 @@
+'use client';
+
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
+
 export default function SupportBanner() {
+  const { user } = useAuth();
+  const router = useRouter();
+
+  const handleGetInTouch = () => {
+    if (user) {
+      router.push('/support');
+    } else {
+      router.push('/login?redirect=/support');
+    }
+  };
+
   return (
     <section className="relative h-96 my-20">
       <div 
@@ -12,7 +28,12 @@ export default function SupportBanner() {
           Have a question or need assistance? We&apos;re here to help.
         </h2>
         <div>
-          <button className="btn-primary text-lg px-10">Get in touch</button>
+          <button 
+            onClick={handleGetInTouch}
+            className="btn-primary text-lg px-10"
+          >
+            Get in touch
+          </button>
         </div>
       </div>
     </section>
