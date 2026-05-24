@@ -141,7 +141,7 @@ export default function SupportPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] pt-24 pb-12 px-4">
+    <div className="min-h-screen bg-[#050505] pt-10 pb-10 px-4">
       <div className="max-w-2xl mx-auto w-full">
         <Link 
           href="/" 
