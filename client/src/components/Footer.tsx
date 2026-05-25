@@ -16,6 +16,7 @@ export default function Footer() {
             <li><Link href="/search" className="hover:text-blue-500 transition-colors">Search Trains</Link></li>
             <li><Link href="/pnr-status" className="hover:text-blue-500 transition-colors">PNR Status</Link></li>
             <li><Link href="/train-status" className="hover:text-blue-500 transition-colors">Train Running Status</Link></li>
+            <li><Link href="/faq" className="hover:text-blue-500 transition-colors">FAQ</Link></li>
           </ul>
         </div>
         <div>

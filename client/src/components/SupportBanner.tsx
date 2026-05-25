@@ -11,7 +11,7 @@ export default function SupportBanner() {
     if (user) {
       router.push('/support');
     } else {
-      router.push('/login?redirect=/support');
+      router.push('/faq');
     }
   };
 
