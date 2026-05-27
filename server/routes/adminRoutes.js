@@ -7,6 +7,13 @@ const Settings = require('../models/Settings');
 const Train = require('../models/Train');
 const emailService = require('../services/emailService');
 
+const authMiddleware = require('../middleware/authMiddleware');
+const adminMiddleware = require('../middleware/adminMiddleware');
+
+// Globally secure all admin routes
+router.use(authMiddleware);
+router.use(adminMiddleware);
+
 // GET all users
 router.get('/users', async (req, res) => {
   try {

@@ -21,8 +21,9 @@ export default function AdminSupportPage() {
   const fetchTickets = async () => {
     if (!user || user.role !== 'admin') return;
     try {
+      const token = sessionStorage.getItem('admin_token') || localStorage.getItem('token');
       const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/support/admin`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
       setTickets(res.data);
     } catch (err) {
@@ -38,8 +39,9 @@ export default function AdminSupportPage() {
     const toastId = toast.loading('Resolving ticket and sending email...');
     
     try {
+      const token = sessionStorage.getItem('admin_token') || localStorage.getItem('token');
       await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/support/admin/${ticketId}/resolve`, {}, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
       
       toast.success('Ticket resolved successfully! Email sent to user.', { id: toastId });

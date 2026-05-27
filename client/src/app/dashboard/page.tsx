@@ -66,7 +66,7 @@ function DashboardContent() {
         state: userData.state || '',
         pincode: userData.pincode || ''
       });
-      if (!userData.kycStatus && !userData.kycSubmittedAt) {
+      if (!userData.kycStatus && !userData.kycSubmittedAt && initialTab !== 'profile') {
         setShowKYCModal(true);
       }
     }).catch(() => router.push('/login'));
@@ -252,7 +252,7 @@ function DashboardContent() {
     const trainNum = booking.trainId?.trainNumber || (!booking.from ? '15959' : booking.mockTrainId?.substring(booking.mockTrainId.length - 5) || '12345');
 
     const trainDesc = `${trainNum} / ${trainName}`.toUpperCase();
-    doc.text(trainDesc.length > 45 ? trainDesc.substring(0, 43) + '...' : trainDesc, 105, 62, { align: 'center' });
+    doc.text(trainDesc, 105, 62, { align: 'center' });
 
     doc.text(booking.serviceClass || booking.trainClass || 'SL', 175, 62, { align: 'center' });
     doc.setTextColor(0, 0, 0);
@@ -264,7 +264,13 @@ function DashboardContent() {
 
     doc.setFont("helvetica", "normal");
     const quotaStr = booking.quota || 'GENERAL (GN)';
-    const distanceStr = booking.trainId?.distance ? `${booking.trainId.distance} KM` : (booking.distance ? `${booking.distance} KM` : `${Math.floor(1200 + Math.random() * 800)} KM`);
+    const getPnrDistance = (pnrStr: string) => {
+      const digits = (pnrStr || '').replace(/\D/g, '');
+      if (!digits) return 1530;
+      const num = parseInt(digits.substring(0, 6)) || 0;
+      return 1200 + (num % 800);
+    };
+    const distanceStr = booking.distance ? `${booking.distance} KM` : (booking.trainId?.distance ? `${booking.trainId.distance} KM` : `${getPnrDistance(booking.pnr || '')} KM`);
     doc.text(quotaStr, 35, 73, { align: 'center' });
     doc.text(distanceStr, 105, 73, { align: 'center' });
     doc.text(new Date(booking.createdAt).toLocaleString(), 175, 73, { align: 'center' });
@@ -321,7 +327,9 @@ function DashboardContent() {
       offsetY += 4;
     }
 
-    doc.text(`Contact Details:     Email: ${user.email}                 Mobile: ${user.phone || 'N/A'}`, 12, offsetY);
+    const printEmail = booking.contactInfo?.email || user.email;
+    const printPhone = booking.contactInfo?.phone || user.phone || 'N/A';
+    doc.text(`Contact Details:     Email: ${printEmail}                 Mobile: ${printPhone}`, 12, offsetY);
 
     // Transaction ID
     doc.setFontSize(9);
@@ -424,10 +432,10 @@ function DashboardContent() {
         <div className="md:col-span-3">
           <div className="bg-[#111318] rounded-3xl p-8 border border-white/5 sticky top-40 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
             <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-4xl font-black text-white mb-6 shadow-[0_0_30px_rgba(59,130,246,0.3)] border-4 border-[#050505] mx-auto">
-              {user.name.charAt(0).toUpperCase()}
+              {user.name?.charAt(0).toUpperCase() || (user.email?.charAt(0).toUpperCase() || 'U')}
             </div>
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-white tracking-wide">{user.name}</h2>
+              <h2 className="text-2xl font-bold text-white tracking-wide">{user.name || user.email || 'User'}</h2>
               <p className="text-gray-400 text-sm mt-1">{user.email}</p>
             </div>
 
@@ -589,7 +597,7 @@ function DashboardContent() {
                   <div>
                     <label className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 block">Full Name</label>
                     <div className="bg-black/50 border border-white/10 rounded-xl p-4 text-white font-medium text-lg">
-                      {user.name}
+                      {user.name || 'Not Specified'}
                     </div>
                   </div>
                   <div>

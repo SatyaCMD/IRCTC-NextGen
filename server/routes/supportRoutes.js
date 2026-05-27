@@ -3,7 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { createTicket, getAllTickets, resolveTicket } = require('../controllers/supportController');
+const { createTicket, getAllTickets, resolveTicket, getUserTickets, markInsufficientDetails } = require('../controllers/supportController');
 const authMiddleware = require('../middleware/authMiddleware');
 
 // Ensure uploads directory exists only if not on Vercel
@@ -40,9 +40,13 @@ const upload = multer({
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
 });
 
+const adminMiddleware = require('../middleware/adminMiddleware');
+
 // Routes
 router.post('/', authMiddleware, upload.array('documents', 5), createTicket);
-router.get('/admin', authMiddleware, getAllTickets);
-router.put('/admin/:id/resolve', authMiddleware, resolveTicket);
+router.get('/my-tickets', authMiddleware, getUserTickets);
+router.get('/admin', authMiddleware, adminMiddleware, getAllTickets);
+router.put('/admin/:id/resolve', authMiddleware, adminMiddleware, resolveTicket);
+router.put('/admin/:id/insufficient', authMiddleware, adminMiddleware, markInsufficientDetails);
 
 module.exports = router;

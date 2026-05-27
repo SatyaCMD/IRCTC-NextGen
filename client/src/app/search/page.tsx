@@ -188,9 +188,9 @@ function SearchResults() {
               else if (type === 'Hotels' || type === 'Retiring Room') { Icon = Hotel; iconColor = "text-teal-400"; }
               else if (type === 'E Catering') { Icon = Utensils; iconColor = "text-orange-400"; }
 
-              const handleBook = (clsType: string, price?: number) => {
+              const handleBook = (clsType: string, price?: number, availableSeatsCount?: number) => {
                 const typeSlug = type.toLowerCase().replace(/\s+/g, '-');
-                router.push(`/services/${typeSlug}?trainId=${train._id}&class=${encodeURIComponent(clsType)}&price=${price || ''}&source=${encodeURIComponent(source)}&destination=${encodeURIComponent(destination)}&date=${encodeURIComponent(searchDate)}&departureTime=${encodeURIComponent(train.timings?.departure || '10:00')}&quota=${encodeURIComponent(requestedQuota)}`);
+                router.push(`/services/${typeSlug}?trainId=${train._id}&class=${encodeURIComponent(clsType)}&price=${price || ''}&source=${encodeURIComponent(source)}&destination=${encodeURIComponent(destination)}&date=${encodeURIComponent(searchDate)}&departureTime=${encodeURIComponent(train.timings?.departure || '10:00')}&quota=${encodeURIComponent(requestedQuota)}&available=${availableSeatsCount || 0}`);
               };
 
               // Determine if train has already departed today
@@ -381,45 +381,48 @@ function SearchResults() {
                    </div>
                 ) : (
                    <div className="flex flex-wrap gap-4">
-                     {train.classes?.map((cls: any) => {
-                       const effectiveAvailability = isDeparted ? -100 : cls.availableSeats;
-                       const isRegret = effectiveAvailability < -50;
+                      {train.classes?.map((cls: any) => {
+                        let effectiveAvailability = isDeparted ? -100 : cls.availableSeats;
+                        if (cls.type === '1A' && effectiveAvailability > 0 && effectiveAvailability % 2 !== 0) {
+                          effectiveAvailability = effectiveAvailability - 1; // Enforce even number of seats for 1AC Coupes
+                        }
+                        const isRegret = effectiveAvailability < -50;
 
-                       return (
-                       <div key={cls.type} className={`border border-[#272a31] bg-[#1f222a] rounded-xl p-4 flex-1 min-w-[200px] transition-colors ${isRegret ? 'opacity-80' : 'cursor-pointer hover:border-blue-500'} group/cls relative`}>
-                         <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-xs text-white px-3 py-1.5 rounded-lg opacity-0 group-hover/cls:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none border border-white/10 shadow-xl">
-                           {cls.type === '1A' ? 'First Class AC' : 
-                            cls.type === '2A' ? 'Second AC (2-Tier)' : 
-                            cls.type === '3A' ? 'Third AC (3-Tier)' : 
-                            cls.type === 'SL' ? 'Sleeper Class (Non-AC)' : 
-                            cls.type === '2S' ? 'Second Seater (Non-AC)' : 
-                            cls.type === 'CC' ? 'AC Chair Car' : 
-                            cls.type === 'EC' ? 'Executive Chair Car' : 
-                            cls.type === 'Economy' ? 'Standard Economy' : 
-                            cls.type === 'Business' ? 'Business Class' : `${cls.type} Class`}
-                         </div>
-                         <div className="flex justify-between items-center mb-2">
-                           <span className="font-bold text-white">{cls.type}</span>
-                           <span className="text-blue-400 font-bold">₹{Math.round(cls.price)}</span>
-                         </div>
-                         <div className="flex justify-between items-center">
-                           <span className={`text-sm font-bold ${effectiveAvailability > 0 ? 'text-green-400' : isRegret ? 'text-red-500' : 'text-orange-400'}`}>
-                             {effectiveAvailability > 0 
-                               ? `AVAILABLE ${effectiveAvailability}` 
-                               : isRegret 
-                                 ? 'REGRET' 
-                                 : `WL ${Math.abs(effectiveAvailability)}`}
-                           </span>
-                           <button 
-                             onClick={() => handleBook(cls.type, cls.price)}
-                             disabled={isRegret}
-                             className={`text-xs text-white px-3 py-1.5 rounded-lg transition-colors ${isRegret ? 'bg-gray-600 cursor-not-allowed opacity-50' : 'bg-blue-600 hover:bg-blue-500'}`}
-                           >
-                             {isRegret ? 'Unavailable' : 'Book Now'}
-                           </button>
-                         </div>
-                       </div>
-                     )})}
+                        return (
+                        <div key={cls.type} className={`border border-[#272a31] bg-[#1f222a] rounded-xl p-4 flex-1 min-w-[200px] transition-colors ${isRegret ? 'opacity-80' : 'cursor-pointer hover:border-blue-500'} group/cls relative`}>
+                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-xs text-white px-3 py-1.5 rounded-lg opacity-0 group-hover/cls:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none border border-white/10 shadow-xl">
+                            {cls.type === '1A' ? 'First Class AC' : 
+                             cls.type === '2A' ? 'Second AC (2-Tier)' : 
+                             cls.type === '3A' ? 'Third AC (3-Tier)' : 
+                             cls.type === 'SL' ? 'Sleeper Class (Non-AC)' : 
+                             cls.type === '2S' ? 'Second Seater (Non-AC)' : 
+                             cls.type === 'CC' ? 'AC Chair Car' : 
+                             cls.type === 'EC' ? 'Executive Chair Car' : 
+                             cls.type === 'Economy' ? 'Standard Economy' : 
+                             cls.type === 'Business' ? 'Business Class' : `${cls.type} Class`}
+                          </div>
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="font-bold text-white">{cls.type}</span>
+                            <span className="text-blue-400 font-bold">₹{Math.round(cls.price)}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className={`text-sm font-bold ${effectiveAvailability > 0 ? 'text-green-400' : isRegret ? 'text-red-500' : 'text-orange-400'}`}>
+                              {effectiveAvailability > 0 
+                                ? `AVAILABLE ${effectiveAvailability}` 
+                                : isRegret 
+                                  ? 'REGRET' 
+                                  : `WL ${Math.abs(effectiveAvailability)}`}
+                            </span>
+                            <button 
+                              onClick={() => handleBook(cls.type, cls.price, effectiveAvailability)}
+                              disabled={isRegret}
+                              className={`text-xs text-white px-3 py-1.5 rounded-lg transition-colors ${isRegret ? 'bg-gray-600 cursor-not-allowed opacity-50' : 'bg-blue-600 hover:bg-blue-500'}`}
+                            >
+                              {isRegret ? 'Unavailable' : 'Book Now'}
+                            </button>
+                          </div>
+                        </div>
+                      )})}
                    </div>
                 )}
               </div>

@@ -6,8 +6,10 @@ import { useRouter } from 'next/navigation';
 import { ShieldCheck, ArrowRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Cookies from 'js-cookie';
+import { useAuth } from '@/context/AuthContext';
 
 export default function OTPPage() {
+  const { login } = useAuth();
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isVerifying, setIsVerifying] = useState(false);
   const [resendTimer, setResendTimer] = useState(60);
@@ -100,6 +102,7 @@ export default function OTPPage() {
           };
           Cookies.set('token', data.token, getCookieOptions());
           localStorage.removeItem('sessionExpiresAt'); 
+          login(data.token);
           toast.success('Successfully logged in!');
           router.push(redirectUrl);
         } else {

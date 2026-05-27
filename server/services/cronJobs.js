@@ -12,15 +12,58 @@ function startCronJobs() {
         try {
             console.log('[Cron] Running Chart Preparation Check...');
             const now = new Date();
-            const fourHoursFromNow = new Date(now.getTime() + (4 * 60 * 60 * 1000));
             
-            // Simplified logic: finding bookings for today that haven't had a chart prep email sent
-            // In a real system, departureTime is string '14:30', journeyDate is '2026-05-22'.
-            // For prototype purposes, we will just simulate it via an admin trigger or a loose match.
-            // Since parsing '14:30' and '2026-05-22' dynamically requires timezone logic,
-            // we will simulate the check here.
+            const bookings = await Booking.find({
+                serviceType: 'Train',
+                status: 'Confirmed',
+                chartPreparedEmailSent: { $ne: true }
+            }).populate('userId trainId');
+
+            let count = 0;
+            for (const booking of bookings) {
+                const datePart = booking.journeyDate ? booking.journeyDate.split('T')[0] : new Date().toISOString().split('T')[0];
+                const departureStr = booking.departureTime || '10:00';
+                const journeyDateTime = new Date(`${datePart}T${departureStr}`);
+                
+                const hoursToDeparture = (journeyDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+                
+                if (hoursToDeparture > 0 && hoursToDeparture <= 4) {
+                    if (booking.userId && booking.userId.email) {
+                        const userEmail = booking.userId.email;
+                        const userName = booking.userId.name || 'Customer';
+                        const pnr = booking.pnr || 'N/A';
+                        
+                        let trainName = 'IRCTC Train';
+                        if (booking.trainId) {
+                            trainName = `${booking.trainId.trainNumber} / ${booking.trainId.name}`.toUpperCase();
+                        } else if (booking.from) {
+                            trainName = `${booking.from.split(' ')[0]} EXPRESS`.toUpperCase();
+                        }
+                        
+                        const departureTime = booking.departureTime || 'TBD';
+                        
+                        const seatDetails = booking.seatNumbers && booking.seatNumbers.length > 0
+                            ? booking.seatNumbers.join(', ')
+                            : 'CONFIRMED';
+                        
+                        await emailService.sendChartPreparationEmail(
+                            userEmail,
+                            userName,
+                            pnr,
+                            trainName,
+                            departureTime,
+                            seatDetails
+                        );
+                        
+                        booking.chartPreparedEmailSent = true;
+                        await booking.save();
+                        count++;
+                        console.log(`[Cron] Sent Chart Prep email to ${userEmail} for PNR ${pnr}`);
+                    }
+                }
+            }
             
-            console.log('[Cron] Chart Preparation simulation complete.');
+            console.log(`[Cron] Chart Preparation check complete. Sent ${count} emails.`);
         } catch (err) {
             console.error('[Cron Error] Chart Prep:', err);
         }
@@ -33,9 +76,8 @@ function startCronJobs() {
             console.log('[Cron] Running Journey Reminder Check...');
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
-            const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
-            const bookings = await Booking.find({ journeyDate: tomorrowStr, status: 'Confirmed' }).populate('userId');
+            const tomorrowRegex = new RegExp(`^${tomorrowStr}`);
+            const bookings = await Booking.find({ journeyDate: tomorrowRegex, status: 'Confirmed' }).populate('userId');
             
             for (const booking of bookings) {
                 if (booking.userId && booking.userId.email) {
@@ -61,9 +103,8 @@ function startCronJobs() {
             console.log('[Cron] Running Feedback Check...');
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
-            const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-            const bookings = await Booking.find({ journeyDate: yesterdayStr, status: 'Confirmed' }).populate('userId');
+            const yesterdayRegex = new RegExp(`^${yesterdayStr}`);
+            const bookings = await Booking.find({ journeyDate: yesterdayRegex, status: 'Confirmed' }).populate('userId');
             
             for (const booking of bookings) {
                 if (booking.userId && booking.userId.email) {

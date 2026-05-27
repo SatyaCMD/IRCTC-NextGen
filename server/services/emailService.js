@@ -1,14 +1,19 @@
 const nodemailer = require('nodemailer');
+const fs = require('fs');
+const path = require('path');
 
 const { jsPDF } = require('jspdf');
-require('jspdf-autotable');
+const autoTableImport = require('jspdf-autotable');
+const autoTable = autoTableImport.default || autoTableImport;
 
 let transporter;
 function initEmailService() {
+    const port = parseInt(process.env.SMTP_PORT || '465');
+    const secure = process.env.SMTP_SECURE === 'true';
     transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: 465,
-        secure: true,
+        port: port,
+        secure: secure,
         auth: {
             user: process.env.SMTP_USER,
             pass: process.env.SMTP_PASS
@@ -202,7 +207,7 @@ exports.sendCancellationNotice = async (userEmail, booking) => {
             <table style="width: 100%; border-collapse: collapse;">
                 <tr><td style="padding: 8px 0; color: #78350f; width: 40%;"><strong>PNR Number:</strong></td><td style="padding: 8px 0; color: #92400e; font-weight: 600;">${booking.pnrNumber}</td></tr>
                 <tr><td style="padding: 8px 0; color: #78350f;"><strong>Service Type:</strong></td><td style="padding: 8px 0; color: #92400e;">${booking.serviceType || 'Train Ticket'}</td></tr>
-                <tr><td style="padding: 8px 0; color: #78350f;"><strong>Refund Amount:</strong></td><td style="padding: 8px 0; color: #b45309; font-weight: 700; font-size: 18px;">₹${booking.finalPrice}</td></tr>
+                <tr><td style="padding: 8px 0; color: #78350f;"><strong>Refund Amount:</strong></td><td style="padding: 8px 0; color: #b45309; font-weight: 700; font-size: 18px;">₹${booking.refundAmount || booking.totalPrice || 0}</td></tr>
                 <tr><td style="padding: 8px 0; color: #78350f;"><strong>Refund Status:</strong></td><td style="padding: 8px 0; color: #166534; font-weight: 600;">Processed to Wallet</td></tr>
             </table>
         </div>
@@ -237,6 +242,29 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
     const isFlight = booking.serviceType === 'Flight';
     const isBus = booking.serviceType === 'Bus';
 
+    const getBase64Image = (fileName) => {
+        try {
+            const filePath = path.join(__dirname, '../../client/public', fileName);
+            if (fs.existsSync(filePath)) {
+                const fileBuffer = fs.readFileSync(filePath);
+                const ext = path.extname(fileName).substring(1);
+                const format = ext === 'jpg' ? 'jpeg' : ext;
+                return `data:image/${format};base64,${fileBuffer.toString('base64')}`;
+            }
+        } catch (e) {
+            console.error(`Failed to read public asset: ${fileName}`, e);
+        }
+        return null;
+    };
+
+    let logoName = 'ir-logo.png';
+    if (isFlight) logoName = 'flight_logo.png';
+    else if (isBus) logoName = 'bus_logo.png';
+    else if (isSpecialService) logoName = 'hotel_logo.png';
+
+    const mainLogoBase64 = getBase64Image(logoName);
+    const g20LogoBase64 = getBase64Image('g20-logo.jpg');
+
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     if (isSpecialService) {
@@ -245,12 +273,25 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
         doc.text('Electronic Reservation Slip (ERS)', pageWidth / 2, 15, { align: 'center' });
     }
 
-    doc.setFontSize(16);
-    doc.setTextColor(0, 51, 153);
-    doc.text(isFlight ? "AVIATION" : isBus ? "BUS" : "IRCTC", 15, 20);
+    if (mainLogoBase64) {
+        if (isSpecialService) {
+            doc.addImage(mainLogoBase64, 'PNG', 10, 4, 26, 26);
+        } else {
+            doc.addImage(mainLogoBase64, 'PNG', 15, 8, 14, 14);
+        }
+    } else {
+        doc.setFontSize(16);
+        doc.setTextColor(0, 51, 153);
+        doc.text(isFlight ? "AVIATION" : isBus ? "BUS" : "IRCTC", 15, 20);
+    }
 
-    doc.setTextColor(255, 153, 51);
-    doc.text("G20", pageWidth - 35, 20);
+    if (g20LogoBase64) {
+        doc.addImage(g20LogoBase64, 'JPEG', pageWidth - 42, 6, 28, 18);
+    } else {
+        doc.setTextColor(255, 153, 51);
+        doc.setFontSize(16);
+        doc.text("G20", pageWidth - 35, 20);
+    }
 
     doc.setTextColor(0, 0, 0);
 
@@ -276,7 +317,7 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
     doc.setFont("helvetica", "normal");
     const source = booking.from || 'STATION';
     const dest = booking.to || 'DESTINATION';
-    const formatStationName = (name, maxLen = 20) => name.length > maxLen ? name.substring(0, maxLen - 2) + '...' : name;
+    const formatStationName = (name, maxLen = 20) => name;
 
     doc.text(formatStationName(source.toUpperCase()), 35, 42, { align: 'center' });
     doc.text(formatStationName(isSpecialService ? dest.toUpperCase() : (isHotel ? dest.toUpperCase() : source.toUpperCase()), 30), 105, 42, { align: 'center' });
@@ -314,26 +355,32 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
         doc.text("Booking Date", 190, 57, { align: 'center' });
     } else {
         doc.text("PNR", 35, 57, { align: 'center' });
-        doc.text(isHotel ? "Hotel Name" : `Service Name`, 105, 57, { align: 'center' });
+        const serviceNameHeader = isHotel ? "Hotel Name" : `${booking.serviceType || 'Train'} No./Name`;
+        doc.text(serviceNameHeader, 105, 57, { align: 'center' });
         doc.text("Class", 160, 57, { align: 'center' });
         doc.text("Pantry", 190, 57, { align: 'center' });
     }
 
     doc.setTextColor(0, 51, 153);
-    const idStr = booking.pnrNumber || booking._id.toString().slice(-10).toUpperCase();
+    const idStr = booking.pnr || booking.bookingRef || booking._id.toString().slice(-10).toUpperCase();
     doc.text(idStr, 35, 62, { align: 'center' });
 
-    const serviceName = booking.trainId?.name || booking.serviceId?.name || "IRCTC Service";
-    doc.text(serviceName.length > 25 ? serviceName.substring(0, 23) + '...' : serviceName, 105, 62, { align: 'center' });
+    let serviceName = booking.trainId?.name || booking.serviceId?.name || "IRCTC Service";
+    if (booking.trainId) {
+        const trainNum = booking.trainId.trainNumber || "12345";
+        serviceName = `${trainNum} / ${serviceName}`.toUpperCase();
+    }
+    doc.text(serviceName, 105, 62, { align: 'center' });
 
-    doc.text(booking.serviceClass || booking.trainClass || 'Standard', 160, 62, { align: 'center' });
+    doc.text(booking.serviceClass || booking.trainClass || 'SL', 160, 62, { align: 'center' });
     doc.setFontSize(8);
 
     if (isSpecialService) {
         doc.text(new Date(booking.createdAt).toLocaleDateString(), 190, 62, { align: 'center' });
         doc.line(10, 66, 200, 66);
     } else {
-        doc.text(booking.pantryItems?.length ? "YES" : "NO", 190, 62, { align: 'center' });
+        const pantryText = booking.pantryItems && booking.pantryItems.meal ? (booking.pantryItems.meal.includes('Non') ? 'NON-VEG' : 'VEG') : 'N/A';
+        doc.text(pantryText, 190, 62, { align: 'center' });
         doc.setFontSize(9);
         doc.setTextColor(0, 0, 0);
         doc.setFont("helvetica", "bold");
@@ -342,8 +389,18 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
         doc.text("Booking Date", 175, 68, { align: 'center' });
         doc.setFont("helvetica", "normal");
         doc.text(booking.quota || 'GENERAL (GN)', 35, 73, { align: 'center' });
-        doc.text("500 KM", 105, 73, { align: 'center' });
-        doc.text(new Date(booking.createdAt).toLocaleString(), 175, 73, { align: 'center' });
+        const getPnrDistance = (pnrStr) => {
+            const digits = (pnrStr || '').replace(/\D/g, '');
+            if (!digits) return 1530;
+            const num = parseInt(digits.substring(0, 6)) || 0;
+            return 1200 + (num % 800);
+        };
+        const distanceStr = isHotel ? 'N/A' : (booking.distance ? `${booking.distance} KM` : (booking.trainId?.distance ? `${booking.trainId.distance} KM` : `${getPnrDistance(booking.pnr)} KM`));
+        doc.text(distanceStr, 105, 73, { align: 'center' });
+        const bookingDateStr = booking.createdAt 
+            ? new Date(booking.createdAt).toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }) 
+            : new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+        doc.text(bookingDateStr, 175, 73, { align: 'center' });
         doc.line(10, 75, 200, 75);
     }
 
@@ -360,11 +417,15 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
         passCols = ["#", "Name", "Age", "Gender", "Booking Status", "Current Status"];
         passRows = booking.passengers.map((p, idx) => {
             let seat = booking.seatNumbers && booking.seatNumbers[idx] ? booking.seatNumbers[idx] : (p.seatPreference || 'G-1/12/M');
+            if (seat && (isFlight || isBus)) {
+                const parts = seat.split('/');
+                seat = parts[parts.length - 1];
+            }
             return [(idx + 1).toString(), p.name.toUpperCase(), p.age.toString(), p.gender.charAt(0).toUpperCase(), `CNF / ${seat}`, `CNF / ${seat}`];
         });
     }
 
-    doc.autoTable({
+    autoTable(doc, {
         startY: startYTable + 2,
         head: [passCols],
         body: passRows,
@@ -380,10 +441,12 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
     doc.setFont("helvetica", "bold");
     if (!isSpecialService) {
         doc.text("Acronyms:             RLWL: REMOTE LOCATION WAITLIST                 PQWL: POOLED QUOTA WAITLIST                 RSWL: ROAD-SIDE WAITLIST", 12, py + 6);
-        doc.text(`Transaction ID: ${booking._id}`, 12, py + 16);
+        doc.text(`Transaction ID: ${booking.bookingRef || booking._id}`, 12, py + 16);
     }
     doc.setFontSize(8);
-    doc.text(`Contact Details:     Email: ${userEmail}                 Mobile: N/A`, 12, py + (!isSpecialService ? 10 : 8));
+    const printEmail = booking.contactInfo?.email || userEmail;
+    const printPhone = booking.contactInfo?.phone || (booking.userId && booking.userId.phone) || 'N/A';
+    doc.text(`Contact Details:     Email: ${printEmail}                 Mobile: ${printPhone}`, 12, py + (!isSpecialService ? 10 : 8));
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
@@ -392,16 +455,29 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
 
-    const tPrice = booking.finalPrice;
-    const baseFare = tPrice / 1.18;
-    const tax = tPrice - baseFare;
-    doc.text(isSpecialService ? "Service Fare" : "Ticket Fare", 12, py + pyOffset + 6); doc.text(`Rs. ${baseFare.toFixed(2)}`, 100, py + pyOffset + 6);
-    doc.text("Taxes & Fees (Incl. of GST)", 12, py + pyOffset + 11); doc.text(`Rs. ${tax.toFixed(2)}`, 100, py + pyOffset + 11);
-    doc.setFont("helvetica", "bold");
-    doc.text("Total Paid (all inclusive)", 12, py + pyOffset + 16); doc.text(`Rs. ${tPrice.toFixed(2)}`, 100, py + pyOffset + 16);
+    if (isSpecialService) {
+        const tPrice = booking.totalPrice || booking.finalPrice || 0;
+        const baseFare = tPrice / 1.18;
+        const tax = tPrice - baseFare;
+        doc.text("Service Fare", 12, py + pyOffset + 6); doc.text(`Rs. ${baseFare.toFixed(2)}`, 100, py + pyOffset + 6);
+        doc.text("Taxes & Fees (Incl. of GST)", 12, py + pyOffset + 11); doc.text(`Rs. ${tax.toFixed(2)}`, 100, py + pyOffset + 11);
+        doc.setFont("helvetica", "bold");
+        doc.text("Total Paid (all inclusive)", 12, py + pyOffset + 16); doc.text(`Rs. ${tPrice.toFixed(2)}`, 100, py + pyOffset + 16);
+    } else {
+        const tPrice = booking.totalPrice || 0;
+        const baseFare = tPrice / 1.18;
+        const tax = tPrice - baseFare;
+        const insurance = 1.40;
+        const totalPaid = tPrice + insurance;
+        doc.text("Ticket Fare", 12, py + 32); doc.text(`Rs. ${baseFare.toFixed(2)}`, 100, py + 32);
+        doc.text("IRCTC Convenience Fee (Incl. of GST)", 12, py + 37); doc.text(`Rs. ${tax.toFixed(2)}`, 100, py + 37);
+        doc.text("Travel Insurance Premium (Incl. of GST)", 12, py + 42); doc.text(`Rs. ${insurance.toFixed(2)}`, 100, py + 42);
+        doc.setFont("helvetica", "bold");
+        doc.text("Total Fare (all inclusive)", 12, py + 47); doc.text(`Rs. ${totalPaid.toFixed(2)}`, 100, py + 47);
+    }
 
     doc.setFillColor(0, 0, 0);
-    const qrSize = 30;
+    const qrSize = 35;
     const px = 150;
     const pY = py + 14;
 
@@ -415,29 +491,78 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
         }
     }
 
-    const footY = py + (isSpecialService ? 105 : 105);
-    doc.setFillColor(240, 248, 255);
-    doc.rect(10, footY, 190, 20, 'F');
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.text("24/7 Customer Support", 15, footY + 7);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text("For any queries, please contact our dedicated helpdesk at 1800-111-139 or email us at support@irctc-nextgen.com", 15, footY + 13);
+    if (isSpecialService) {
+        const footY = py + 105;
+        doc.setFillColor(240, 248, 255);
+        doc.rect(10, footY, 190, 20, 'F');
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.text("24/7 Customer Support", 15, footY + 7);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.text("For any queries, please contact our dedicated helpdesk at 1800-111-139 or email us at support@irctc-nextgen.com", 15, footY + 13);
 
-    doc.setFillColor(255, 230, 153);
-    doc.rect(10, footY + 27, 190, 15, 'F');
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(0, 0, 150);
-    doc.text("EXPLORE INDIA WITH IRCTC NEXTGEN", pageWidth / 2, footY + 36, { align: 'center' });
+        doc.setFillColor(255, 230, 153);
+        doc.rect(10, footY + 27, 190, 15, 'F');
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 0, 150);
+        doc.text("EXPLORE INDIA WITH IRCTC NEXTGEN", pageWidth / 2, footY + 36, { align: 'center' });
 
-    doc.setTextColor(0, 0, 0);
-    doc.line(10, footY + 50, 200, footY + 50);
-    doc.setFont("helvetica", "bolditalic");
-    doc.setTextColor(100, 100, 100);
-    doc.setFontSize(7);
-    doc.text(`VOUCHER GENERATED BY: IRCTC NEXTGEN SYSTEM  |  ISSUED ON: ${new Date().toLocaleString()}  |  IP: SECURED`, 12, footY + 55);
+        doc.setTextColor(0, 0, 0);
+        doc.line(10, footY + 50, 200, footY + 50);
+        doc.setFont("helvetica", "bolditalic");
+        doc.setTextColor(100, 100, 100);
+        doc.setFontSize(7);
+        doc.text(`VOUCHER GENERATED BY: IRCTC NEXTGEN SYSTEM  |  ISSUED ON: ${new Date().toLocaleString()}  |  IP: SECURED`, 12, footY + 55);
+    } else {
+        doc.line(10, py + 54, 200, py + 54);
+
+        // Instructions
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.text("IRCTC Convenience Fee is charged per e-ticket irrespective of number of passengers on the ticket.", 12, py + 59);
+        doc.text("* The printed Departure and Arrival Times are liable to change. Please Check correct departure, arrival from Railway Station Enquiry.", 12, py + 63);
+        doc.line(10, py + 66, 200, py + 66);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.text("• This ticket is booked on a personal User ID, its sale/purchase is an offence u/s 143 of the Railways Act, 1989.", 15, py + 71);
+        doc.text("• Prescribed original ID proof is required while travelling along with SMS/ VRM/ ERS otherwise will be treated as without ticket.", 15, py + 75);
+
+        // Banner Mockup
+        doc.setFillColor(255, 230, 153);
+        doc.rect(10, py + 79, 190, 15, 'F');
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 0, 150);
+        doc.text("AYUSHMAN BHARAT HEALTH ACCOUNT (ABHA)", pageWidth / 2, py + 88, { align: 'center' });
+
+        // Customer Support & Rules
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.text("Customer Support / Helpline:", 12, py + 102);
+        doc.setFont("helvetica", "normal");
+        doc.text("For any queries, please contact IRCTC Customer Care: 14646 / 0755-6610661 OR Email: care@irctc.co.in", 12, py + 107);
+        
+        doc.setFont("helvetica", "bold");
+        doc.text("Important Rules & Instructions:", 12, py + 114);
+        doc.setFont("helvetica", "normal");
+        doc.text("1. Valid original ID proof is mandatory during journey (Aadhaar, Voter ID, Passport, PAN Card, Driving License).", 15, py + 119);
+        doc.text("2. Fully Waitlisted (WL) e-tickets are invalid for travel. Passengers found traveling will be treated as ticketless.", 15, py + 124);
+        doc.text("3. E-Ticket cancellation is permitted only through the portal before chart preparation.", 15, py + 129);
+
+        // Footer Generation Stamp
+        doc.line(10, py + 135, 200, py + 135);
+        doc.setFont("helvetica", "bolditalic");
+        doc.setFontSize(7);
+        doc.setTextColor(100, 100, 100);
+        const bookingDateStr = booking.createdAt 
+            ? new Date(booking.createdAt).toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }) 
+            : new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+        doc.text(`TICKET GENERATED BY: IRCTC 2.0 PORTAL  |  ISSUED ON: ${bookingDateStr}  |  IP: SECURED`, 12, py + 140);
+    }
 
     const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
 
@@ -454,7 +579,7 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px;">
             <tr><td style="padding: 10px 0; border-bottom: 1px dashed #cbd5e1; color: #64748b; width: 40%;"><strong>Service</strong></td><td style="padding: 10px 0; border-bottom: 1px dashed #cbd5e1; text-align: right; color: #0f172a; font-weight: 600;">${serviceName}</td></tr>
             <tr><td style="padding: 10px 0; border-bottom: 1px dashed #cbd5e1; color: #64748b;"><strong>Journey Date</strong></td><td style="padding: 10px 0; border-bottom: 1px dashed #cbd5e1; text-align: right; color: #0f172a;">${new Date(booking.journeyDate || new Date()).toLocaleDateString('en-IN')}</td></tr>
-            <tr><td style="padding: 10px 0; border-bottom: 1px dashed #cbd5e1; color: #64748b;"><strong>Total Fare</strong></td><td style="padding: 10px 0; border-bottom: 1px dashed #cbd5e1; text-align: right; color: #0f172a; font-weight: 700;">₹${booking.finalPrice}</td></tr>
+            <tr><td style="padding: 10px 0; border-bottom: 1px dashed #cbd5e1; color: #64748b;"><strong>Total Fare</strong></td><td style="padding: 10px 0; border-bottom: 1px dashed #cbd5e1; text-align: right; color: #0f172a; font-weight: 700;">₹${booking.totalPrice || booking.finalPrice || 0}</td></tr>
             <tr><td style="padding: 10px 0; color: #64748b;"><strong>Passengers</strong></td><td style="padding: 10px 0; text-align: right; color: #0f172a;">${booking.passengers.length} Person(s)</td></tr>
         </table>
         
@@ -469,7 +594,14 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
         from: `"IRCTC NextGen Support" <${process.env.SMTP_USER}>`,
         to: userEmail,
         subject: `[IRCTC E-Ticket] Booking Confirmed - PNR ${idStr}`,
-        html: getBaseHtml('Booking Confirmation', content, `Your e-ticket for PNR ${idStr} is confirmed and attached.`)
+        html: getBaseHtml('Booking Confirmation', content, `Your e-ticket for PNR ${idStr} is confirmed and attached.`),
+        attachments: [
+            {
+                filename: `IRCTC_ERS_${idStr}.pdf`,
+                content: pdfBuffer,
+                contentType: 'application/pdf'
+            }
+        ]
     };
 
     const info = await transporter.sendMail(message);
@@ -789,8 +921,8 @@ exports.sendTicketResolvedEmail = async (userEmail, userName, ticketNumber, issu
         <p style="text-align: center; color: #64748b;">Dear ${userName}, your support request has been successfully resolved by our team.</p>
         
         <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 25px; border-radius: 8px; text-align: center; margin: 30px 0;">
-            <div style="width: 48px; height: 48px; background-color: #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto;">
-                <span style="color: white; font-size: 24px;">✓</span>
+            <div style="width: 48px; height: 48px; background-color: #22c55e; border-radius: 50%; text-align: center; line-height: 48px; margin: 0 auto 15px auto;">
+                <span style="color: white; font-size: 24px; font-weight: bold; font-family: Arial, sans-serif; line-height: 48px; vertical-align: middle; display: inline-block;">✓</span>
             </div>
             <p style="margin: 0 0 5px 0; color: #166534; font-size: 14px; text-transform: uppercase; font-weight: 600;">Ticket Number</p>
             <h2 style="color: #15803d; margin: 0; font-size: 24px;">${ticketNumber}</h2>
@@ -815,6 +947,41 @@ exports.sendTicketResolvedEmail = async (userEmail, userName, ticketNumber, issu
         console.log(`Ticket Resolved Email sent to ${userEmail}`);
     } catch (err) {
         console.error('Failed to send Ticket Resolved Email:', err);
+    }
+};
+
+exports.sendTicketInsufficientEmail = async (userEmail, userName, ticketNumber, issueType) => {
+    const content = `
+        <h2 style="color: #0f172a; margin-top: 0; text-align: center;">Additional Details Required</h2>
+        <p style="text-align: center; color: #64748b;">Dear ${userName}, our support team reviewed your request, but we need more details to resolve it.</p>
+        
+        <div style="background-color: #fef3c7; border: 1px solid #fde68a; padding: 25px; border-radius: 8px; text-align: center; margin: 30px 0;">
+            <div style="width: 48px; height: 48px; background-color: #f59e0b; border-radius: 50%; text-align: center; line-height: 48px; margin: 0 auto 15px auto;">
+                <span style="color: white; font-size: 24px; font-weight: bold; font-family: Arial, sans-serif; line-height: 48px; vertical-align: middle; display: inline-block;">!</span>
+            </div>
+            <p style="margin: 0 0 5px 0; color: #92400e; font-size: 14px; text-transform: uppercase; font-weight: 600;">Ticket Number</p>
+            <h2 style="color: #b45309; margin: 0; font-size: 24px;">${ticketNumber}</h2>
+            <p style="margin: 10px 0 0 0; color: #92400e; font-size: 14px;"><strong>Issue Type:</strong> ${issueType}</p>
+        </div>
+        
+        <p style="text-align: center; font-size: 14px; color: #334155; margin-top: 20px;">
+            Please log into your dashboard and provide the additional requested information or supporting documents so we can assist you promptly.
+        </p>
+        <p style="margin-top: 30px; margin-bottom: 0; text-align: center;">Warm Regards,<br><strong>IRCTC Support Team</strong></p>
+    `;
+
+    const message = {
+        from: `"IRCTC NextGen Support" <${process.env.SMTP_USER}>`,
+        to: userEmail,
+        subject: `[Ticket ${ticketNumber}] Additional Details Required`,
+        html: getBaseHtml('Information Required', content, `Additional details are required for ticket ${ticketNumber}`)
+    };
+
+    try {
+        const info = await transporter.sendMail(message);
+        console.log(`Ticket Insufficient Email sent to ${userEmail}`);
+    } catch (err) {
+        console.error('Failed to send Ticket Insufficient Email:', err);
     }
 };
 

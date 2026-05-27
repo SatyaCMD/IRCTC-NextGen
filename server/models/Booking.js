@@ -20,6 +20,7 @@ const bookingSchema = new mongoose.Schema({
   status: { type: String, enum: ['Pending', 'Confirmed', 'Cancelled', 'WL', 'RAC', 'Verification Pending'], default: 'Pending' },
   paymentId: { type: String },
   pnr: { type: String },
+  distance: { type: Number },
   bookingRef: { type: String, required: true, unique: true },
   commissionAmount: { type: Number, default: 0 },
   journeyDate: { type: String },
@@ -37,6 +38,11 @@ const bookingSchema = new mongoose.Schema({
   }],
   refundAmount: { type: Number, default: 0 },
   refundStatus: { type: String, enum: ['None', 'Initiated', 'Completed'], default: 'None' },
+  chartPreparedEmailSent: { type: Boolean, default: false },
+  contactInfo: {
+    email: { type: String },
+    phone: { type: String }
+  },
   expireAt: { type: Date }
 }, { timestamps: true });
 

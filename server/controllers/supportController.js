@@ -5,7 +5,7 @@ const User = require('../models/User');
 exports.createTicket = async (req, res) => {
     try {
         const { issueType, description } = req.body;
-        const userId = req.user.id; // From authMiddleware
+        const userId = req.user.userId; // From authMiddleware
 
         // Handle uploaded files
         const documents = req.files ? req.files.map(file => `/uploads/${file.filename}`) : [];
@@ -73,5 +73,42 @@ exports.resolveTicket = async (req, res) => {
     } catch (err) {
         console.error('Error resolving ticket:', err);
         res.status(500).json({ message: 'Server error while resolving ticket' });
+    }
+};
+
+exports.markInsufficientDetails = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const ticket = await SupportTicket.findById(id).populate('user', 'name email');
+        if (!ticket) {
+            return res.status(404).json({ message: 'Ticket not found' });
+        }
+
+        if (ticket.status === 'Resolved') {
+            return res.status(400).json({ message: 'Resolved tickets cannot be marked as insufficient details' });
+        }
+
+        ticket.status = 'Insufficient Details';
+        await ticket.save();
+
+        // Send insufficient details email
+        emailService.sendTicketInsufficientEmail(ticket.user.email, ticket.user.name || 'User', ticket.ticketNumber, ticket.issueType).catch(console.error);
+
+        res.json({ message: 'Ticket marked as insufficient details successfully', ticket });
+    } catch (err) {
+        console.error('Error marking ticket as insufficient details:', err);
+        res.status(500).json({ message: 'Server error while updating ticket' });
+    }
+};
+
+exports.getUserTickets = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const tickets = await SupportTicket.find({ user: userId }).sort({ createdAt: -1 });
+        res.json(tickets);
+    } catch (err) {
+        console.error('Error fetching user tickets:', err);
+        res.status(500).json({ message: 'Server error while fetching support history' });
     }
 };

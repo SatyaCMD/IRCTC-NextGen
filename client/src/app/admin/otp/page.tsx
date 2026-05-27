@@ -103,7 +103,7 @@ export default function AdminOTPPage() {
       if (res.ok) {
         sessionStorage.setItem('admin_token', data.token);
         toast.success('Authentication Complete. Welcome Admin.');
-        router.push('/admin/dashboard');
+        router.push('/admin');
       } else {
         toast.error(data.error || 'Invalid 2FA code.');
         setIsVerifying(false);

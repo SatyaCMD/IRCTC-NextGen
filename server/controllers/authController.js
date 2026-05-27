@@ -7,7 +7,8 @@ const geoip = require('geoip-lite');
 exports.register = async (req, res) => {
   try {
     const { name, email, password, preferences, accountType, employeeId, employeeImage } = req.body;
-    let user = await User.findOne({ email });
+    const normalizedEmail = email ? email.toLowerCase().trim() : '';
+    let user = await User.findOne({ email: normalizedEmail });
     if (user) return res.status(400).json({ error: 'User already exists' });
 
     user = new User({ 
@@ -42,8 +43,9 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ error: 'Invalid credentials ckeck userid and password' });
+    const normalizedEmail = email ? email.toLowerCase().trim() : '';
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) return res.status(400).json({ error: 'Invalid credentials check userid and password' });
 
     if (user.status === 'Suspended') {
       return res.status(403).json({ error: 'Your account has been secured and suspended due to a security notice. Please contact the security desk to restore access.' });
@@ -52,7 +54,12 @@ exports.login = async (req, res) => {
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
       emailService.sendSecurityAlert(user.email, 'Failed Login Attempt', 'Someone tried to log in to your account with an incorrect password.').catch(console.error);
-      return res.status(400).json({ error: 'Invalid credentials ckeck userid and password' });
+      const obfuscatedEmail = user.email.substring(0, 3) + '••••@' + user.email.split('@')[1];
+      return res.status(400).json({ 
+        error: 'Invalid credentials. An alert has been sent to your registered email.',
+        emailSent: true,
+        registeredEmail: obfuscatedEmail
+      });
     }
 
     if (user.role !== 'Admin' && !user.isEmailVerified) {
@@ -80,7 +87,8 @@ exports.login = async (req, res) => {
 exports.verifyLoginOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
-    const user = await User.findOne({ email });
+    const normalizedEmail = email ? email.toLowerCase().trim() : '';
+    const user = await User.findOne({ email: normalizedEmail });
 
     if (!user) return res.status(400).json({ error: 'User not found' });
 
@@ -190,7 +198,7 @@ exports.getMe = async (req, res) => {
       await user.save();
     }
     
-    res.json(req.user);
+    res.json(user);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -205,13 +213,15 @@ exports.deleteAccount = async (req, res) => {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    // Check if user has bookings
-    const bookingCount = await Booking.countDocuments({ userId: userId });
-    
-    if (bookingCount > 0) {
+    // Check if user has active/future confirmed bookings
+    const activeBookings = await Booking.find({ 
+      userId, 
+      status: 'Confirmed' 
+    });
+
+    if (activeBookings && activeBookings.length > 0) {
       return res.status(400).json({ 
-        error: 'Cannot delete account with active or past bookings. Please contact support.',
-        hasBookings: true
+        error: 'You are having some active bookings. After completion or cancellation of those, your account will be deleted.' 
       });
     }
 
@@ -235,7 +245,8 @@ exports.deleteAccount = async (req, res) => {
 exports.resetPassword = async (req, res) => {
   try {
     const { email, newPassword } = req.body;
-    const user = await User.findOne({ email });
+    const normalizedEmail = email ? email.toLowerCase().trim() : '';
+    const user = await User.findOne({ email: normalizedEmail });
     
     if (!user) {
       return res.status(404).json({ error: 'No account found with this email' });
@@ -283,31 +294,7 @@ exports.addMoneyToWallet = async (req, res) => {
   }
 };
 
-exports.deleteAccount = async (req, res) => {
-  try {
-    const userId = req.user.userId;
-    
-    // Check if user has active/future confirmed bookings
-    const activeBookings = await Booking.find({ 
-      userId, 
-      status: 'Confirmed' 
-    });
-
-    if (activeBookings && activeBookings.length > 0) {
-      return res.status(400).json({ 
-        error: 'You are having some active bookings. After completion or cancellation of those, your account will be deleted.' 
-      });
-    }
-
-    // Delete User
-    await User.findByIdAndDelete(userId);
-    res.json({ message: 'Account deleted permanently.' });
-
-  } catch (error) {
-    console.error('Delete Account Error:', error);
-    res.status(500).json({ error: 'Server error during account deletion' });
-  }
-};
+// Duplicate deleteAccount removed. The primary implementation is defined above with proper active booking checks and email dispatch.
 
 exports.updateProfile = async (req, res) => {
   try {
@@ -359,8 +346,9 @@ exports.updateKYC = async (req, res) => {
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    user.kycStatus = false;
-    user.kycSubmittedAt = new Date();
+    user.kycStatus = true;
+    user.kycUpdatedAt = new Date();
+    user.kycSubmittedAt = null;
     user.kycDetails = {
       documentType,
       documentNumber,
@@ -369,7 +357,7 @@ exports.updateKYC = async (req, res) => {
 
     await user.save();
 
-    res.json({ message: 'KYC submitted successfully and is under review.', user });
+    res.json({ message: 'KYC submitted and verified successfully!', user });
   } catch (error) {
     console.error('KYC Update Error:', error);
     res.status(500).json({ error: 'Failed to update KYC' });
@@ -404,8 +392,9 @@ exports.secureAccount = async (req, res) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
     const email = decoded.email;
+    const normalizedEmail = email ? email.toLowerCase().trim() : '';
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
       return res.status(404).json({ error: 'User not found.' });
     }

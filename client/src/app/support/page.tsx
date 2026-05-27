@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { UploadCloud, X, Loader2, Send, CheckCircle, ArrowLeft } from 'lucide-react';
+import { UploadCloud, X, Loader2, Send, CheckCircle, ArrowLeft, Clock, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import Link from 'next/link';
@@ -14,6 +14,31 @@ export default function SupportPage() {
   const [files, setFiles] = useState<File[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [ticketRaised, setTicketRaised] = useState<string | null>(null);
+  
+  const [userTickets, setUserTickets] = useState<any[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+
+  const fetchUserTickets = async () => {
+    setIsHistoryLoading(true);
+    try {
+      const token = localStorage.getItem('token') || document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
+      if (!token) return;
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/support/my-tickets`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUserTickets(res.data);
+    } catch (err) {
+      console.error('Failed to load support history', err);
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchUserTickets();
+    }
+  }, [user]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -72,6 +97,7 @@ export default function SupportPage() {
       setIssueType('Booking Issue');
       setDescription('');
       setFiles([]);
+      fetchUserTickets();
     } catch (err: any) {
       console.error(err);
       toast.error(err.response?.data?.message || 'Failed to raise ticket.', { id: toastId });
@@ -248,6 +274,80 @@ export default function SupportPage() {
               )}
             </button>
           </form>
+        </div>
+
+        {/* Support History Section */}
+        <div className="bg-[#111] border border-white/10 rounded-2xl p-5 sm:p-8 shadow-2xl relative overflow-hidden mt-8">
+          <div className="flex items-center gap-3 mb-6">
+            <Clock className="w-5 h-5 text-blue-500" />
+            <h2 className="text-xl font-bold text-white">Your Support Inquiries</h2>
+          </div>
+
+          {isHistoryLoading ? (
+            <div className="flex items-center justify-center py-10 text-gray-500 gap-2">
+              <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+              Loading history...
+            </div>
+          ) : userTickets.length === 0 ? (
+            <div className="text-center py-10 text-white/40 text-sm">
+              You haven't submitted any support requests yet.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {userTickets.map((ticket) => (
+                <div key={ticket._id} className="bg-black/40 border border-white/5 p-4 rounded-xl space-y-3 transition-colors hover:border-white/10">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-mono font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-md">
+                        {ticket.ticketNumber}
+                      </span>
+                      <span className="text-xs text-white/50">
+                        {new Date(ticket.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold flex items-center gap-1 ${
+                      ticket.status === 'Resolved' 
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                        : ticket.status === 'Insufficient Details'
+                        ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                        : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${
+                        ticket.status === 'Resolved' 
+                          ? 'bg-emerald-400' 
+                          : ticket.status === 'Insufficient Details'
+                          ? 'bg-orange-400'
+                          : 'bg-yellow-400'
+                      }`} />
+                      {ticket.status}
+                    </span>
+                  </div>
+                  
+                  <div>
+                    <h4 className="text-sm font-bold text-white mb-1">{ticket.issueType}</h4>
+                    <p className="text-xs text-white/60 leading-relaxed whitespace-pre-wrap">{ticket.description}</p>
+                  </div>
+
+                  {ticket.documents && ticket.documents.length > 0 && (
+                    <div className="pt-2 border-t border-white/5 flex flex-wrap gap-2">
+                      {ticket.documents.map((doc: string, idx: number) => (
+                        <a 
+                          key={idx} 
+                          href={`${process.env.NEXT_PUBLIC_API_URL}${doc}`} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 text-[10px] font-medium text-blue-400 hover:underline bg-white/5 border border-white/5 px-2 py-1 rounded-md"
+                        >
+                          <FileText className="w-3 h-3" />
+                          Attachment {idx + 1}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

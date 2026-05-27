@@ -10,21 +10,29 @@ import {
   Users, Activity, Server, Ticket, Settings, Search, 
   Plus, Edit2, Trash2, MoreVertical, ShieldAlert,
   TrendingUp, Train, Plane, Hotel, CheckCircle2, XCircle,
-  Utensils, LogOut, Loader2, Download, Bus, Mail, Send
+  Utensils, LogOut, Loader2, Download, Bus, Mail, Send,
+  HelpCircle, Clock, FileText, CheckCircle, ArrowLeft, ChevronRight
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+const generateHtmlSuggestion = (subjectText: string) => {
+  if (!subjectText) return '';
+  return `<p>Dear Valued Customer,</p>
+<p>We are delighted to announce a special update: <strong>${subjectText}</strong></p>
+<p>At IRCTC NextGen, we strive to make your travel experiences smoother, faster, and more comfortable. Whether you are planning a scenic train journey, booking a quick flight, reserving a premium hotel, or ordering gourmet meals on track, our next-generation platform is designed to assist you at every step.</p>
+<p><strong>Why Book With Us?</strong></p>
+<ul>
+  <li>Instant and secure booking confirmations</li>
+  <li>24/7 dedicated support desk</li>
+  <li>AI-powered travel recommendations with YatraMind</li>
+</ul>
+<p>Hurry! Visit our website or open the app to take advantage of this special update and book your next trip today.</p>
+<p>Warm Regards,<br/><strong>IRCTC Support & Marketing Team</strong></p>`;
+};
+
 export default function AdminDashboard() {
   const router = useRouter();
-
-  useEffect(() => {
-    // Check if admin is authenticated via sessionStorage (clears on tab/browser close)
-    const adminToken = sessionStorage.getItem('admin_token');
-    if (!adminToken) {
-      router.push('/admin/login');
-    }
-  }, [router]);
 
   const [activeTab, setActiveTab] = useState('overview');
   const [users, setUsers] = useState<any[]>([]);
@@ -38,33 +46,47 @@ export default function AdminDashboard() {
   // Settings State
   const [systemSettings, setSystemSettings] = useState({ maintenanceMode: false, aiAssistant: true, bookingCommission: 5 });
   
+  // Support Tickets State
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [supportSearch, setSupportSearch] = useState('');
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+
   // Modals state
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
   
   // Custom modals
   const [showReportDropdown, setShowReportDropdown] = useState(false);
+  const [selectedReportType, setSelectedReportType] = useState<string | null>(null);
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
   const [serviceFormData, setServiceFormData] = useState({ name: '', type: 'Train', status: 'Active' });
   const [viewingBooking, setViewingBooking] = useState<any>(null);
   const [viewingService, setViewingService] = useState<any>(null);
+  const [viewingTicket, setViewingTicket] = useState<any>(null);
+  
+  // Marketing Promo Form States
+  const [promoSubject, setPromoSubject] = useState('');
+  const [promoHtml, setPromoHtml] = useState('');
+  const [isPromoHtmlTouched, setIsPromoHtmlTouched] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState({ name: '', email: '', role: 'User', status: 'Active' });
 
   const fetchData = async () => {
     try {
-      const [usersRes, servicesRes, statsRes, bookingsRes, settingsRes] = await Promise.all([
+      const [usersRes, servicesRes, statsRes, bookingsRes, settingsRes, ticketsRes] = await Promise.all([
         axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/users`),
         axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/services`),
         axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/stats`),
         axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/bookings`),
-        axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/settings`)
+        axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/settings`),
+        axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/support/admin`)
       ]);
       setUsers(usersRes.data);
       setServices(servicesRes.data);
       setDashboardStats(statsRes.data);
       setBookings(bookingsRes.data);
+      setTickets(ticketsRes.data);
       if (settingsRes.data) {
         setSystemSettings({
           maintenanceMode: settingsRes.data.maintenanceMode,
@@ -81,8 +103,28 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
+    // Check if admin is authenticated via sessionStorage (clears on tab/browser close)
+    const adminToken = sessionStorage.getItem('admin_token');
+    if (!adminToken) {
+      router.push('/admin/login');
+      return;
+    }
+
+    // Configure Axios interceptor to automatically attach authorization token to admin endpoints
+    const interceptor = axios.interceptors.request.use((config) => {
+      if (adminToken && (config.url?.includes('/api/admin') || config.url?.includes('/api/support/admin'))) {
+        config.headers.Authorization = `Bearer ${adminToken}`;
+      }
+      return config;
+    });
+
+    // Fetch data only after the authorization interceptor has been successfully registered
     fetchData();
-  }, []);
+
+    return () => {
+      axios.interceptors.request.eject(interceptor);
+    };
+  }, [router]);
 
   // Quick stats
   const stats = [
@@ -100,6 +142,36 @@ export default function AdminDashboard() {
       toast.success('User deleted successfully from DB');
     } catch (err) {
       toast.error('Failed to delete user');
+    }
+  };
+
+  const handleResolveTicket = async (ticketId: string) => {
+    setResolvingId(ticketId);
+    const toastId = toast.loading('Resolving ticket and sending email...');
+    try {
+      await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/support/admin/${ticketId}/resolve`, {});
+      toast.success('Ticket resolved successfully! Email sent to user.', { id: toastId });
+      setTickets(tickets.map(t => t._id === ticketId ? { ...t, status: 'Resolved' } : t));
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Failed to resolve ticket', { id: toastId });
+    } finally {
+      setResolvingId(null);
+    }
+  };
+
+  const handleInsufficientTicket = async (ticketId: string) => {
+    setResolvingId(ticketId);
+    const toastId = toast.loading('Marking ticket as having insufficient details...');
+    try {
+      await axios.put(`${process.env.NEXT_PUBLIC_API_URL}/api/support/admin/${ticketId}/insufficient`, {});
+      toast.success('Ticket marked as having insufficient details. Email sent to user.', { id: toastId });
+      setTickets(tickets.map(t => t._id === ticketId ? { ...t, status: 'Insufficient Details' } : t));
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.response?.data?.message || 'Failed to update ticket', { id: toastId });
+    } finally {
+      setResolvingId(null);
     }
   };
 
@@ -209,6 +281,34 @@ export default function AdminDashboard() {
         body: rows,
         theme: 'grid'
       });
+    } else if (type === 'Users') {
+      const rows = users.map(u => [
+        u.name,
+        u.email,
+        u.role,
+        u.status,
+        u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A'
+      ]);
+      autoTable(doc, {
+        startY: 45,
+        head: [['Name', 'Email', 'Role', 'Status', 'Date Joined']],
+        body: rows,
+        theme: 'grid'
+      });
+    } else if (type === 'Support') {
+      const rows = tickets.map(t => [
+        t.ticketNumber,
+        t.issueType,
+        t.user?.name || 'N/A',
+        t.status,
+        t.createdAt ? new Date(t.createdAt).toLocaleDateString() : 'N/A'
+      ]);
+      autoTable(doc, {
+        startY: 45,
+        head: [['Ticket #', 'Issue Type', 'Customer Name', 'Status', 'Date Raised']],
+        body: rows,
+        theme: 'grid'
+      });
     }
     
     doc.save(`IRCTC_Report_${type}_${timeline.replace(' ', '_')}.pdf`);
@@ -234,6 +334,7 @@ export default function AdminDashboard() {
               { id: 'services', label: 'Services', icon: <Server className="w-5 h-5" /> },
               { id: 'bookings', label: 'Bookings', icon: <Ticket className="w-5 h-5" /> },
               { id: 'marketing', label: 'Marketing', icon: <Mail className="w-5 h-5" /> },
+              { id: 'support', label: 'Support Tickets', icon: <HelpCircle className="w-5 h-5" /> },
               { id: 'settings', label: 'System Settings', icon: <Settings className="w-5 h-5" /> },
             ].map(item => (
               <button
@@ -277,23 +378,75 @@ export default function AdminDashboard() {
                   {isDataLoading && <div className="flex items-center gap-2 text-blue-400"><Loader2 className="w-4 h-4 animate-spin"/> Syncing Live Data...</div>}
                 </div>
                 <div className="relative">
-                  <button onClick={() => setShowReportDropdown(!showReportDropdown)} className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+                  <button 
+                    onClick={() => {
+                      setShowReportDropdown(!showReportDropdown);
+                      setSelectedReportType(null);
+                    }} 
+                    className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(59,130,246,0.2)]"
+                  >
                     <Download className="w-4 h-4"/> Download Report
                   </button>
                   {showReportDropdown && (
                     <div className="absolute right-0 mt-2 w-56 bg-[#111] border border-white/10 rounded-xl shadow-xl z-10 overflow-hidden">
-                      <div className="p-2 border-b border-white/10">
-                        <p className="text-xs font-bold text-gray-500 mb-2 px-2">REVENUE REPORTS</p>
-                        {['15 Days', '1 Month', '3 Months', '6 Months', '1 Year'].map(t => (
-                          <button key={`rev-${t}`} onClick={() => generateReport('Revenue', t)} className="w-full text-left px-2 py-2 hover:bg-white/5 text-sm transition-colors text-white font-medium rounded-lg">{t}</button>
-                        ))}
-                      </div>
-                      <div className="p-2">
-                        <p className="text-xs font-bold text-gray-500 mb-2 px-2">BOOKING REPORTS</p>
-                        {['15 Days', '1 Month', '3 Months', '6 Months', '1 Year'].map(t => (
-                          <button key={`bkg-${t}`} onClick={() => generateReport('Bookings', t)} className="w-full text-left px-2 py-2 hover:bg-white/5 text-sm transition-colors text-white font-medium rounded-lg">{t}</button>
-                        ))}
-                      </div>
+                      {selectedReportType === null ? (
+                        <div className="py-1">
+                          <p className="text-[10px] font-bold text-gray-500 mb-1.5 px-4 pt-3 uppercase tracking-wider">Select Report Type</p>
+                          <button 
+                            onClick={() => setSelectedReportType('Revenue')} 
+                            className="w-full text-left px-4 py-3 hover:bg-white/5 text-sm font-semibold text-white transition-all flex items-center justify-between group border-b border-white/5"
+                          >
+                            <span>Revenue Report</span>
+                            <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
+                          </button>
+                          <button 
+                            onClick={() => setSelectedReportType('Bookings')} 
+                            className="w-full text-left px-4 py-3 hover:bg-white/5 text-sm font-semibold text-white transition-all flex items-center justify-between group border-b border-white/5"
+                          >
+                            <span>Bookings Report</span>
+                            <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
+                          </button>
+                          <button 
+                            onClick={() => setSelectedReportType('Users')} 
+                            className="w-full text-left px-4 py-3 hover:bg-white/5 text-sm font-semibold text-white transition-all flex items-center justify-between group border-b border-white/5"
+                          >
+                            <span>Users Report</span>
+                            <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
+                          </button>
+                          <button 
+                            onClick={() => setSelectedReportType('Support')} 
+                            className="w-full text-left px-4 py-3 hover:bg-white/5 text-sm font-semibold text-white transition-all flex items-center justify-between group"
+                          >
+                            <span>Support Tickets Report</span>
+                            <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-blue-400 transition-colors" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="py-1">
+                          <button 
+                            onClick={() => setSelectedReportType(null)} 
+                            className="w-full flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-blue-400 hover:text-blue-300 hover:bg-white/5 border-b border-white/5 transition-all text-left"
+                          >
+                            <ArrowLeft className="w-3.5 h-3.5" /> Back to Reports
+                          </button>
+                          <p className="text-[10px] font-bold text-gray-500 px-4 pt-3 pb-1.5 uppercase tracking-wider">{selectedReportType} Timeline</p>
+                          <div className="flex flex-col">
+                            {['15 Days', '1 Month', '3 Months', '6 Months', '1 Year'].map(t => (
+                              <button 
+                                key={t} 
+                                onClick={() => {
+                                  generateReport(selectedReportType, t);
+                                  setShowReportDropdown(false);
+                                  setSelectedReportType(null);
+                                }} 
+                                className="w-full text-left px-4 py-2.5 hover:bg-white/5 text-sm font-semibold text-white/90 hover:text-white transition-all border-b border-white/5 last:border-b-0"
+                              >
+                                {t}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -618,6 +771,248 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+          {/* MARKETING TAB */}
+          {activeTab === 'marketing' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mt-6 mx-auto">
+              <h2 className="text-3xl font-bold mb-8">Email Marketing & Offers</h2>
+              
+              <div className="bg-[#111] border border-white/5 p-6 rounded-2xl mb-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-3 bg-blue-500/10 rounded-xl border border-blue-500/20">
+                    <Mail className="w-6 h-6 text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold">Mass Promotional Blasts</h3>
+                    <p className="text-gray-400 text-sm">Send a promotional email to all verified users in the database.</p>
+                  </div>
+                </div>
+
+                <form 
+                  onSubmit={async (e: any) => {
+                    e.preventDefault();
+                    let finalHtml = promoHtml;
+                    const trimmed = finalHtml.trim();
+                    const hasHtmlTags = /<\/?[a-z][\s\S]*>/i.test(trimmed);
+                    if (!hasHtmlTags && trimmed) {
+                      finalHtml = trimmed
+                        .split(/\n\s*\n/)
+                        .map(p => `<p>${p.replace(/\n/g, '<br />')}</p>`)
+                        .join('\n');
+                    }
+
+                    const btn = e.nativeEvent.submitter;
+                    btn.disabled = true;
+                    btn.innerText = 'Sending...';
+                    
+                    try {
+                      const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/promo`, { 
+                        subject: promoSubject, 
+                        htmlBody: finalHtml 
+                      });
+                      toast.success(res.data.message);
+                      setPromoSubject('');
+                      setPromoHtml('');
+                      setIsPromoHtmlTouched(false);
+                    } catch (err: any) {
+                      toast.error('Failed to send promotional blast.');
+                    } finally {
+                      btn.disabled = false;
+                      btn.innerText = 'Send Blast';
+                    }
+                  }}
+                  className="space-y-6"
+                >
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">Subject Line</label>
+                    <input 
+                      name="subject"
+                      required
+                      value={promoSubject}
+                      onChange={(e) => {
+                        const newSubject = e.target.value;
+                        setPromoSubject(newSubject);
+                        if (!isPromoHtmlTouched) {
+                          setPromoHtml(generateHtmlSuggestion(newSubject));
+                        }
+                      }}
+                      placeholder="e.g. 🚂 Diwali Special: 10% Cashback on Top-ups!"
+                      className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-400 mb-2">HTML Content</label>
+                    <textarea 
+                      name="htmlBody"
+                      required
+                      rows={8}
+                      value={promoHtml}
+                      onChange={(e) => {
+                        const newHtml = e.target.value;
+                        setPromoHtml(newHtml);
+                        if (newHtml.trim() === '') {
+                          setIsPromoHtmlTouched(false);
+                        } else {
+                          setIsPromoHtmlTouched(true);
+                        }
+                      }}
+                      placeholder="<p>Dear Customer, get 10% cashback this Diwali...</p>"
+                      className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 font-mono text-sm"
+                    ></textarea>
+                    <p className="text-xs text-gray-500 mt-2">The content will be automatically wrapped in the standard IRCTC template with logos and footer.</p>
+                  </div>
+                  
+                  <div className="flex justify-end">
+                    <button type="submit" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-[0_0_15px_rgba(37,99,235,0.3)]">
+                      <Send className="w-4 h-4" /> Send Blast
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* SUPPORT TICKETS TAB */}
+          {activeTab === 'support' && (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex flex-col md:flex-row justify-between md:items-center mb-8 gap-4">
+                <h2 className="text-3xl font-bold">Customer Support Tickets</h2>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                  <input 
+                    type="text" 
+                    placeholder="Search by ticket # or name..." 
+                    value={supportSearch}
+                    onChange={(e) => setSupportSearch(e.target.value)}
+                    className="bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none w-64" 
+                  />
+                </div>
+              </div>
+
+              <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden backdrop-blur-xl">
+                <table className="w-full text-left">
+                  <thead className="bg-black/40 border-b border-white/10">
+                    <tr>
+                      <th className="p-4 text-xs uppercase tracking-wider text-gray-400 font-bold">Ticket Details</th>
+                      <th className="p-4 text-xs uppercase tracking-wider text-gray-400 font-bold">Issue Details</th>
+                      <th className="p-4 text-xs uppercase tracking-wider text-gray-400 font-bold">Customer Info</th>
+                      <th className="p-4 text-xs uppercase tracking-wider text-gray-400 font-bold">Attachments</th>
+                      <th className="p-4 text-xs uppercase tracking-wider text-gray-400 font-bold">Status</th>
+                      <th className="p-4 text-xs uppercase tracking-wider text-gray-400 font-bold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {tickets
+                      .filter(t => 
+                        t.ticketNumber.toLowerCase().includes(supportSearch.toLowerCase()) || 
+                        t.user?.name?.toLowerCase().includes(supportSearch.toLowerCase())
+                      )
+                      .map(ticket => (
+                      <tr key={ticket._id} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => setViewingTicket(ticket)}>
+                        <td className="p-4">
+                          <span className="text-blue-400 font-mono font-bold text-sm bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/20">{ticket.ticketNumber}</span>
+                          <p className="text-[10px] text-gray-500 mt-1.5">{new Date(ticket.createdAt).toLocaleString()}</p>
+                        </td>
+                        <td className="p-4 max-w-[280px]">
+                          <div className="font-bold text-sm mb-1">{ticket.issueType}</div>
+                          <p className="text-xs text-gray-400 line-clamp-2">{ticket.description}</p>
+                        </td>
+                        <td className="p-4 text-xs text-gray-300">
+                          <p className="font-bold text-white">{ticket.user?.name || 'N/A'}</p>
+                          <p>{ticket.user?.email || 'N/A'}</p>
+                          {ticket.user?.mobile && <p className="text-[10px] text-gray-500 mt-0.5">{ticket.user.mobile}</p>}
+                        </td>
+                        <td className="p-4">
+                          {ticket.documents && ticket.documents.length > 0 ? (
+                            <div className="flex flex-col gap-1.5">
+                              {ticket.documents.map((doc: string, idx: number) => (
+                                <a 
+                                  key={idx} 
+                                  href={`${process.env.NEXT_PUBLIC_API_URL}${doc}`} 
+                                  target="_blank" 
+                                  rel="noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:underline"
+                                >
+                                  <FileText className="w-3.5 h-3.5" />
+                                  File {idx + 1}
+                                </a>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-500 font-medium">None</span>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          <span className={`px-2 py-1 rounded-md text-xs font-bold flex items-center w-fit gap-1 ${
+                            ticket.status === 'Resolved' 
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                              : ticket.status === 'Insufficient Details'
+                              ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                              : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                          }`}>
+                            {ticket.status === 'Resolved' ? (
+                              <CheckCircle className="w-3 h-3"/>
+                            ) : ticket.status === 'Insufficient Details' ? (
+                              <ShieldAlert className="w-3 h-3"/>
+                            ) : (
+                              <Clock className="w-3 h-3"/>
+                            )}
+                            {ticket.status}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right">
+                          {ticket.status !== 'Resolved' ? (
+                            <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={async (e) => { 
+                                  e.stopPropagation(); 
+                                  await handleResolveTicket(ticket._id); 
+                                }}
+                                disabled={resolvingId === ticket._id}
+                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                              >
+                                {resolvingId === ticket._id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                )}
+                                Resolve
+                              </button>
+                              {ticket.status === 'Open' && (
+                                <button
+                                  onClick={async (e) => { 
+                                    e.stopPropagation(); 
+                                    await handleInsufficientTicket(ticket._id); 
+                                  }}
+                                  disabled={resolvingId === ticket._id}
+                                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                                >
+                                  {resolvingId === ticket._id ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <ShieldAlert className="w-3.5 h-3.5" />
+                                  )}
+                                  Not Sufficient Details
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs font-bold text-gray-500 uppercase mr-3">Closed</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {tickets.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-gray-400">No support tickets raised in the system.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
         </div>
       </div>
@@ -794,7 +1189,7 @@ export default function AdminDashboard() {
                 <span className="text-white font-bold">{new Date(viewingService.createdAt || Date.now()).toLocaleDateString()}</span>
               </div>
             </div>
-
+ 
             <div className="flex gap-4">
               <button onClick={() => setViewingService(null)} className="flex-1 py-3 bg-white/5 hover:bg-white/10 rounded-xl font-bold transition-colors">Close Panel</button>
               <button 
@@ -803,6 +1198,120 @@ export default function AdminDashboard() {
               >
                 {viewingService.status === 'Active' ? 'Set to Maintenance' : 'Activate Service'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW TICKET DETAILS MODAL */}
+      {viewingTicket && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={() => setViewingTicket(null)}>
+          <div className="bg-[#111] border border-white/10 rounded-3xl w-full max-w-xl p-8 shadow-2xl relative" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
+              <div>
+                <span className="text-blue-400 font-mono font-bold text-xs bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/20">{viewingTicket.ticketNumber}</span>
+                <h2 className="text-2xl font-bold text-white mt-3">{viewingTicket.issueType}</h2>
+                <p className="text-xs text-gray-500 mt-1">Raised on: {new Date(viewingTicket.createdAt).toLocaleString()}</p>
+              </div>
+              <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                viewingTicket.status === 'Resolved' 
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                  : viewingTicket.status === 'Insufficient Details'
+                  ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                  : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+              }`}>
+                {viewingTicket.status}
+              </span>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div className="bg-black/40 border border-white/5 p-4 rounded-xl">
+                <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">Customer Profile</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-400 text-xs">Name</p>
+                    <p className="text-white font-semibold mt-0.5">{viewingTicket.user?.name || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 text-xs">Email</p>
+                    <p className="text-white font-semibold mt-0.5">{viewingTicket.user?.email || 'N/A'}</p>
+                  </div>
+                  {viewingTicket.user?.mobile && (
+                    <div className="col-span-2">
+                      <p className="text-gray-400 text-xs">Mobile</p>
+                      <p className="text-white font-semibold mt-0.5">{viewingTicket.user.mobile}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">Detailed Issue Description</h3>
+                <div className="bg-black/20 border border-white/5 p-4 rounded-xl text-sm text-gray-300 leading-relaxed max-h-48 overflow-y-auto whitespace-pre-wrap">
+                  {viewingTicket.description}
+                </div>
+              </div>
+
+              {viewingTicket.documents && viewingTicket.documents.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">Attachments ({viewingTicket.documents.length})</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {viewingTicket.documents.map((doc: string, idx: number) => (
+                      <a 
+                        key={idx} 
+                        href={`${process.env.NEXT_PUBLIC_API_URL}${doc}`} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:underline bg-white/5 border border-white/5 px-3 py-2 rounded-xl"
+                      >
+                        <FileText className="w-4 h-4" />
+                        Attachment {idx + 1}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-4 border-t border-white/10 pt-6 mt-6">
+              <button onClick={() => setViewingTicket(null)} className="flex-1 py-3.5 bg-white/5 hover:bg-white/10 rounded-xl font-bold transition-colors">Close Panel</button>
+              {viewingTicket.status !== 'Resolved' && (
+                <div className="flex flex-1 gap-3">
+                  <button 
+                    onClick={async () => { 
+                      await handleResolveTicket(viewingTicket._id); 
+                      setViewingTicket({...viewingTicket, status: 'Resolved'}); 
+                    }}
+                    disabled={resolvingId === viewingTicket._id}
+                    className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                  >
+                    {resolvingId === viewingTicket._id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4" />
+                    )}
+                    Resolve
+                  </button>
+                  {viewingTicket.status === 'Open' && (
+                    <button 
+                      onClick={async () => { 
+                        await handleInsufficientTicket(viewingTicket._id); 
+                        setViewingTicket({...viewingTicket, status: 'Insufficient Details'}); 
+                      }}
+                      disabled={resolvingId === viewingTicket._id}
+                      className="flex-1 py-3.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white rounded-xl font-bold transition-colors flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                    >
+                      {resolvingId === viewingTicket._id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <ShieldAlert className="w-4 h-4" />
+                      )}
+                      Not Sufficient Details
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -827,8 +1336,14 @@ export default function AdminDashboard() {
                 <form 
                   onSubmit={async (e: any) => {
                     e.preventDefault();
-                    const subject = e.target.subject.value;
-                    const htmlBody = e.target.htmlBody.value;
+                    const subject = promoSubject;
+                    let htmlBody = promoHtml;
+                    
+                    // Auto-convert plain text to HTML if they typed plain text without tags
+                    if (!htmlBody.trim().startsWith('<')) {
+                      htmlBody = `<p>${htmlBody.replace(/\n/g, '<br/>')}</p>`;
+                    }
+
                     const btn = e.nativeEvent.submitter;
                     btn.disabled = true;
                     btn.innerText = 'Sending...';
@@ -836,6 +1351,9 @@ export default function AdminDashboard() {
                     try {
                       const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/promo`, { subject, htmlBody });
                       toast.success(res.data.message);
+                      setPromoSubject('');
+                      setPromoHtml('');
+                      setIsPromoHtmlTouched(false);
                       e.target.reset();
                     } catch (err: any) {
                       toast.error('Failed to send promotional blast.');
@@ -851,6 +1369,18 @@ export default function AdminDashboard() {
                     <input 
                       name="subject"
                       required
+                      value={promoSubject}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setPromoSubject(val);
+                        if (!isPromoHtmlTouched) {
+                          if (val.trim() === '') {
+                            setPromoHtml('');
+                          } else {
+                            setPromoHtml(`<p>Dear Customer,<br/><br/>We are excited to share a special update: <strong>${val}</strong>!<br/><br/>Experience the next generation of seamless travel and exclusive benefits today.</p>`);
+                          }
+                        }
+                      }}
                       placeholder="e.g. 🚂 Diwali Special: 10% Cashback on Top-ups!"
                       className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500"
                     />
@@ -862,6 +1392,11 @@ export default function AdminDashboard() {
                       name="htmlBody"
                       required
                       rows={8}
+                      value={promoHtml}
+                      onChange={(e) => {
+                        setPromoHtml(e.target.value);
+                        setIsPromoHtmlTouched(true);
+                      }}
                       placeholder="<p>Dear Customer, get 10% cashback this Diwali...</p>"
                       className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500"
                     ></textarea>

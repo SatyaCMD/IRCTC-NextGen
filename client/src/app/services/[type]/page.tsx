@@ -72,7 +72,7 @@ function BookingFlowInner() {
   const [paymentDetails, setPaymentDetails] = useState({
     cardNumber: '', expiry: '', cvv: '', nameOnCard: ''
   });
-  const [bookingResult, setBookingResult] = useState({ bookingId: '', pnr: '', status: '', serviceClass: '', seatNumbers: [] as string[], trainId: null as any });
+  const [bookingResult, setBookingResult] = useState({ bookingId: '', pnr: '', status: '', serviceClass: '', seatNumbers: [] as string[], trainId: null as any, totalPrice: undefined as number | undefined, distance: undefined as number | undefined });
   const [showReturnPrompt, setShowReturnPrompt] = useState(true);
   
   const [reviewRating, setReviewRating] = useState(5);
@@ -110,31 +110,103 @@ function BookingFlowInner() {
   const selectedPantryMeal = currentPantryMenu.find(m => m.name === pantryMeal) || currentPantryMenu[0];
 
   useEffect(() => {
-    // Generate some random booked seats depending on the class layout and selected coach
+    // Generate booked seats to match available seats exactly
     const generated = new Set<string>();
-    const rows = 15; // Max possible rows
-    const cols = ['A','B','C','D','E','F'];
     
+    const cls = journeyDetails.travelClass || '';
+    let totalSeats = 80; // default
+    let seatIds: string[] = [];
+    
+    // Generate all possible seat IDs for this coach layout
+    if (cls.includes('1A')) {
+      totalSeats = 20; // 10 rows * 2 seats
+      for (let r = 1; r <= 10; r++) {
+        const base = (r - 1) * 2;
+        seatIds.push((base + 1).toString());
+        seatIds.push((base + 2).toString());
+      }
+    } else if (cls.includes('2A') || cls.includes('3A') || ['SL', 'Sleeper'].some(c => cls.includes(c))) {
+      totalSeats = 80; // 10 rows * 8 seats
+      for (let r = 1; r <= 10; r++) {
+        const base = (r - 1) * 8;
+        for (let i = 1; i <= 8; i++) {
+          seatIds.push((base + i).toString());
+        }
+      }
+    } else {
+      totalSeats = 60; // 10 rows * 6 seats
+      const cols = ['A', 'B', 'C', 'D', 'E', 'F'];
+      for (let r = 1; r <= 10; r++) {
+        cols.forEach(c => seatIds.push(`${r}${c}`));
+      }
+    }
+
+    // Get available seats from URL query parameter
+    let availableCount = parseInt(searchParams.get('available') || '20');
+    
+    // Calculate number of coaches
+    let numCoaches = 6;
+    if (cls.includes('1A')) numCoaches = 3;
+    else if (['SL', 'Sleeper'].some(c => cls.includes(c))) numCoaches = 12;
+
+    // Get selected coach number
+    const coachMatch = selectedCoach.match(/\d+$/);
+    const selectedCoachNum = coachMatch ? parseInt(coachMatch[0]) : 1;
+    const currentCoachIdx = Math.min(Math.max(0, selectedCoachNum - 1), numCoaches - 1);
+
+    // Enforce 1A even constraints & distribute available seats across coaches
+    let availableForThisCoach = 0;
+    if (cls.includes('1A')) {
+      availableCount = Math.floor(availableCount / 2) * 2;
+      if (availableCount < 2) availableCount = 2; // ensure at least one Coupe is available
+      
+      const availableCoupes = Math.floor(availableCount / 2);
+      const coupesForThisCoach = Math.floor(availableCoupes / numCoaches) + (currentCoachIdx < (availableCoupes % numCoaches) ? 1 : 0);
+      availableForThisCoach = coupesForThisCoach * 2;
+    } else {
+      availableForThisCoach = Math.floor(availableCount / numCoaches) + (currentCoachIdx < (availableCount % numCoaches) ? 1 : 0);
+    }
+
+    if (availableForThisCoach > totalSeats) availableForThisCoach = totalSeats;
+    const bookedCount = totalSeats - availableForThisCoach;
+
+    // Use seed-based deterministic sorting to select which seats are booked
     const seed = selectedCoach.charCodeAt(0) + (selectedCoach.charCodeAt(1) || 0) + (selectedCoach.charCodeAt(2) || 0);
     const random = (seedIdx: number) => {
       const x = Math.sin(seed + seedIdx) * 10000;
       return x - Math.floor(x);
     };
 
-    let idx = 0;
-    for(let r = 1; r <= rows; r++) {
-      cols.forEach(c => {
-         idx++;
-         if (random(idx) < 0.35) generated.add(`${r}${c}`); // 35% booked
-      });
+    // Sort seat IDs deterministically based on seed random value
+    const sortedSeats = [...seatIds].map((id, i) => ({ id, val: random(i) }))
+                                    .sort((a, b) => a.val - b.val);
+
+    // Book the first 'bookedCount' seats
+    if (cls.includes('1A')) {
+      // For 1A, Coupes are (1,2), (3,4), (5,6) etc.
+      // So bookedCount represents the number of booked seats (always even).
+      // We want to book exactly bookedCount / 2 Coupe pairs!
+      const coupePairsCount = bookedCount / 2;
+      // Get all possible coupe indices: 0 to 9
+      const coupeRandom = Array.from({ length: 10 }).map((_, i) => ({ idx: i, val: random(i) }))
+                                                    .sort((a, b) => a.val - b.val);
+      // Select the first 'coupePairsCount' coupes to be completely booked
+      for (let i = 0; i < coupePairsCount; i++) {
+        const coupeIdx = coupeRandom[i].idx;
+        const base = coupeIdx * 2;
+        generated.add((base + 1).toString());
+        generated.add((base + 2).toString());
+      }
+    } else {
+      for (let i = 0; i < bookedCount; i++) {
+        if (sortedSeats[i]) {
+          generated.add(sortedSeats[i].id);
+        }
+      }
     }
-    // Generate for numeric standard layouts (1-80)
-    for(let s = 1; s <= 80; s++) {
-       idx++;
-       if (random(idx) < 0.35) generated.add(`${s}`);
-    }
+
     setBookedSeats(generated);
-  }, [selectedCoach]);
+  }, [selectedCoach, journeyDetails.travelClass, searchParams]);
 
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [upiId, setUpiId] = useState('');
@@ -151,6 +223,18 @@ function BookingFlowInner() {
         .catch(err => console.error(err));
     }
   }, []);
+
+  useEffect(() => {
+    if (journeyDetails.travelClass) {
+      const cls = journeyDetails.travelClass;
+      if (cls.includes('1A')) setSelectedCoach('H1');
+      else if (cls.includes('2A')) setSelectedCoach('A1');
+      else if (cls.includes('3A')) setSelectedCoach('B1');
+      else if (cls.includes('EC')) setSelectedCoach('E1');
+      else if (cls.includes('CC')) setSelectedCoach('C1');
+      else setSelectedCoach('S1');
+    }
+  }, [journeyDetails.travelClass]);
 
   const getIcon = () => {
     if (isFlight) return <Plane className="w-8 h-8" />;
@@ -173,6 +257,21 @@ function BookingFlowInner() {
     const hasEmptyPassenger = passengers.some(p => !p.name || !p.age);
     if (hasEmptyPassenger || !contactInfo.email || !contactInfo.phone) {
       toast.error('Please fill in all mandatory details before proceeding.');
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(contactInfo.email.trim())) {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
+
+    // Validate mobile number format (standard 10-digit Indian numbers, optionally with +91 or 0 prefix)
+    const cleanPhone = contactInfo.phone.replace(/[\s-()]/g, '');
+    const phoneRegex = /^(?:\+91|0)?[6-9]\d{9}$/;
+    if (!phoneRegex.test(cleanPhone)) {
+      toast.error('Please enter a valid 10-digit mobile number.');
       return;
     }
 
@@ -285,7 +384,9 @@ function BookingFlowInner() {
         status: confirmRes.data.status || (finalStatus === 'success' ? 'Confirmed' : finalStatus),
         serviceClass: confirmRes.data.serviceClass || journeyDetails.travelClass,
         seatNumbers: confirmRes.data.seatNumbers || [],
-        trainId: createdBooking.trainId
+        trainId: createdBooking.trainId,
+        totalPrice: confirmRes.data.totalPrice,
+        distance: confirmRes.data.distance
       });
       setStep(4);
       
@@ -349,7 +450,7 @@ function BookingFlowInner() {
     }
   };
 
-  const maxMembers = isHotel ? 2 : 6;
+  const maxMembers = (isHotel || (journeyDetails.travelClass && journeyDetails.travelClass.includes('1A'))) ? 2 : 6;
   const addPassenger = () => {
     if (passengers.length < maxMembers) {
       setPassengers([...passengers, { name: '', age: '', gender: 'Male', pref: 'No Preference' }]);
@@ -476,7 +577,7 @@ function BookingFlowInner() {
 
       doc.setFont("helvetica", "normal");
       const dest = journeyDetails.to || 'MUMBAI';
-      const formatStationName = (name: string, maxLen = 20) => name.length > maxLen ? name.substring(0, maxLen - 2) + '...' : name;
+      const formatStationName = (name: string, maxLen = 20) => name;
       doc.text(formatStationName(dest.toUpperCase()), 35, 42, { align: 'center' });
       doc.text(formatStationName(dest.toUpperCase(), 30), 105, 42, { align: 'center' });
       doc.text(formatStationName(dest.toUpperCase()), 175, 42, { align: 'center' });
@@ -683,7 +784,7 @@ function BookingFlowInner() {
     doc.setFont("helvetica", "normal");
     const source = journeyDetails.from || 'HOWRAH JN (HWH)';
     const dest = journeyDetails.to || 'NEW DELHI (NDLS)';
-    const formatStationName = (name: string, maxLen = 20) => name.length > maxLen ? name.substring(0, maxLen - 2) + '...' : name;
+    const formatStationName = (name: string, maxLen = 20) => name;
     doc.text(formatStationName(source.toUpperCase()), 35, 42, { align: 'center' });
     doc.text(formatStationName(isHotel ? dest.toUpperCase() : source.toUpperCase(), 30), 105, 42, { align: 'center' });
     doc.text(formatStationName(isHotel ? source.toUpperCase() : dest.toUpperCase()), 175, 42, { align: 'center' });
@@ -720,7 +821,7 @@ function BookingFlowInner() {
     const trainNum = bookingResult?.trainId?.trainNumber || (urlTrainId.startsWith('mock_') ? urlTrainId.substring(urlTrainId.length - 5).toUpperCase() : urlTrainId);
     
     const trainDesc = `${trainNum} / ${trainName}`.toUpperCase();
-    doc.text(trainDesc.length > 25 ? trainDesc.substring(0, 23) + '...' : trainDesc, 105, 62, { align: 'center' });
+    doc.text(trainDesc, 105, 62, { align: 'center' });
 
     doc.text(journeyDetails.travelClass || 'SL', 160, 62, { align: 'center' });
     doc.setFontSize(7);
@@ -736,7 +837,13 @@ function BookingFlowInner() {
 
     doc.setFont("helvetica", "normal");
     const quotaStr = journeyDetails.quota ? journeyDetails.quota.toUpperCase() : 'GENERAL (GN)';
-    const distanceStr = isHotel ? 'N/A' : `${Math.floor(1200 + Math.random() * 800)} KM`;
+    const getPnrDistance = (pnrStr: string) => {
+      const digits = (pnrStr || '').replace(/\D/g, '');
+      if (!digits) return 1530;
+      const num = parseInt(digits.substring(0, 6)) || 0;
+      return 1200 + (num % 800);
+    };
+    const distanceStr = isHotel ? 'N/A' : (bookingResult.distance ? `${bookingResult.distance} KM` : (bookingResult?.trainId?.distance ? `${bookingResult.trainId.distance} KM` : `${getPnrDistance(bookingResult.pnr || '')} KM`));
     doc.text(isHotel ? 'N/A' : quotaStr, 35, 73, { align: 'center' });
     doc.text(distanceStr, 105, 73, { align: 'center' });
     doc.text(new Date().toLocaleString(), 175, 73, { align: 'center' });
@@ -799,7 +906,7 @@ function BookingFlowInner() {
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
 
-    const tPrice = Math.round(totalPrice + (totalPrice * 0.18));
+    const tPrice = bookingResult.totalPrice || Math.round(totalPrice + (totalPrice * 0.18));
     const baseFare = tPrice / 1.18;
     const tax = tPrice - baseFare;
     doc.text("Ticket Fare", 12, py + 32); doc.text(`Rs. ${baseFare.toFixed(2)}`, 100, py + 32);
@@ -979,9 +1086,15 @@ function BookingFlowInner() {
                   <div className="bg-blue-500/20 p-2 rounded-lg text-blue-400 border border-blue-500/30"><Users className="w-6 h-6" /></div>
                   <h2 className="text-2xl font-bold text-white tracking-wide">{terms.step1Title} Details</h2>
                 </div>
-                <button type="button" onClick={addPassenger} disabled={passengers.length >= 6} className="text-sm font-bold bg-white/10 hover:bg-white/20 text-white px-5 py-3 rounded-xl transition-all border border-white/20 backdrop-blur-md flex items-center gap-2 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
-                  + Add {terms.personTerm} {passengers.length >= 6 ? '(Max 6)' : ''}
-                </button>
+                {passengers.length >= maxMembers ? (
+                  <span className="text-xs font-black text-amber-400 bg-amber-500/10 border border-amber-500/30 px-5 py-3 rounded-xl uppercase tracking-widest animate-pulse shadow-md">
+                    Maximum number of passengers reached
+                  </span>
+                ) : (
+                  <button type="button" onClick={addPassenger} className="text-sm font-bold bg-white/10 hover:bg-white/20 text-white px-5 py-3 rounded-xl transition-all border border-white/20 backdrop-blur-md flex items-center gap-2 shadow-lg">
+                    + Add {terms.personTerm}
+                  </button>
+                )}
               </div>
 
               <div className="space-y-6 mb-12">
@@ -1039,11 +1152,15 @@ function BookingFlowInner() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black text-blue-300 uppercase tracking-widest ml-1 drop-shadow-md">Email Address</label>
+                  <label className="text-[11px] font-black text-blue-300 uppercase tracking-widest ml-1 drop-shadow-md">
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
                   <input type="email" required value={contactInfo.email} onChange={e => setContactInfo({...contactInfo, email: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-lg font-medium focus:ring-2 focus:ring-blue-500 backdrop-blur-md" placeholder="Tickets will be sent here" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[11px] font-black text-blue-300 uppercase tracking-widest ml-1 drop-shadow-md">Mobile Number</label>
+                  <label className="text-[11px] font-black text-blue-300 uppercase tracking-widest ml-1 drop-shadow-md">
+                    Mobile Number <span className="text-red-500">*</span>
+                  </label>
                   <input type="tel" required value={contactInfo.phone} onChange={e => setContactInfo({...contactInfo, phone: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white text-lg font-medium focus:ring-2 focus:ring-blue-500 backdrop-blur-md" placeholder="+91 98765 43210" />
                 </div>
               </div>
@@ -1352,17 +1469,17 @@ function BookingFlowInner() {
                 {bookingResult.status === 'Verification Pending' ? 'Your ticket is temporarily booked. We are verifying your ID proof. Once verified, you will receive the confirmed ticket.' : `Your payment was processed securely. Get ready for an incredible ${title.toLowerCase()} experience.`}
               </p>
 
-              <div className="bg-white/10 border border-white/20 rounded-3xl p-8 w-full max-w-2xl mx-auto mb-12 shadow-2xl relative overflow-hidden backdrop-blur-2xl">
+              <div className="bg-white/10 border border-white/20 rounded-3xl p-6 sm:p-8 w-full max-w-2xl mx-auto mb-12 shadow-2xl relative overflow-hidden backdrop-blur-2xl">
                 <div className={`absolute top-0 left-0 w-full h-2 bg-gradient-to-r ${bookingResult.status === 'Verification Pending' ? 'from-orange-400 to-amber-500' : 'from-emerald-400 to-teal-500'}`} />
                 
-                <div className="grid grid-cols-2 gap-8 divide-x divide-white/20">
-                  <div className="flex flex-col items-center justify-center p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 divide-y sm:divide-y-0 sm:divide-x divide-white/10">
+                  <div className="flex flex-col items-center justify-center p-2 sm:p-4">
                     <span className="text-white/70 text-[11px] uppercase tracking-widest font-black mb-2">Booking Reference</span>
-                    <span className="text-white font-mono font-black text-4xl tracking-wider drop-shadow-md">{bookingResult.bookingId}</span>
+                    <span className="text-white font-mono font-black text-base sm:text-xl md:text-2xl tracking-normal drop-shadow-md break-all text-center">{bookingResult.bookingId}</span>
                   </div>
-                  <div className="flex flex-col items-center justify-center p-4">
+                  <div className="flex flex-col items-center justify-center p-2 sm:p-4 pt-6 sm:pt-4">
                     <span className="text-white/70 text-[11px] uppercase tracking-widest font-black mb-2">{(isHotel || isFood || type.includes('holiday')) ? 'Booking Number' : 'PNR Number'}</span>
-                    <span className={`${bookingResult.status === 'Verification Pending' ? 'text-orange-400' : 'text-emerald-400'} font-mono font-black text-4xl tracking-wider drop-shadow-md`}>{bookingResult.pnr}</span>
+                    <span className={`${bookingResult.status === 'Verification Pending' ? 'text-orange-400' : 'text-emerald-400'} font-mono font-black text-base sm:text-xl md:text-2xl tracking-normal drop-shadow-md break-all text-center`}>{bookingResult.pnr}</span>
                   </div>
                 </div>
               </div>
@@ -1479,15 +1596,38 @@ function BookingFlowInner() {
                   <div className="flex gap-4 justify-center mb-4 border-b border-white/10 pb-4">
                      <label className="text-white/60 text-sm font-bold uppercase tracking-widest mt-2">Coach:</label>
                      <select value={selectedCoach} onChange={(e) => setSelectedCoach(e.target.value)} className="bg-black/40 border border-white/20 rounded-lg px-3 py-1 text-white font-medium outline-none">
-                       {Array.from({length: 6}).map((_, i) => {
-                         const prefix = journeyDetails.travelClass.includes('1A') ? 'H' : 
-                                        journeyDetails.travelClass.includes('2A') ? 'A' : 
-                                        journeyDetails.travelClass.includes('3A') ? 'B' : 
-                                        journeyDetails.travelClass.includes('EC') ? 'E' : 
-                                        journeyDetails.travelClass.includes('CC') ? 'C' : 'S';
-                         return <option key={i} value={`${prefix}${i+1}`}>{prefix}{i+1}</option>;
-                       })}
-                     </select>
+                        {(() => {
+                          let length = 6;
+                          if (journeyDetails.travelClass.includes('1A')) length = 3;
+                          else if (['SL', 'Sleeper'].some(cls => journeyDetails.travelClass.includes(cls))) length = 12;
+                          
+                          const prefix = journeyDetails.travelClass.includes('1A') ? 'H' : 
+                                         journeyDetails.travelClass.includes('2A') ? 'A' : 
+                                         journeyDetails.travelClass.includes('3A') ? 'B' : 
+                                         journeyDetails.travelClass.includes('EC') ? 'E' : 
+                                         journeyDetails.travelClass.includes('CC') ? 'C' : 'S';
+                                         
+                          return Array.from({length}).map((_, i) => {
+                             const cls = journeyDetails.travelClass || '';
+                             let availCount = parseInt(searchParams.get('available') || '20');
+                             let avail = 0;
+                             if (cls.includes('1A')) {
+                               availCount = Math.floor(availCount / 2) * 2;
+                               if (availCount < 2) availCount = 2;
+                               const availableCoupes = Math.floor(availCount / 2);
+                               const coupesForThisCoach = Math.floor(availableCoupes / length) + (i < (availableCoupes % length) ? 1 : 0);
+                               avail = coupesForThisCoach * 2;
+                             } else {
+                               avail = Math.floor(availCount / length) + (i < (availCount % length) ? 1 : 0);
+                             }
+                             return (
+                               <option key={i} value={`${prefix}${i+1}`} className="bg-gray-900 text-white">
+                                 {prefix}{i+1} ({avail} seats available)
+                               </option>
+                             );
+                           });
+                        })()}
+                      </select>
                   </div>
                 )}
                 
@@ -1525,12 +1665,8 @@ function BookingFlowInner() {
                          seatRows = 15; seatLeft = ['A', 'B', 'C']; seatRight = ['D', 'E'];
                        } else if (journeyDetails.travelClass.includes('1A')) {
                          seatRows = 10; 
-                         seatLeft = ['U1', 'L1']; 
+                         seatLeft = ['L', 'U']; 
                          seatRight = [];
-                       } else if (journeyDetails.travelClass.includes('2A')) {
-                         seatRows = 10; 
-                         seatLeft = ['SU', 'SL']; 
-                         seatRight = ['L1', 'U1', 'L2', 'U2'];
                        } else {
                          seatRows = 10; 
                          seatLeft = ['SU', 'SL']; 
@@ -1538,150 +1674,312 @@ function BookingFlowInner() {
                        }
                     }
 
-                    return Array.from({ length: seatRows }).map((_, rowIdx) => (
-                      <div key={rowIdx} className="flex justify-between items-center gap-2">
-                        <div className="w-6 text-center text-white/30 text-xs font-bold">{rowIdx + 1}</div>
-                        <div className="flex flex-col gap-2">
-                          {seatLeft.map(col => {
-                            let displayCol = col;
-                            let seatId = `${rowIdx + 1}${col}`;
-                            
-                            if (journeyDetails.travelClass.includes('1A')) {
-                               const base = rowIdx * 2;
-                               if (col === 'L1') seatId = (base + 1).toString();
-                               displayCol = `${seatId} ${col.replace(/[0-9]/g, '')}`;
-                            } else if (journeyDetails.travelClass.includes('2A')) {
-                               const base = rowIdx * 6;
-                               if (col === 'SL') seatId = (base + 5).toString();
-                               if (col === 'SU') seatId = (base + 6).toString();
-                               displayCol = `${seatId} ${col.replace(/[0-9]/g, '')}`;
-                            } else if (['SL', '3A'].some(cls => journeyDetails.travelClass.includes(cls))) {
-                               const base = rowIdx * 8;
-                               if (col === 'SL') seatId = (base + 7).toString();
-                               if (col === 'SU') seatId = (base + 8).toString();
-                               displayCol = `${seatId} ${col.replace(/[0-9]/g, '')}`;
-                            }
+                    return Array.from({ length: seatRows }).map((_, rowIdx) => {
+                      if (!isFlight && !isBus && !isHotel && !isFood) {
+                        // 1AC Coupe Layout
+                        if (journeyDetails.travelClass.includes('1A')) {
+                          return (
+                            <div key={rowIdx} className="w-full bg-[#111216]/80 border border-[#2e323d] rounded-2xl p-4 flex flex-col gap-3 relative shadow-lg hover:border-blue-500/30 transition-all">
+                              <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">Coupe {String.fromCharCode(65 + rowIdx)}</span>
+                                <span className="text-[9px] font-medium text-white/40">Compartment {rowIdx + 1}</span>
+                              </div>
+                              
+                              <div className="flex justify-around items-center py-2 relative">
+                                {/* Window Graphic on left */}
+                                <div className="w-1.5 h-8 bg-blue-500/10 border border-blue-500/30 rounded-r-md absolute left-0" title="Window"></div>
+                                
+                                {seatLeft.map(col => {
+                                  let displayCol = col;
+                                  let seatId = `${rowIdx + 1}${col}`;
+                                  const base = rowIdx * 2;
+                                  if (col === 'L') seatId = (base + 1).toString();
+                                  if (col === 'U') seatId = (base + 2).toString();
+                                  displayCol = `${seatId} ${col}`;
 
-                            const isBlocked = bookedSeats.has(seatId);
-                            const isWindow = col === 'A' || col === 'SL' || col === 'L1';
-                            const isMiddle = col === 'B' && !isBus;
-                            const seatType = isWindow ? 'Window Seat' : isMiddle ? 'Middle Seat' : 'Aisle/Berth';
-                            
-                            // Assign visual categories randomly for simulation, but consistently
-                            const numId = parseInt(seatId.replace(/\D/g, '') || '0');
-                            const isLadies = numId > 0 && numId % 14 === 0;
-                            const isPremium = numId > 0 && numId % 9 === 0;
-                            const isSleeper = ['SL', 'SU', 'L1', 'U1', 'M1', 'L2', 'U2', 'M2'].includes(col);
-                            
-                            const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').toUpperCase()}`;
-                            const isSelected = (!isFlight && !isBus && !isHotel && !isFood) 
-                               ? passengers[showSeatMapForPassenger].pref === trainPrefStr 
-                               : passengers[showSeatMapForPassenger].pref === `${seatId} (${seatType})`;
+                                  // If EITHER seat in this Coupe is booked, the whole Coupe shows as booked/blocked
+                                  const isBlocked = bookedSeats.has((base + 1).toString()) || bookedSeats.has((base + 2).toString());
+                                  const isWindow = col === 'L';
+                                  const seatType = isWindow ? 'Window Seat' : 'Aisle/Berth';
+                                  const numId = parseInt(seatId.replace(/\D/g, '') || '0');
+                                  const isLadies = numId > 0 && numId % 14 === 0;
+                                  const isPremium = numId > 0 && numId % 9 === 0;
 
-                            return (
-                              <button 
-                                key={col}
-                                disabled={isBlocked}
-                                onClick={() => {
-                                  const newPref = (!isFlight && !isBus && !isHotel && !isFood) ? trainPrefStr : `${seatId} (${seatType})`;
-                                  updatePassenger(showSeatMapForPassenger, 'pref', newPref);
-                                  setShowSeatMapForPassenger(null);
-                                }}
-                                className={`w-11 h-11 rounded-lg font-bold text-[10px] sm:text-[11px] flex flex-col items-center justify-center transition-all ${
-                                  isBlocked ? 'bg-[#201010] text-[#a03030] border border-[#602020] cursor-not-allowed' :
-                                  isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 border border-blue-500' :
-                                  isLadies ? 'bg-pink-500/20 text-pink-400 border border-pink-500/50 hover:bg-pink-500/30' :
-                                  isPremium ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 hover:bg-yellow-500/30' :
-                                  isSleeper ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50 hover:bg-purple-500/30' :
-                                  'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 hover:bg-emerald-500/30'
-                                }`}
-                              >
-                                {isBlocked ? <Lock className="w-5 h-5" strokeWidth={2} /> : 
-                                 isLadies ? <span className="text-xs mb-0.5">👩</span> : 
-                                 isPremium ? <span className="text-xs mb-0.5">✨</span> : 
-                                 isSleeper ? <span className="text-xs mb-0.5">🛏️</span> : null}
-                                {!isBlocked && (
-                                  <span className={isLadies || isPremium || isSleeper ? 'text-[8px] opacity-80' : ''}>{displayCol}</span>
-                                )}
-                              </button>
-                            );
-                          })}
+                                  const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').toUpperCase()}`;
+                                  const isSelected = passengers[showSeatMapForPassenger].pref === trainPrefStr;
+
+                                  return (
+                                    <button 
+                                      key={col}
+                                      disabled={isBlocked}
+                                      onClick={() => {
+                                        updatePassenger(showSeatMapForPassenger, 'pref', trainPrefStr);
+                                        setShowSeatMapForPassenger(null);
+                                      }}
+                                      className={`w-14 h-14 rounded-xl font-bold text-[11px] sm:text-[12px] flex flex-col items-center justify-center transition-all ${
+                                        isBlocked ? 'bg-[#201010] text-[#a03030] border border-[#602020] cursor-not-allowed' :
+                                        isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 border border-blue-500 scale-105' :
+                                        isLadies ? 'bg-pink-500/20 text-pink-400 border border-pink-500/50 hover:bg-pink-500/30' :
+                                        isPremium ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 hover:bg-yellow-500/30' :
+                                        'bg-purple-500/20 text-purple-400 border border-purple-500/50 hover:bg-purple-500/30'
+                                      }`}
+                                    >
+                                      {isBlocked ? <Lock className="w-5 h-5" strokeWidth={2} /> : 
+                                       isLadies ? <span className="text-xs mb-0.5">👩</span> : 
+                                       isPremium ? <span className="text-xs mb-0.5">✨</span> : 
+                                       <span className="text-xs mb-0.5">🛏️</span>}
+                                      {!isBlocked && (
+                                        <span className="text-[10px] font-extrabold">{displayCol}</span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+
+                                {/* Sliding Door Graphic on right */}
+                                <div className="w-1.5 h-10 bg-indigo-500/30 border border-indigo-500/50 rounded-l-md absolute right-0" title="Sliding Door"></div>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        // 2AC, 3AC, Sleeper Bay Layout
+                        if (journeyDetails.travelClass.includes('2A') || journeyDetails.travelClass.includes('3A') || ['SL', 'Sleeper'].some(cls => journeyDetails.travelClass.includes(cls))) {
+                          const is2AC = journeyDetails.travelClass.includes('2A');
+                          return (
+                            <div key={rowIdx} className="w-full bg-[#111216]/80 border border-[#2e323d] rounded-2xl p-4 flex flex-col gap-3 relative shadow-lg hover:border-purple-500/30 transition-all">
+                              <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-purple-400">Bay {rowIdx + 1}</span>
+                                <span className="text-[9px] font-medium text-white/40">{is2AC ? '2 Tier AC Bay' : '3 Tier Sleeper Bay'}</span>
+                              </div>
+                              
+                              <div className="flex justify-between items-stretch gap-2">
+                                {/* Side Berths (Left Side) */}
+                                <div className="flex flex-col gap-1.5 items-center bg-black/30 p-2 rounded-xl border border-white/5 w-[100px] justify-center">
+                                  <span className="text-[8px] text-white/40 uppercase font-bold tracking-wider">Side</span>
+                                  <div className="flex flex-col gap-2">
+                                    {seatLeft.map(col => {
+                                      let displayCol = col;
+                                      let seatId = `${rowIdx + 1}${col}`;
+                                      
+                                      const base = rowIdx * 8;
+                                      if (col === 'SL') seatId = (base + 7).toString();
+                                      if (col === 'SU') seatId = (base + 8).toString();
+                                      displayCol = `${seatId} ${col}`;
+
+                                      const isBlocked = bookedSeats.has(seatId);
+                                      const isWindow = col === 'SL';
+                                      const seatType = isWindow ? 'Window Seat' : 'Upper Berth';
+                                      const numId = parseInt(seatId.replace(/\D/g, '') || '0');
+                                      const isLadies = numId > 0 && numId % 14 === 0;
+                                      const isPremium = numId > 0 && numId % 9 === 0;
+
+                                      const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').replace(' Berth', '').toUpperCase()}`;
+                                      const isSelected = passengers[showSeatMapForPassenger].pref === trainPrefStr;
+
+                                      return (
+                                        <button 
+                                          key={col}
+                                          disabled={isBlocked}
+                                          onClick={() => {
+                                            updatePassenger(showSeatMapForPassenger, 'pref', trainPrefStr);
+                                            setShowSeatMapForPassenger(null);
+                                          }}
+                                          className={`w-14 h-11 rounded-lg font-bold text-[9px] sm:text-[10px] flex flex-col items-center justify-center transition-all ${
+                                            isBlocked ? 'bg-[#201010] text-[#a03030] border border-[#602020] cursor-not-allowed' :
+                                            isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 border border-blue-500 scale-105' :
+                                            isLadies ? 'bg-pink-500/20 text-pink-400 border border-pink-500/50 hover:bg-pink-500/30' :
+                                            isPremium ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 hover:bg-yellow-500/30' :
+                                            'bg-purple-500/20 text-purple-400 border border-purple-500/50 hover:bg-purple-500/30'
+                                          }`}
+                                        >
+                                          {isBlocked ? <Lock className="w-4 h-4" strokeWidth={2} /> : 
+                                           isLadies ? <span className="text-[10px] mb-0.5">👩</span> : 
+                                           isPremium ? <span className="text-[10px] mb-0.5">✨</span> : 
+                                           <span className="text-[10px] mb-0.5">🛏️</span>}
+                                          {!isBlocked && (
+                                            <span className="font-extrabold">{displayCol}</span>
+                                          )}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+
+                                {/* Aisle walkpath separator */}
+                                <div className="flex flex-col justify-center items-center text-white/20 font-bold text-[8px] tracking-widest uppercase border-x border-dashed border-white/5 px-1.5 py-2 select-none" style={{ writingMode: 'vertical-lr' }}>
+                                  Aisle
+                                </div>
+
+                                {/* Cabin Berths (Right Side) */}
+                                <div className="flex flex-col gap-1.5 items-center bg-black/30 p-2 rounded-xl border border-white/5 flex-grow justify-center">
+                                  <span className="text-[8px] text-white/40 uppercase font-bold tracking-wider">Cabin</span>
+                                  <div className="grid gap-2 grid-cols-3">
+                                    {seatRight.map(col => {
+                                      let displayCol = col;
+                                      let seatId = `${rowIdx + 1}${col}`;
+                                      
+                                      const base = rowIdx * 8;
+                                      if (col === 'L1') seatId = (base + 1).toString();
+                                      if (col === 'M1') seatId = (base + 2).toString();
+                                      if (col === 'U1') seatId = (base + 3).toString();
+                                      if (col === 'L2') seatId = (base + 4).toString();
+                                      if (col === 'M2') seatId = (base + 5).toString();
+                                      if (col === 'U2') seatId = (base + 6).toString();
+                                      displayCol = `${seatId} ${col.replace(/[0-9]/g, '')}`;
+
+                                      const isBlocked = bookedSeats.has(seatId);
+                                      const isWindow = col.startsWith('L');
+                                      const isMiddle = col.startsWith('M');
+                                      const seatType = isWindow ? 'Window Seat' : isMiddle ? 'Middle Seat' : 'Upper Berth';
+                                      const numId = parseInt(seatId.replace(/\D/g, '') || '0');
+                                      const isLadies = numId > 0 && numId % 14 === 0;
+                                      const isPremium = numId > 0 && numId % 9 === 0;
+
+                                      const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').replace(' Berth', '').toUpperCase()}`;
+                                      const isSelected = passengers[showSeatMapForPassenger].pref === trainPrefStr;
+
+                                      return (
+                                        <button 
+                                          key={col}
+                                          disabled={isBlocked}
+                                          onClick={() => {
+                                            updatePassenger(showSeatMapForPassenger, 'pref', trainPrefStr);
+                                            setShowSeatMapForPassenger(null);
+                                          }}
+                                          className={`w-11 h-11 rounded-lg font-bold text-[9px] sm:text-[10px] flex flex-col items-center justify-center transition-all ${
+                                            isBlocked ? 'bg-[#201010] text-[#a03030] border border-[#602020] cursor-not-allowed' :
+                                            isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 border border-blue-500 scale-105' :
+                                            isLadies ? 'bg-pink-500/20 text-pink-400 border border-pink-500/50 hover:bg-pink-500/30' :
+                                            isPremium ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 hover:bg-yellow-500/30' :
+                                            'bg-purple-500/20 text-purple-400 border border-purple-500/50 hover:bg-purple-500/30'
+                                          }`}
+                                        >
+                                          {isBlocked ? <Lock className="w-4 h-4" strokeWidth={2} /> : 
+                                           isLadies ? <span className="text-[10px] mb-0.5">👩</span> : 
+                                           isPremium ? <span className="text-[10px] mb-0.5">✨</span> : 
+                                           <span className="text-[10px] mb-0.5">🛏️</span>}
+                                          {!isBlocked && (
+                                            <span className="font-extrabold">{displayCol}</span>
+                                          )}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
+                      }
+
+                      // Standard Seating / Flight / Bus Row Layout
+                      return (
+                        <div key={rowIdx} className="flex justify-between items-center gap-2 bg-black/20 p-3 rounded-xl border border-white/5">
+                          <div className="w-6 text-center text-white/30 text-xs font-bold">{rowIdx + 1}</div>
+                          <div className="flex gap-2 justify-center flex-1">
+                            <div className="flex gap-2">
+                              {seatLeft.map(col => {
+                                let displayCol = col;
+                                let seatId = `${rowIdx + 1}${col}`;
+
+                                const isBlocked = bookedSeats.has(seatId);
+                                const isWindow = col === 'A' || col === 'SL';
+                                const isMiddle = col === 'B' && !isBus;
+                                const seatType = isWindow ? 'Window Seat' : isMiddle ? 'Middle Seat' : 'Aisle/Berth';
+                                const numId = parseInt(seatId.replace(/\D/g, '') || '0');
+                                const isLadies = numId > 0 && numId % 14 === 0;
+                                const isPremium = numId > 0 && numId % 9 === 0;
+                                const isSleeper = ['SL', 'SU', 'L1', 'U1', 'M1', 'L2', 'U2', 'M2', 'L', 'U'].includes(col);
+
+                                const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').toUpperCase()}`;
+                                const isSelected = (!isFlight && !isBus && !isHotel && !isFood) 
+                                   ? passengers[showSeatMapForPassenger].pref === trainPrefStr 
+                                   : passengers[showSeatMapForPassenger].pref === `${seatId} (${seatType})`;
+
+                                return (
+                                  <button 
+                                    key={col}
+                                    disabled={isBlocked}
+                                    onClick={() => {
+                                      const newPref = (!isFlight && !isBus && !isHotel && !isFood) ? trainPrefStr : `${seatId} (${seatType})`;
+                                      updatePassenger(showSeatMapForPassenger, 'pref', newPref);
+                                      setShowSeatMapForPassenger(null);
+                                    }}
+                                    className={`w-11 h-11 rounded-lg font-bold text-[10px] sm:text-[11px] flex flex-col items-center justify-center transition-all ${
+                                      isBlocked ? 'bg-[#201010] text-[#a03030] border border-[#602020] cursor-not-allowed' :
+                                      isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 border border-blue-500' :
+                                      isLadies ? 'bg-pink-500/20 text-pink-400 border border-pink-500/50 hover:bg-pink-500/30' :
+                                      isPremium ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 hover:bg-yellow-500/30' :
+                                      isSleeper ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50 hover:bg-purple-500/30' :
+                                      'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 hover:bg-emerald-500/30'
+                                    }`}
+                                  >
+                                    {isBlocked ? <Lock className="w-5 h-5" strokeWidth={2} /> : 
+                                     isLadies ? <span className="text-xs mb-0.5">👩</span> : 
+                                     isPremium ? <span className="text-xs mb-0.5">✨</span> : 
+                                     isSleeper ? <span className="text-xs mb-0.5">🛏️</span> : null}
+                                    {!isBlocked && (
+                                      <span className={isLadies || isPremium || isSleeper ? 'text-[8px] opacity-80' : ''}>{displayCol}</span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            
+                            <div className="w-4 flex items-center justify-center text-[8px] font-bold text-white/10 select-none">|</div>
+                            
+                            <div className={`grid gap-2 ${seatRight.length > 3 ? (seatRight.length === 6 ? 'grid-cols-3' : 'grid-cols-2') : 'flex'}`}>
+                              {seatRight.map(col => {
+                                let displayCol = col;
+                                let seatId = `${rowIdx + 1}${col}`;
+
+                                const isBlocked = bookedSeats.has(seatId);
+                                const isWindow = col === 'F' || (isBus && col === 'D') || (isBus && col === 'C' && seatRight.length === 1);
+                                const isMiddle = col === 'E';
+                                const seatType = isWindow ? 'Window Seat' : isMiddle ? 'Middle Seat' : 'Aisle/Berth';
+                                const numId = parseInt(seatId.replace(/\D/g, '') || '0');
+                                const isLadies = numId > 0 && numId % 14 === 0;
+                                const isPremium = numId > 0 && numId % 9 === 0;
+                                const isSleeper = ['SL', 'SU', 'L1', 'U1', 'M1', 'L2', 'U2', 'M2'].includes(col);
+
+                                const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').toUpperCase()}`;
+                                const isSelected = (!isFlight && !isBus && !isHotel && !isFood) 
+                                   ? passengers[showSeatMapForPassenger].pref === trainPrefStr 
+                                   : passengers[showSeatMapForPassenger].pref === `${seatId} (${seatType})`;
+
+                                return (
+                                  <button 
+                                    key={col}
+                                    disabled={isBlocked}
+                                    onClick={() => {
+                                      const newPref = (!isFlight && !isBus && !isHotel && !isFood) ? trainPrefStr : `${seatId} (${seatType})`;
+                                      updatePassenger(showSeatMapForPassenger, 'pref', newPref);
+                                      setShowSeatMapForPassenger(null);
+                                    }}
+                                    className={`w-11 h-11 rounded-lg font-bold text-[10px] sm:text-[11px] flex flex-col items-center justify-center transition-all ${
+                                      isBlocked ? 'bg-[#201010] text-[#a03030] border border-[#602020] cursor-not-allowed' :
+                                      isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 border border-blue-500' :
+                                      isLadies ? 'bg-pink-500/20 text-pink-400 border border-pink-500/50 hover:bg-pink-500/30' :
+                                      isPremium ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 hover:bg-yellow-500/30' :
+                                      isSleeper ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50 hover:bg-purple-500/30' :
+                                      'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 hover:bg-emerald-500/30'
+                                    }`}
+                                  >
+                                    {isBlocked ? <Lock className="w-5 h-5" strokeWidth={2} /> : 
+                                     isLadies ? <span className="text-xs mb-0.5">👩</span> : 
+                                     isPremium ? <span className="text-xs mb-0.5">✨</span> : 
+                                     isSleeper ? <span className="text-xs mb-0.5">🛏️</span> : null}
+                                    {!isBlocked && (
+                                      <span className={isLadies || isPremium || isSleeper ? 'text-[8px] opacity-80' : ''}>{displayCol}</span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
-                        <div className="w-4"></div>
-                        <div className={`grid gap-2 ${seatRight.length > 3 ? (seatRight.length === 6 ? 'grid-cols-3' : 'grid-cols-2') : 'flex'}`}>
-                          {seatRight.map(col => {
-                            let displayCol = col;
-                            let seatId = `${rowIdx + 1}${col}`;
-                            
-                            if (journeyDetails.travelClass.includes('1A')) {
-                               const base = rowIdx * 2;
-                               if (col === 'U1') seatId = (base + 2).toString();
-                               displayCol = `${seatId} ${col.replace(/[0-9]/g, '')}`;
-                            } else if (journeyDetails.travelClass.includes('2A')) {
-                               const base = rowIdx * 6;
-                               if (col === 'L1') seatId = (base + 1).toString();
-                               if (col === 'U1') seatId = (base + 2).toString();
-                               if (col === 'L2') seatId = (base + 3).toString();
-                               if (col === 'U2') seatId = (base + 4).toString();
-                               displayCol = `${seatId} ${col.replace(/[0-9]/g, '')}`;
-                            } else if (['SL', '3A'].some(cls => journeyDetails.travelClass.includes(cls))) {
-                               const base = rowIdx * 8;
-                               if (col === 'L1') seatId = (base + 1).toString();
-                               if (col === 'M1') seatId = (base + 2).toString();
-                               if (col === 'U1') seatId = (base + 3).toString();
-                               if (col === 'L2') seatId = (base + 4).toString();
-                               if (col === 'M2') seatId = (base + 5).toString();
-                               if (col === 'U2') seatId = (base + 6).toString();
-                               displayCol = `${seatId} ${col.replace(/[0-9]/g, '')}`;
-                            }
-
-                            const isBlocked = bookedSeats.has(seatId);
-                            const isWindow = col === 'F' || (isBus && col === 'D') || (isBus && col === 'C' && seatRight.length === 1) || col === 'SU' || col === 'L2';
-                            const isMiddle = col === 'E';
-                            const seatType = isWindow ? 'Window Seat' : isMiddle ? 'Middle Seat' : 'Aisle/Berth';
-                            
-                            // Assign visual categories randomly for simulation, but consistently
-                            const numId = parseInt(seatId.replace(/\D/g, '') || '0');
-                            const isLadies = numId > 0 && numId % 14 === 0;
-                            const isPremium = numId > 0 && numId % 9 === 0;
-                            const isSleeper = ['SL', 'SU', 'L1', 'U1', 'M1', 'L2', 'U2', 'M2'].includes(col);
-                            
-                            const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').toUpperCase()}`;
-                            const isSelected = (!isFlight && !isBus && !isHotel && !isFood) 
-                               ? passengers[showSeatMapForPassenger].pref === trainPrefStr 
-                               : passengers[showSeatMapForPassenger].pref === `${seatId} (${seatType})`;
-
-                            return (
-                              <button 
-                                key={col}
-                                disabled={isBlocked}
-                                onClick={() => {
-                                  const newPref = (!isFlight && !isBus && !isHotel && !isFood) ? trainPrefStr : `${seatId} (${seatType})`;
-                                  updatePassenger(showSeatMapForPassenger, 'pref', newPref);
-                                  setShowSeatMapForPassenger(null);
-                                }}
-                                className={`w-11 h-11 rounded-lg font-bold text-[10px] sm:text-[11px] flex flex-col items-center justify-center transition-all ${
-                                  isBlocked ? 'bg-[#201010] text-[#a03030] border border-[#602020] cursor-not-allowed' :
-                                  isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 border border-blue-500' :
-                                  isLadies ? 'bg-pink-500/20 text-pink-400 border border-pink-500/50 hover:bg-pink-500/30' :
-                                  isPremium ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 hover:bg-yellow-500/30' :
-                                  isSleeper ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50 hover:bg-purple-500/30' :
-                                  'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 hover:bg-emerald-500/30'
-                                }`}
-                              >
-                                {isBlocked ? <Lock className="w-5 h-5" strokeWidth={2} /> : 
-                                 isLadies ? <span className="text-xs mb-0.5">👩</span> : 
-                                 isPremium ? <span className="text-xs mb-0.5">✨</span> : 
-                                 isSleeper ? <span className="text-xs mb-0.5">🛏️</span> : null}
-                                {!isBlocked && (
-                                  <span className={isLadies || isPremium || isSleeper ? 'text-[8px] opacity-80' : ''}>{displayCol}</span>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ));
+                      );
+                    })
                   })()}
                 </div>
               </div>

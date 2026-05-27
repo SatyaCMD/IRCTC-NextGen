@@ -60,7 +60,7 @@ export default function AdminLogin() {
         } else {
           // Fallback if OTP is bypassed
           Cookies.set('token', data.token);
-          router.push('/admin/dashboard');
+          router.push('/admin');
         }
       } else {
         toast.error(data.error || 'Access Denied: Invalid admin credentials.');

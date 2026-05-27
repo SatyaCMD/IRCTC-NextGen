@@ -5,11 +5,14 @@ import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 import Link from 'next/link';
-import { Eye, EyeOff, Train, Shield, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, Train, Shield, ArrowRight, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
+  const { login } = useAuth();
   const [formData, setFormData] = useState({ email: '', password: '', captcha: '' });
+  const [securityAlert, setSecurityAlert] = useState<{ email: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [captchaAnswer, setCaptchaAnswer] = useState(0);
   const [captchaQuestion, setCaptchaQuestion] = useState('');
@@ -97,10 +100,16 @@ export default function LoginPage() {
           return { path: '/' };
         };
         Cookies.set('token', res.data.token, getCookieOptions());
+        login(res.data.token);
         router.push(redirectPath);
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Invalid credentials check userid and password');
+      if (err.response?.data?.emailSent) {
+        setSecurityAlert({ email: err.response.data.registeredEmail });
+        toast.error('Incorrect password. Security alert sent.');
+      } else {
+        toast.error(err.response?.data?.error || 'Invalid credentials check userid and password');
+      }
       setIsLoading(false);
     }
   };
@@ -153,6 +162,46 @@ export default function LoginPage() {
                 : 'Welcome back! Please enter your details.'}
             </p>
           </div>
+
+          {securityAlert && (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 mb-6 text-sm text-red-200 relative animate-in fade-in slide-in-from-top-2 duration-300">
+              <button 
+                type="button" 
+                onClick={() => setSecurityAlert(null)}
+                className="absolute top-3 right-3 text-red-400 hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <div className="flex gap-3">
+                <Shield className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-bold text-white mb-1">Failed Login Alert Dispatched</h4>
+                  <p className="text-gray-300 leading-relaxed mb-3">
+                    Incorrect password. For security, an alert notification has been sent to your registered email: <strong className="text-red-400">{securityAlert.email}</strong>.
+                  </p>
+                  <div className="flex gap-3">
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setIsForgotPassword(true);
+                        setResetData(prev => ({ ...prev, email: formData.email }));
+                        setSecurityAlert(null);
+                      }}
+                      className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-white rounded-lg text-xs font-bold transition-all"
+                    >
+                      Reset Password Now
+                    </button>
+                    <a 
+                      href="/support"
+                      className="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg text-xs font-bold transition-all"
+                    >
+                      Contact Support
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {isForgotPassword ? (
             <form onSubmit={handleResetSubmit} className="space-y-6">

@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const Train = require('../models/Train');
 const Service = require('../models/Service');
@@ -7,7 +8,7 @@ const emailService = require('../services/emailService');
 
 exports.createBooking = async (req, res) => {
   try {
-    const { trainId, serviceId, serviceType, trainClass, serviceClass, quota, passengers, totalPrice, walletAmountUsed, bookingRef, journeyDate, from, to, departureTime, pantryItems, orderedItems } = req.body;
+    const { trainId, serviceId, serviceType, trainClass, serviceClass, quota, passengers, totalPrice, walletAmountUsed, bookingRef, journeyDate, from, to, departureTime, pantryItems, orderedItems, contactInfo } = req.body;
     
     const cls = serviceClass || trainClass || 'SL';
     const qta = quota || 'General';
@@ -56,7 +57,7 @@ exports.createBooking = async (req, res) => {
 
     let isRunningOnDate = true;
     let notRunningMsg = '';
-    if (trainId) {
+    if (trainId && mongoose.Types.ObjectId.isValid(trainId)) {
       const train = await Train.findById(trainId);
       if (train && train.daysOfRun && train.daysOfRun.length > 0) {
          if (!train.daysOfRun.includes('Daily')) {
@@ -76,6 +77,14 @@ exports.createBooking = async (req, res) => {
     }
 
     const pnr = Math.floor(1000000000 + Math.random() * 9000000000).toString(); // 10 digit PNR
+
+    const getPnrDistance = (pnrStr) => {
+      const digits = (pnrStr || '').replace(/\D/g, '');
+      if (!digits) return 1530;
+      const num = parseInt(digits.substring(0, 6)) || 0;
+      return 1200 + (num % 800);
+    };
+    const distance = getPnrDistance(pnr);
 
     let finalPrice = totalPrice;
     let employeeDiscountApplied = 0;
@@ -104,10 +113,36 @@ exports.createBooking = async (req, res) => {
        finalPrice = finalPrice + commissionAmount;
     }
 
+    const cleanTrainId = (trainId && mongoose.Types.ObjectId.isValid(trainId)) ? trainId : undefined;
+    const cleanServiceId = (serviceId && mongoose.Types.ObjectId.isValid(serviceId)) ? serviceId : undefined;
+    const ref = bookingRef || `BKG${Date.now()}${Math.floor(100 + Math.random() * 900)}`;
+
     if (!isRunningOnDate) {
       const cancelledBooking = new Booking({
-        userId: req.user.userId, trainId, serviceId, serviceType: serviceType || 'Train', serviceClass: cls, quota: qta, passengers, seatNumbers: [], totalPrice: finalPrice, commissionAmount,
-        status: 'Cancelled', refundAmount: finalPrice, refundStatus: 'Completed', pnr, bookingRef: bookingRef || `REF${Date.now()}`, journeyDate, from, to, departureTime
+        userId: req.user.userId, 
+        trainId: cleanTrainId, 
+        serviceId: cleanServiceId, 
+        serviceType: serviceType || 'Train', 
+        serviceClass: cls, 
+        quota: qta, 
+        passengers, 
+        seatNumbers: [], 
+        totalPrice: finalPrice, 
+        commissionAmount,
+        status: 'Cancelled', 
+        refundAmount: finalPrice, 
+        refundStatus: 'Completed', 
+        pnr, 
+        distance,
+        bookingRef: ref, 
+        journeyDate, 
+        from, 
+        to, 
+        departureTime,
+        contactInfo: contactInfo ? {
+          email: contactInfo.email || '',
+          phone: contactInfo.phone || ''
+        } : undefined
       });
       await cancelledBooking.save();
       return res.status(400).json({ error: notRunningMsg });
@@ -115,8 +150,8 @@ exports.createBooking = async (req, res) => {
 
     const booking = new Booking({
       userId: req.user.userId,
-      trainId,
-      serviceId,
+      trainId: cleanTrainId,
+      serviceId: cleanServiceId,
       serviceType: serviceType || 'Train',
       serviceClass: cls,
       quota: qta,
@@ -126,13 +161,18 @@ exports.createBooking = async (req, res) => {
       commissionAmount,
       status: 'Pending',
       pnr,
-      bookingRef,
+      distance,
+      bookingRef: ref,
       journeyDate: new Date(journeyDate).toISOString(),
       from,
       to,
       departureTime,
       pantryItems,
       orderedItems,
+      contactInfo: contactInfo ? {
+        email: contactInfo.email || '',
+        phone: contactInfo.phone || ''
+      } : undefined,
       expireAt: new Date(Date.now() + 15 * 60000)
     });
 
@@ -173,6 +213,14 @@ exports.confirmBookingPayment = async (req, res) => {
     if (status === 'success') booking.status = 'Confirmed';
     else if (status === 'Verification Pending') booking.status = 'Verification Pending';
     else booking.status = 'Cancelled';
+
+    if (req.body.contactInfo) {
+      booking.contactInfo = {
+        email: req.body.contactInfo.email || '',
+        phone: req.body.contactInfo.phone || ''
+      };
+      booking.markModified('contactInfo');
+    }
 
     const processSeatAllocation = async (bookingDoc) => {
       // Core Seat Management & Auto-Upgradation Logic
@@ -225,7 +273,7 @@ exports.confirmBookingPayment = async (req, res) => {
       if (user) {
         user.loyaltyPoints = (user.loyaltyPoints || 0) + (booking.passengers.length * 50);
         await user.save();
-        emailService.sendBookingConfirmation(user.email, booking).catch(console.error);
+        emailService.sendBookingConfirmation(booking.contactInfo?.email || user.email, booking).catch(console.error);
       }
       await processSeatAllocation(booking);
     } else if (booking.status === 'Verification Pending') {
@@ -241,7 +289,7 @@ exports.confirmBookingPayment = async (req, res) => {
               u.loyaltyPoints = (u.loyaltyPoints || 0) + (b.passengers.length * 50);
               await u.save();
               const fullB = await Booking.findById(b._id).populate('trainId serviceId');
-              emailService.sendBookingConfirmation(u.email, fullB).catch(console.error);
+              emailService.sendBookingConfirmation(fullB.contactInfo?.email || u.email, fullB).catch(console.error);
            }
            await processSeatAllocation(b);
          } catch(e) {
@@ -265,7 +313,8 @@ exports.cancelBooking = async (req, res) => {
     
     // Calculate refund based on time
     const now = new Date();
-    const journeyDateTime = new Date(`${booking.journeyDate}T${booking.departureTime}`);
+    const datePart = booking.journeyDate ? booking.journeyDate.split('T')[0] : new Date().toISOString().split('T')[0];
+    const journeyDateTime = new Date(`${datePart}T${booking.departureTime || '10:00'}`);
     const hoursToDeparture = (journeyDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
     const hoursSinceBooking = (now.getTime() - new Date(booking.createdAt).getTime()) / (1000 * 60 * 60);
 
@@ -370,16 +419,46 @@ exports.getUserBookings = async (req, res) => {
 
 exports.getPnrStatus = async (req, res) => {
   try {
-    const booking = await Booking.findOne({ pnr: req.params.pnr }).populate('trainId', 'trainNumber name');
+    const booking = await Booking.findOne({ pnr: req.params.pnr }).populate('trainId', 'trainNumber name').populate('userId');
     if (!booking) return res.status(404).json({ error: 'PNR not found' });
 
     const now = new Date();
-    const journeyDateTime = new Date(`${booking.journeyDate}T${booking.departureTime}`);
+    const datePart = booking.journeyDate ? booking.journeyDate.split('T')[0] : new Date().toISOString().split('T')[0];
+    const journeyDateTime = new Date(`${datePart}T${booking.departureTime || '10:00'}`);
     const hoursToDeparture = (journeyDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
     const isChartPrepared = hoursToDeparture > 0 && hoursToDeparture <= 4;
     const hasDeparted = hoursToDeparture <= 0;
 
     const chartStatus = hasDeparted ? 'Train Departed' : (isChartPrepared ? 'Chart Prepared' : 'Chart Not Prepared');
+
+    // Trigger Chart Prepared email if prepared and not yet sent
+    if (isChartPrepared && !booking.chartPreparedEmailSent && booking.status === 'Confirmed') {
+      const user = booking.userId;
+      if (user && user.email) {
+        let trainName = 'IRCTC Train';
+        if (booking.trainId) {
+          trainName = `${booking.trainId.trainNumber} / ${booking.trainId.name}`.toUpperCase();
+        } else if (booking.from) {
+          trainName = `${booking.from.split(' ')[0]} EXPRESS`.toUpperCase();
+        }
+        
+        const seatDetails = booking.seatNumbers && booking.seatNumbers.length > 0
+          ? booking.seatNumbers.join(', ')
+          : 'CONFIRMED';
+
+        emailService.sendChartPreparationEmail(
+          user.email,
+          user.name || 'Customer',
+          booking.pnr,
+          trainName,
+          booking.departureTime || 'TBD',
+          seatDetails
+        ).catch(console.error);
+
+        booking.chartPreparedEmailSent = true;
+        await booking.save();
+      }
+    }
 
     res.json({
       pnr: booking.pnr,
