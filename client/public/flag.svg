@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" width="100%" height="100%">
+  <defs>
+    <!-- Rounded corners clip -->
+    <clipPath id="flag-clip">
+      <rect width="900" height="600" rx="90" ry="90" />
+    </clipPath>
+    
+    <!-- Premium Glossy Gradient -->
+    <linearGradient id="gloss-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35" />
+      <stop offset="30%" stop-color="#ffffff" stop-opacity="0.1" />
+      <stop offset="50%" stop-color="#000000" stop-opacity="0.0" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.25" />
+    </linearGradient>
+    
+    <!-- 3D Wave Shadow overlay -->
+    <linearGradient id="wave-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.2" />
+      <stop offset="25%" stop-color="#ffffff" stop-opacity="0.25" />
+      <stop offset="50%" stop-color="#000000" stop-opacity="0.25" />
+      <stop offset="75%" stop-color="#ffffff" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.2" />
+    </linearGradient>
+  </defs>
+  
+  <g clip-path="url(#flag-clip)">
+    <!-- Saffron Band -->
+    <rect width="900" height="200" fill="#FF9933" />
+    
+    <!-- White Band -->
+    <rect y="200" width="900" height="200" fill="#FFFFFF" />
+    
+    <!-- Green Band -->
+    <rect y="400" width="900" height="200" fill="#138808" />
+    
+    <!-- Ashoka Chakra -->
+    <g transform="translate(450, 300)">
+      <circle r="92" fill="none" stroke="#000080" stroke-width="6" />
+      <circle r="16" fill="#000080" />
+      <!-- 24 Spokes -->
+      <path d="M 0 0 L 0 -92 M 0 0 L 0 92 M 0 0 L -92 0 M 0 0 L 92 0 M 0 0 L -46 -80 M 0 0 L 46 80 M 0 0 L -80 -46 M 0 0 L 80 46 M 0 0 L -80 46 M 0 0 L 80 -46 M 0 0 L -46 80 M 0 0 L 46 -80 M 0 0 L -24 -89 M 0 0 L 24 89 M 0 0 L -89 -24 M 0 0 L 89 24 M 0 0 L -89 24 M 0 0 L 89 -24 M 0 0 L -24 89 M 0 0 L 24 -89 M 0 0 L -65 -65 M 0 0 L 65 65 M 0 0 L -65 65 M 0 0 L 65 -65" stroke="#000080" stroke-width="2.5" />
+      <circle r="92" fill="none" stroke="#000080" stroke-width="2" />
+    </g>
+    
+    <!-- Premium 3D overlays for realistic gloss/depth -->
+    <rect width="900" height="600" fill="url(#gloss-grad)" />
+    <rect width="900" height="600" fill="url(#wave-grad)" style="mix-blend-mode: overlay;" />
+    
+    <!-- Subtle flag border for clean rendering -->
+    <rect width="900" height="600" rx="90" ry="90" fill="none" stroke="#ffffff" stroke-width="6" opacity="0.15" />
+  </g>
+</svg>

@@ -121,8 +121,14 @@ export default function AdminDashboard() {
     // Fetch data only after the authorization interceptor has been successfully registered
     fetchData();
 
+    // Set up a 10-second polling interval to keep all bookings, users, and stats automatically synced in real time
+    const interval = setInterval(() => {
+      fetchData();
+    }, 10000);
+
     return () => {
       axios.interceptors.request.eject(interceptor);
+      clearInterval(interval);
     };
   }, [router]);
 

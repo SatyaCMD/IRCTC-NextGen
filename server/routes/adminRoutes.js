@@ -79,8 +79,22 @@ router.put('/services/:id', async (req, res) => {
 // GET all bookings
 router.get('/bookings', async (req, res) => {
   try {
-    const bookings = await Booking.find().sort({ createdAt: -1 });
-    res.json(bookings);
+    const bookings = await Booking.find().sort({ createdAt: -1 }).populate('trainId serviceId');
+    const mappedBookings = bookings.map(b => {
+      const bookingObj = b.toObject();
+      let serviceName = `${b.serviceType || 'Train'} Booking`;
+      if (b.trainId) {
+        serviceName = `${b.trainId.trainNumber} / ${b.trainId.name}`;
+      } else if (b.serviceId) {
+        serviceName = b.serviceId.name;
+      }
+      bookingObj.serviceDetails = {
+        name: serviceName,
+        type: b.serviceType
+      };
+      return bookingObj;
+    });
+    res.json(mappedBookings);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch bookings' });
   }
