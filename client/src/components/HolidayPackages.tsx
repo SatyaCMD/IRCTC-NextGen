@@ -9,7 +9,7 @@ const DEFAULT_PACKAGES = [
     _id: "default-kashmir",
     type: "Package",
     name: "Kashmir Valley Retreat",
-    imgUrl: "https://images.unsplash.com/photo-1566837430227-72377b63d919?auto=format&fit=crop&w=800&q=60",
+    imgUrl: "https://images.unsplash.com/photo-1595815771614-ade9d652a65d?auto=format&fit=crop&w=800",
     description: "Experience paradise on earth with our 5-day Kashmir valley tour including Srinagar, Gulmarg, and Pahalgam.",
     highlights: ["Srinagar Houseboat Stay", "Shikara Ride on Dal Lake", "Gulmarg Gondola Ride", "Pahalgam Valley Tour"],
     fullDetails: "Discover the unmatched beauty of Jammu & Kashmir. This package takes you through the romantic Dal Lake in Srinagar, the snow-covered meadows of Gulmarg, and the pristine Lidder River in Pahalgam. Includes premium stays, private transport, and local culinary experiences."
