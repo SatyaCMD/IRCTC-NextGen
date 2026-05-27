@@ -121,6 +121,81 @@ function startCronJobs() {
             console.error('[Cron Error] Feedback:', err);
         }
     });
+
+    // 4. Scans and retries failed e-ticket booking confirmation emails (Runs every minute)
+    // Ensures that even if the mail server had a temporary network glitch, the user receives their e-ticket.
+    cron.schedule('*/1 * * * *', async () => {
+        try {
+            const pendingEmails = await Booking.find({
+                status: 'Confirmed',
+                bookingConfirmationEmailSent: { $ne: true }
+            }).populate('trainId serviceId');
+
+            if (pendingEmails.length > 0) {
+                console.log(`[Cron Recovery] Found ${pendingEmails.length} confirmed bookings with unsent confirmation emails. Processing...`);
+                for (const booking of pendingEmails) {
+                    const u = await User.findById(booking.userId._id || booking.userId);
+                    const recipientEmail = booking.contactInfo?.email || u?.email;
+                    if (recipientEmail) {
+                        console.log(`[Cron Recovery] Retrying e-ticket confirmation email for PNR ${booking.pnr || booking.bookingRef} to ${recipientEmail}`);
+                        await emailService.sendBookingConfirmation(recipientEmail, booking)
+                            .catch(err => console.error(`[Cron Recovery Error] Retry failed for PNR ${booking.pnr || booking.bookingRef}:`, err));
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('[Cron Recovery Error] Email retry cron failed:', err);
+        }
+    });
+
+    // 5. Auto-confirm Stuck "Verification Pending" Bookings (Runs every minute)
+    // Recovers bookings stuck in "Verification Pending" due to server restarts/interruptions.
+    cron.schedule('*/1 * * * *', async () => {
+        try {
+            const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+            const stuckBookings = await Booking.find({
+                status: 'Verification Pending',
+                createdAt: { $lte: twoMinutesAgo }
+            }).populate('trainId serviceId');
+
+            if (stuckBookings.length > 0) {
+                console.log(`[Cron Recovery] Found ${stuckBookings.length} bookings stuck in Verification Pending. Confirming...`);
+                for (const booking of stuckBookings) {
+                    console.log(`[Cron Recovery] Auto-confirming PNR ${booking.pnr || booking.bookingRef}`);
+                    booking.status = 'Confirmed';
+                    const u = await User.findById(booking.userId._id || booking.userId);
+                    if (u) {
+                        u.loyaltyPoints = (u.loyaltyPoints || 0) + (booking.passengers.length * 50);
+                        await u.save();
+                    }
+                    await booking.save();
+
+                    // Send the confirmation email
+                    const recipientEmail = booking.contactInfo?.email || u?.email;
+                    if (recipientEmail) {
+                        await emailService.sendBookingConfirmation(recipientEmail, booking).catch(console.error);
+                    }
+
+                    // Process seat allocation if trainId is defined
+                    if (booking.trainId) {
+                        const Train = require('../models/Train');
+                        const train = await Train.findById(booking.trainId);
+                        if (train) {
+                            let requestedClass = train.classes.find(c => c.type === booking.serviceClass);
+                            let numPassengers = booking.passengers.length;
+                            if (requestedClass && requestedClass.availableSeats >= numPassengers) {
+                                requestedClass.availableSeats -= numPassengers;
+                                await train.save();
+                                console.log(`[Cron Recovery] Deducted ${numPassengers} seats from class ${booking.serviceClass} for PNR ${booking.pnr}`);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('[Cron Recovery Error] Verification Pending recovery failed:', err);
+        }
+    });
 }
 
 module.exports = { startCronJobs };

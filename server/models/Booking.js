@@ -39,6 +39,7 @@ const bookingSchema = new mongoose.Schema({
   refundAmount: { type: Number, default: 0 },
   refundStatus: { type: String, enum: ['None', 'Initiated', 'Completed'], default: 'None' },
   chartPreparedEmailSent: { type: Boolean, default: false },
+  bookingConfirmationEmailSent: { type: Boolean, default: false },
   contactInfo: {
     email: { type: String },
     phone: { type: String }

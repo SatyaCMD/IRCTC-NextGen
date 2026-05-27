@@ -606,6 +606,18 @@ exports.sendBookingConfirmation = async (userEmail, booking) => {
 
     const info = await transporter.sendMail(message);
     console.log(`Booking Confirmation sent to ${userEmail}`);
+
+    try {
+        const Booking = require('../models/Booking');
+        const bookingDoc = await Booking.findById(booking._id);
+        if (bookingDoc) {
+            bookingDoc.bookingConfirmationEmailSent = true;
+            await bookingDoc.save();
+            console.log(`Updated booking confirmation email sent status in DB for PNR ${idStr}`);
+        }
+    } catch (saveErr) {
+        console.error('Failed to update booking confirmation status in DB:', saveErr);
+    }
 };
 
 exports.sendLoginOtpEmail = async (userEmail, otp) => {
