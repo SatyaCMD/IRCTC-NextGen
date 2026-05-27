@@ -10,8 +10,19 @@ exports.createBooking = async (req, res) => {
   try {
     const { trainId, serviceId, serviceType, trainClass, serviceClass, quota, passengers, totalPrice, walletAmountUsed, bookingRef, journeyDate, from, to, departureTime, pantryItems, orderedItems, contactInfo } = req.body;
     
+    // 60-day Advance Reservation Period limit validation
+    const journeyDateObj = new Date(journeyDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const maxBookingDate = new Date(today);
+    maxBookingDate.setDate(today.getDate() + 60);
+
+    if (journeyDateObj > maxBookingDate) {
+      return res.status(400).json({ error: "Advance Reservation Period is limited to 60 days." });
+    }
+
     const cls = serviceClass || trainClass || 'SL';
-    const qta = quota || 'General';
+    let qta = quota || 'General';
     
     let coachPrefix = 'S';
     let capacity = 80;
@@ -27,6 +38,53 @@ exports.createBooking = async (req, res) => {
        else if (cls.includes('3A') || cls.includes('3AC')) { coachPrefix = 'B'; capacity = 60; }
        else if (cls.includes('GS') || cls.includes('General')) { coachPrefix = 'GEN'; capacity = 150; }
        else { coachPrefix = 'S'; capacity = 80; } // Default to Sleeper
+    }
+
+    // Senior Citizen Logic:
+    // 15% seats reserved for senior citizens, only if booked at least 2 days before the journey date
+    const journeyDay = new Date(journeyDateObj);
+    journeyDay.setHours(0, 0, 0, 0);
+    const diffTime = journeyDay.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    const seniorCitizens = passengers.filter(p => p.age >= 60);
+    const hasSeniorCitizen = seniorCitizens.length > 0;
+    
+    let seniorDiscount = 0;
+    let seniorLogicApplied = false;
+    const cleanTrainId = (trainId && mongoose.Types.ObjectId.isValid(trainId)) ? trainId : undefined;
+
+    if (hasSeniorCitizen && diffDays >= 2) {
+      // Check 15% quota
+      const existingBookings = await Booking.find({
+        trainId: cleanTrainId,
+        journeyDate: new Date(journeyDate).toISOString(),
+        serviceClass: cls,
+        status: { $ne: 'Cancelled' }
+      });
+      
+      let bookedSeniorSeats = 0;
+      existingBookings.forEach(b => {
+        if (b.quota === 'Senior Citizen (SS)') {
+          bookedSeniorSeats += b.passengers.filter(p => p.age >= 60).length;
+        }
+      });
+      
+      let maxSeniorSeats = Math.floor(capacity * 0.15);
+      if (maxSeniorSeats < 1) maxSeniorSeats = 1;
+
+      if (bookedSeniorSeats + seniorCitizens.length <= maxSeniorSeats) {
+        seniorLogicApplied = true;
+        qta = 'Senior Citizen (SS)';
+        
+        const basePricePerPassenger = totalPrice / passengers.length;
+        passengers.forEach(p => {
+          if (p.age >= 60) {
+            seniorDiscount += basePricePerPassenger * 0.40;
+            p.seatPreference = 'Lower'; // Force Lower Berth auto-allocation
+          }
+        });
+      }
     }
 
     const seatNumbers = passengers.map((p, i) => {
@@ -86,7 +144,7 @@ exports.createBooking = async (req, res) => {
     };
     const distance = getPnrDistance(pnr);
 
-    let finalPrice = totalPrice;
+    let finalPrice = totalPrice - (seniorDiscount || 0);
     let employeeDiscountApplied = 0;
     const user = await User.findById(req.user.userId);
     
@@ -113,7 +171,6 @@ exports.createBooking = async (req, res) => {
        finalPrice = finalPrice + commissionAmount;
     }
 
-    const cleanTrainId = (trainId && mongoose.Types.ObjectId.isValid(trainId)) ? trainId : undefined;
     const cleanServiceId = (serviceId && mongoose.Types.ObjectId.isValid(serviceId)) ? serviceId : undefined;
     const ref = bookingRef || `BKG${Date.now()}${Math.floor(100 + Math.random() * 900)}`;
 
@@ -208,6 +265,11 @@ exports.confirmBookingPayment = async (req, res) => {
     const booking = await Booking.findById(req.params.id).populate('trainId serviceId userId');
     
     if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    
+    if (booking.status === 'Confirmed' || booking.status === 'Cancelled') {
+      console.log(`[Payment] PNR ${booking.pnr || booking.bookingRef} is already processed with status: ${booking.status}. Skipping duplicate execution.`);
+      return res.json(booking);
+    }
     
     booking.paymentId = paymentId;
     if (status === 'success') booking.status = 'Confirmed';
@@ -315,23 +377,38 @@ exports.cancelBooking = async (req, res) => {
     const now = new Date();
     const datePart = booking.journeyDate ? booking.journeyDate.split('T')[0] : new Date().toISOString().split('T')[0];
     const journeyDateTime = new Date(`${datePart}T${booking.departureTime || '10:00'}`);
-    const hoursToDeparture = (journeyDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    
+    // Normalize both times to local date objects to check calendar day difference
+    const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const journeyDateObj = new Date(journeyDateTime.getFullYear(), journeyDateTime.getMonth(), journeyDateTime.getDate());
+    const daysToJourney = Math.ceil((journeyDateObj.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+    
     const hoursSinceBooking = (now.getTime() - new Date(booking.createdAt).getTime()) / (1000 * 60 * 60);
 
     let refundAmount = 0;
-    const isChartPrepared = hoursToDeparture > 0 && hoursToDeparture <= 4;
     
-    if (isChartPrepared) {
-      refundAmount = 0; // No refund after chart prepared
-    } else if (hoursSinceBooking <= 8) {
-      refundAmount = booking.totalPrice;
-    } else if (hoursSinceBooking <= 24) {
-      refundAmount = booking.totalPrice * 0.50;
-    } else if (hoursSinceBooking <= 36) {
-      refundAmount = booking.totalPrice * 0.15;
-    } else {
+    if (daysToJourney <= 0) {
+      // Non-refundable on the date of journey or later
       refundAmount = 0;
+    } else {
+      // Future bookings
+      if (hoursSinceBooking <= 24) {
+        refundAmount = booking.totalPrice * 0.90; // 90% refund
+      } else if (hoursSinceBooking <= 48) {
+        refundAmount = booking.totalPrice * 0.75; // 75% refund
+      } else if (hoursSinceBooking <= 72) {
+        refundAmount = booking.totalPrice * 0.50; // 50% refund
+      } else {
+        // Outside 72 hours window since booking
+        if (daysToJourney >= 2) {
+          refundAmount = booking.totalPrice * 0.15; // 15% refund if >= 2 days to journey
+        } else {
+          refundAmount = 0; // Non-refundable if < 2 days to journey
+        }
+      }
     }
+    
+    refundAmount = Math.round(refundAmount);
 
     const prevStatus = booking.status;
     booking.status = 'Cancelled';
@@ -350,7 +427,7 @@ exports.cancelBooking = async (req, res) => {
            referenceId: booking.pnr || booking.bookingRef
          });
          await user.save();
-         emailService.sendCancellationNotice(user.email, booking).catch(console.error);
+         emailService.sendCancellationNotice(booking.contactInfo?.email || user.email, booking).catch(console.error);
       }
     }
     
@@ -393,25 +470,12 @@ exports.cancelBooking = async (req, res) => {
 
 exports.getUserBookings = async (req, res) => {
   try {
-    const threeMonthsAgo = new Date();
-    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-    
-    const threeMonthsFuture = new Date();
-    threeMonthsFuture.setMonth(threeMonthsFuture.getMonth() + 3);
-
     const bookings = await Booking.find({ 
-      userId: req.user.userId,
-      createdAt: { $gte: threeMonthsAgo, $lte: threeMonthsFuture }
-    }).populate('trainId', 'trainNumber name source destination').populate('serviceId', 'name type');
-    
-    // Filter out completed journeys
-    const todayStr = new Date().toISOString().split('T')[0];
-    const upcomingBookings = bookings.filter(b => {
-      if (!b.journeyDate) return true; // Keep legacy without date
-      return b.journeyDate >= todayStr;
-    });
+      userId: req.user.userId
+    }).populate('trainId', 'trainNumber name source destination').populate('serviceId', 'name type')
+      .sort({ createdAt: -1 });
 
-    res.json(upcomingBookings);
+    res.json(bookings);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }

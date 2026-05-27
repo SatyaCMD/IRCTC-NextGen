@@ -67,13 +67,13 @@ export default function TrainSearch({ defaultServiceType = 'Train' }: { defaultS
               <div>
                 <label className="text-xs text-gray-400 mb-1 block">Check-in Date</label>
                 <div className="relative">
-                  <input type="date" value={date} onChange={e => setDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="input-field cursor-pointer" />
+                  <input type="date" value={date} onChange={e => setDate(e.target.value)} min={new Date().toISOString().split('T')[0]} max={new Date(Date.now() + 60*24*60*60*1000).toISOString().split('T')[0]} className="input-field cursor-pointer" />
                 </div>
               </div>
               <div>
                 <label className="text-xs text-gray-400 mb-1 block">Check-out Date</label>
                 <div className="relative">
-                  <input type="date" min={date} className="input-field cursor-pointer" />
+                  <input type="date" min={date} max={new Date(Date.now() + 60*24*60*60*1000).toISOString().split('T')[0]} className="input-field cursor-pointer" />
                 </div>
               </div>
               <div>
@@ -119,7 +119,7 @@ export default function TrainSearch({ defaultServiceType = 'Train' }: { defaultS
               <div>
                 <label className="text-xs text-gray-400 mb-1 block">Delivery Date</label>
                 <div className="relative">
-                  <input type="date" value={date} onChange={e => setDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="input-field cursor-pointer" />
+                  <input type="date" value={date} onChange={e => setDate(e.target.value)} min={new Date().toISOString().split('T')[0]} max={new Date(Date.now() + 60*24*60*60*1000).toISOString().split('T')[0]} className="input-field cursor-pointer" />
                 </div>
               </div>
               <div>
@@ -141,7 +141,7 @@ export default function TrainSearch({ defaultServiceType = 'Train' }: { defaultS
               <div>
                 <label className="text-xs text-gray-400 mb-1 block">Departure Date</label>
                 <div className="relative">
-                  <input type="date" value={date} onChange={e => setDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="input-field cursor-pointer" />
+                  <input type="date" value={date} onChange={e => setDate(e.target.value)} min={new Date().toISOString().split('T')[0]} max={new Date(Date.now() + 60*24*60*60*1000).toISOString().split('T')[0]} className="input-field cursor-pointer" />
                 </div>
               </div>
               <div>
@@ -222,7 +222,7 @@ export default function TrainSearch({ defaultServiceType = 'Train' }: { defaultS
                value={date}
                onChange={(e) => setDate(e.target.value)}
                min={new Date().toISOString().split('T')[0]} 
-               max={new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0]} 
+               max={new Date(Date.now() + 60*24*60*60*1000).toISOString().split('T')[0]} 
                className="input-field cursor-pointer" 
              />
            </div>
@@ -233,7 +233,7 @@ export default function TrainSearch({ defaultServiceType = 'Train' }: { defaultS
              <input 
                type="date" 
                min={date} 
-               max={new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0]} 
+               max={new Date(Date.now() + 60*24*60*60*1000).toISOString().split('T')[0]} 
                className="input-field cursor-pointer" 
              />
            </div>

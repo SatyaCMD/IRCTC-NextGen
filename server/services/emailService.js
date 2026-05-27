@@ -201,11 +201,11 @@ exports.sendCancellationNotice = async (userEmail, booking) => {
     const content = `
         <h2 style="color: #0f172a; margin-top: 0;">Cancellation Confirmed</h2>
         <p>Dear Customer,</p>
-        <p>Your booking with PNR <strong>${booking.pnrNumber}</strong> has been successfully cancelled as per your request. The refund details are provided below.</p>
+        <p>Your booking with PNR <strong>${booking.pnr}</strong> has been successfully cancelled as per your request. The refund details are provided below.</p>
         
         <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; margin: 25px 0;">
             <table style="width: 100%; border-collapse: collapse;">
-                <tr><td style="padding: 8px 0; color: #78350f; width: 40%;"><strong>PNR Number:</strong></td><td style="padding: 8px 0; color: #92400e; font-weight: 600;">${booking.pnrNumber}</td></tr>
+                <tr><td style="padding: 8px 0; color: #78350f; width: 40%;"><strong>PNR Number:</strong></td><td style="padding: 8px 0; color: #92400e; font-weight: 600;">${booking.pnr}</td></tr>
                 <tr><td style="padding: 8px 0; color: #78350f;"><strong>Service Type:</strong></td><td style="padding: 8px 0; color: #92400e;">${booking.serviceType || 'Train Ticket'}</td></tr>
                 <tr><td style="padding: 8px 0; color: #78350f;"><strong>Refund Amount:</strong></td><td style="padding: 8px 0; color: #b45309; font-weight: 700; font-size: 18px;">₹${booking.refundAmount || booking.totalPrice || 0}</td></tr>
                 <tr><td style="padding: 8px 0; color: #78350f;"><strong>Refund Status:</strong></td><td style="padding: 8px 0; color: #166534; font-weight: 600;">Processed to Wallet</td></tr>
@@ -221,8 +221,8 @@ exports.sendCancellationNotice = async (userEmail, booking) => {
     const message = {
         from: `"IRCTC NextGen Support" <${process.env.SMTP_USER}>`,
         to: userEmail,
-        subject: `[IRCTC Cancellation] Refund Initiated for PNR ${booking.pnrNumber}`,
-        html: getBaseHtml('Cancellation Confirmation', content, `Your booking for PNR ${booking.pnrNumber} was cancelled.`)
+        subject: `[IRCTC Cancellation] Refund Initiated for PNR ${booking.pnr}`,
+        html: getBaseHtml('Cancellation Confirmation', content, `Your booking for PNR ${booking.pnr} was cancelled.`)
     };
 
     const info = await transporter.sendMail(message);
@@ -230,6 +230,16 @@ exports.sendCancellationNotice = async (userEmail, booking) => {
 };
 
 exports.sendBookingConfirmation = async (userEmail, booking) => {
+    try {
+        const Booking = require('../models/Booking');
+        const bookingDoc = await Booking.findById(booking._id);
+        if (bookingDoc && bookingDoc.bookingConfirmationEmailSent) {
+            console.log(`[EmailService] Booking confirmation email already sent for PNR ${bookingDoc.pnr || booking.pnr || 'N/A'}. Skipping duplicate dispatch.`);
+            return;
+        }
+    } catch (checkErr) {
+        console.error('[EmailService Error] Failed to verify bookingConfirmationEmailSent status:', checkErr);
+    }
 
 
     // --- EXACT PDF REPLICATION LOGIC ---

@@ -53,6 +53,19 @@ exports.seedTrains = async (req, res) => {
 exports.searchTrains = async (req, res) => {
   try {
     const { source, destination, date, type } = req.query;
+    
+    if (date) {
+      const journeyDateObj = new Date(date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const maxBookingDate = new Date(today);
+      maxBookingDate.setDate(today.getDate() + 60);
+      
+      if (journeyDateObj > maxBookingDate) {
+        return res.status(400).json({ error: "Advance Reservation Period is limited to 60 days." });
+      }
+    }
+
     const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const isSpecialType = type === 'Hotels' || type === 'Retiring Room' || type === 'E Catering' || type === 'Holiday Packs';
     const isHotelOrRoom = type === 'Hotels' || type === 'Retiring Room';
@@ -518,6 +531,49 @@ exports.searchTrains = async (req, res) => {
       
       await Train.insertMany(newServices);
       trains = await Train.find(filters);
+    }
+    
+    if (date && trains.length > 0) {
+      // Parse query date (format: YYYY-MM-DD or ISO string)
+      const qDateStr = date.split('T')[0];
+      const [qYear, qMonth, qDay] = qDateStr.split('-').map(Number);
+      
+      const journeyDay = new Date(Date.UTC(qYear, qMonth - 1, qDay));
+      
+      // Get today in local time calendar values
+      const todayLocal = new Date();
+      const todayDay = new Date(Date.UTC(todayLocal.getFullYear(), todayLocal.getMonth(), todayLocal.getDate()));
+      
+      const diffTime = journeyDay.getTime() - todayDay.getTime();
+      const days = Math.max(0, Math.round(diffTime / (1000 * 60 * 60 * 24)));
+
+      // Linear scale from 3% to 100% available seats based on days from journey (0 to 60 days)
+      const scale = 0.03 + 0.97 * (Math.min(days, 60) / 60);
+
+      trains = trains.map(t => {
+        const trainObj = t.toObject ? t.toObject() : JSON.parse(JSON.stringify(t));
+        if (trainObj.classes && trainObj.classes.length > 0) {
+          trainObj.classes = trainObj.classes.map(c => {
+            if (c.availableSeats > 0) {
+              let scaled = Math.max(1, Math.round(c.availableSeats * scale));
+              
+              // Gradient waitlist chances based on proximity
+              let wlChance = 0;
+              if (days === 0) wlChance = 0.85;      // 85% chance of waitlist today
+              else if (days === 1) wlChance = 0.60; // 60% chance tomorrow
+              else if (days <= 3) wlChance = 0.30;  // 30% chance 2-3 days out
+              
+              if (wlChance > 0 && Math.random() < wlChance) {
+                scaled = -Math.floor(5 + Math.random() * 25);
+              }
+              
+              c.availableSeats = scaled;
+            }
+            return c;
+          });
+        }
+        return trainObj;
+      });
     }
     
     res.json(trains);

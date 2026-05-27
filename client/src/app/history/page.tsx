@@ -81,87 +81,471 @@ export default function BookingHistory() {
     }
   };
 
-  const downloadTicket = (booking: any) => {
+  const downloadTicket = async (booking: any) => {
+    const getBase64ImageFromUrl = async (imageUrl: string) => {
+      try {
+        const res = await fetch(imageUrl);
+        const blob = await res.blob();
+        return await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } catch (err) {
+        return null;
+      }
+    };
+
+    const tPrice = booking.totalPrice;
+    const isFlight = booking.serviceType === 'Flight';
+    const isBus = booking.serviceType === 'Bus';
+    const isHotel = booking.serviceType === 'Hotel' || booking.serviceType === 'Hotels' || booking.serviceType.toLowerCase().includes('retiring');
+    const isFood = booking.serviceType === 'Food' || booking.serviceType === 'E Catering';
+    const isSpecialService = isHotel || isFood || booking.serviceType.toLowerCase().includes('holiday') || booking.serviceType.toLowerCase().includes('retiring');
+
+    const g20Base64 = await getBase64ImageFromUrl('/g20-logo.jpg');
+    let serviceLogoUrl = '/ir-logo.png';
+    if (isFlight) serviceLogoUrl = '/flight_logo.png';
+    if (isBus) serviceLogoUrl = '/bus_logo.png';
+    if (isSpecialService) serviceLogoUrl = '/hotel_logo.png';
+    const mainLogoBase64 = await getBase64ImageFromUrl(serviceLogoUrl);
+
     const doc = new jsPDF('p', 'mm', 'a4');
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    const isSpecialService = booking.serviceType === 'Hotel' || booking.serviceType === 'Food' || booking.serviceType.includes('Holiday');
-    
-    doc.text(isSpecialService ? 'Booking Confirmation Voucher' : 'Electronic Reservation Slip (ERS)', 105, 15, { align: 'center' });
-    doc.setFontSize(12);
-    doc.setTextColor(100);
-    doc.text(`Booking Reference: ${booking._id.substring(0, 8).toUpperCase()}`, 105, 22, { align: 'center' });
-    
-    doc.setDrawColor(0);
-    doc.setLineWidth(0.5);
-    doc.line(10, 28, 200, 28);
-    
-    doc.setTextColor(0);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text(isSpecialService ? "Service Info" : "Journey Info", 15, 35);
-    doc.setFont("helvetica", "normal");
-    
-    const serviceName = booking.serviceId?.name || booking.trainId?.name || 'IRCTC Service';
-    doc.text(`Service: ${serviceName} (${booking.serviceType})`, 15, 42);
-    if (!isSpecialService) {
-      doc.text(`From: ${booking.from || 'N/A'}`, 15, 48);
-      doc.text(`To: ${booking.to || 'N/A'}`, 105, 48);
-      doc.text(`Date: ${new Date(booking.journeyDate || booking.createdAt).toLocaleDateString()}`, 15, 54);
-    } else {
-      doc.text(`Location: ${booking.to || booking.from || 'N/A'}`, 15, 48);
-      doc.text(`Date: ${new Date(booking.journeyDate || booking.createdAt).toLocaleDateString()}`, 15, 54);
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    if (isSpecialService) {
+      // Specialized PDF for Hotels, Retiring Room, E-Catering
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text('Booking Confirmation Voucher', pageWidth / 2, 15, { align: 'center' });
+
+      // Header Logos
+      if (mainLogoBase64) {
+        doc.addImage(mainLogoBase64, 'PNG', 10, 4, 26, 26);
+      } else {
+        doc.setFontSize(16);
+        doc.setTextColor(0, 51, 153);
+        doc.text("IRCTC", 15, 20);
+      }
+
+      if (g20Base64) {
+        doc.addImage(g20Base64, 'JPEG', pageWidth - 42, 6, 28, 18);
+      } else {
+        doc.setTextColor(255, 153, 51);
+        doc.setFontSize(16);
+        doc.text("G20", pageWidth - 35, 20);
+      }
+
+      doc.setTextColor(0, 0, 0);
+
+      // Banner for Location
+      doc.setFillColor(153, 204, 255);
+      doc.rect(70, 32, 70, 6, 'F');
+      
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text(isFood ? "Delivery Station" : "City/Location", 35, 30, { align: 'center' });
+      doc.text("Service Details", 105, 36, { align: 'center' });
+      doc.text(isFood ? "Delivery Station" : "City/Location", 175, 30, { align: 'center' });
+
+      doc.setFont("helvetica", "normal");
+      const dest = booking.to || booking.from || 'N/A';
+      doc.text(dest.toUpperCase(), 35, 42, { align: 'center' });
+      doc.text(dest.toUpperCase(), 105, 42, { align: 'center' });
+      doc.text(dest.toUpperCase(), 175, 42, { align: 'center' });
+
+      // Date / Time
+      const dateStr = booking.journeyDate ? booking.journeyDate.split('T')[0] : new Date(booking.createdAt).toISOString().split('T')[0];
+      const timeStr = booking.departureTime || '12:00';
+      const arrTimeStr = '08:45';
+
+      doc.text(isFood ? `Delivery Date: ${dateStr}` : `Check-in Date: ${dateStr}`, 35, 48, { align: 'center' });
+      doc.setFont("helvetica", "bold");
+      doc.text(isFood ? `Time: ${timeStr} | ${dateStr}` : `Check-in: ${timeStr} | ${dateStr}`, 105, 48, { align: 'center' });
+      doc.setFont("helvetica", "normal");
+      doc.text(isFood ? `Delivery: ${arrTimeStr}` : `Check-out: ${arrTimeStr}`, 175, 48, { align: 'center' });
+
+      // Main Details Grid
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.5);
+      doc.line(10, 52, 200, 52);
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("Booking ID", 35, 57, { align: 'center' });
+      doc.text(isFood ? "Restaurant/Vendor" : "Hotel/Room Name", 105, 57, { align: 'center' });
+      doc.text("Type", 160, 57, { align: 'center' });
+      doc.text("Booking Date", 190, 57, { align: 'center' });
+
+      doc.setTextColor(0, 51, 153);
+      doc.text(booking._id.substring(0, 8).toUpperCase(), 35, 62, { align: 'center' });
+
+      const serviceName = booking.serviceId?.name || booking.trainId?.name || booking.serviceType.toUpperCase();
+      doc.text(serviceName.length > 25 ? serviceName.substring(0, 23) + '...' : serviceName, 105, 62, { align: 'center' });
+
+      doc.text(booking.serviceClass || 'Standard', 160, 62, { align: 'center' });
+      doc.setFontSize(8);
+      doc.text(new Date(booking.createdAt).toLocaleDateString(), 190, 62, { align: 'center' });
+      doc.setFontSize(9);
+      doc.setTextColor(0, 0, 0);
+
+      doc.line(10, 66, 200, 66);
+
+      // Passenger / Guest Details Header
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(isFood ? "Order/Customer Details" : "Guest Details", 12, 71);
+
+      // autoTable
+      const passCols = ["#", "Name", "Age", "Gender", "Status"];
+      const passRows = booking.passengers?.map((p: any, idx: number) => {
+        return [(idx + 1).toString(), p.name.toUpperCase(), p.age.toString(), p.gender.charAt(0).toUpperCase(), 'CONFIRMED'];
+      }) || [];
+
+      autoTable(doc, {
+        startY: 73,
+        head: [passCols],
+        body: passRows,
+        theme: 'plain',
+        styles: { fontSize: 8, cellPadding: 1, textColor: [0, 0, 0] },
+        headStyles: { fontStyle: 'bold' }
+      });
+
+      const py = (doc as any).lastAutoTable?.finalY || 100;
+      doc.line(10, py + 2, 200, py + 2);
+
+      // Contact Details
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      const cEmail = booking.contactInfo?.email || user?.email || 'N/A';
+      const cPhone = booking.contactInfo?.phone || user?.phone || 'N/A';
+      doc.text(`Contact Details:     Email: ${cEmail}                 Mobile: ${cPhone}`, 12, py + 8);
+
+      // Payment Details
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Payment Details", 12, py + 16);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+
+      const baseFare = tPrice / 1.18;
+      const tax = tPrice - baseFare;
+      doc.text("Service Fare", 12, py + 22); doc.text(`Rs. ${baseFare.toFixed(2)}`, 100, py + 22);
+      doc.text("Taxes & Fees (Incl. of GST)", 12, py + 27); doc.text(`Rs. ${tax.toFixed(2)}`, 100, py + 27);
+      doc.setFont("helvetica", "bold");
+      doc.text("Total Paid (all inclusive)", 12, py + 32); doc.text(`Rs. ${tPrice.toFixed(2)}`, 100, py + 32);
+
+      // QR Code simulation block
+      doc.setFillColor(0, 0, 0);
+      const qrSize = 30;
+      const px = 150;
+      const pY = py + 14;
+
+      doc.rect(px, pY, 7, 7, 'F'); doc.setFillColor(255, 255, 255); doc.rect(px + 1, pY + 1, 5, 5, 'F'); doc.setFillColor(0, 0, 0); doc.rect(px + 2, pY + 2, 3, 3, 'F');
+      doc.rect(px + qrSize - 7, pY, 7, 7, 'F'); doc.setFillColor(255, 255, 255); doc.rect(px + qrSize - 6, pY + 1, 5, 5, 'F'); doc.setFillColor(0, 0, 0); doc.rect(px + qrSize - 5, pY + 2, 3, 3, 'F');
+      doc.rect(px, pY + qrSize - 7, 7, 7, 'F'); doc.setFillColor(255, 255, 255); doc.rect(px + 1, pY + qrSize - 6, 5, 5, 'F'); doc.setFillColor(0, 0, 0); doc.rect(px + 2, pY + qrSize - 5, 3, 3, 'F');
+      for (let x = 0; x < qrSize; x += 1.5) {
+        for (let y = 0; y < qrSize; y += 1.5) {
+          if ((x < 8 && y < 8) || (x > qrSize - 8 && y < 8) || (x < 8 && y > qrSize - 8)) continue;
+          if (Math.random() > 0.5) doc.rect(px + x, pY + y, 1.5, 1.5, 'F');
+        }
+      }
+
+      doc.line(10, py + 46, 200, py + 46);
+
+      // Amenities & Inclusions
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Inclusions & Amenities", 12, py + 52);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      if (isHotel) {
+        doc.text("• Complimentary Wi-Fi Internet Access", 15, py + 58);
+        doc.text("• Air Conditioned Room with standard furnishing", 15, py + 62);
+        doc.text("• 24/7 Room Service & Housekeeping available", 15, py + 66);
+        doc.text("• Breakfast included (If explicitly stated in your booking package)", 15, py + 70);
+      } else if (isFood) {
+        doc.text("• Freshly prepared meal from certified vendor", 15, py + 58);
+        doc.text("• Delivery directly to your seat/berth as scheduled", 15, py + 62);
+        doc.text("• Cutlery and napkins included in standard packaging", 15, py + 66);
+      } else {
+        doc.text("• Complete travel package as per itinerary", 15, py + 58);
+        doc.text("• Dedicated customer support during transit", 15, py + 62);
+      }
+
+      // Important Policies
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Important Policies", 12, py + 80);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text("• This voucher must be presented at the time of check-in / delivery along with a valid Govt. ID.", 15, py + 86);
+      doc.text("• Standard Check-in is at 12:00 PM and Check-out is at 11:00 AM unless otherwise specified.", 15, py + 90);
+      doc.text("• Cancellation policies apply as per the service provider's terms and conditions. Refunds processed within 5-7 days.", 15, py + 94);
+      doc.text("• The Service Provider reserves the right to deny admission / delivery if the ID proof is mismatched.", 15, py + 98);
+
+      // Customer Support
+      doc.setFillColor(240, 248, 255);
+      doc.rect(10, py + 105, 190, 20, 'F');
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("24/7 Customer Support", 15, py + 112);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text("For any queries, please contact our dedicated helpdesk at 1800-111-139 or email us at support@irctchospitality.co.in", 15, py + 118);
+
+      // Advertising Banner
+      doc.setFillColor(255, 230, 153);
+      doc.rect(10, py + 132, 190, 15, 'F');
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 150);
+      doc.text("EXPLORE INDIA WITH IRCTC TOURISM - VISIT IRCTC2.0.SATYACMD.DEV", pageWidth / 2, py + 141, { align: 'center' });
+
+      // Footer
+      doc.setTextColor(0, 0, 0);
+      doc.line(10, py + 155, 200, py + 155);
+      doc.setFont("helvetica", "bolditalic");
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(7);
+      doc.text(`VOUCHER GENERATED BY: IRCTC 2.0 PORTAL  |  ISSUED ON: ${new Date(booking.createdAt).toLocaleString()}  |  IP: SECURED`, 12, py + 160);
+
+      doc.save(`IRCTC_VOUCHER_${booking._id.substring(0, 8).toUpperCase()}.pdf`);
+      toast.success('Booking Voucher downloaded successfully!');
+      return;
     }
+
+    // ORIGINAL PDF LOGIC FOR TRAINS, FLIGHTS, BUSES
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text('Electronic Reservation Slip (ERS)', pageWidth / 2, 15, { align: 'center' });
+
+    // Header Logos
+    if (mainLogoBase64) {
+      doc.addImage(mainLogoBase64, 'PNG', 15, 8, 14, 14);
+    } else {
+      doc.setFontSize(16);
+      doc.setTextColor(0, 51, 153);
+      doc.text(isFlight ? "AVIATION" : isBus ? "BUS" : "IRCTC", 15, 20);
+    }
+
+    if (g20Base64) {
+      doc.addImage(g20Base64, 'JPEG', pageWidth - 42, 6, 28, 18);
+    } else {
+      doc.setTextColor(255, 153, 51);
+      doc.setFontSize(16);
+      doc.text("G20", pageWidth - 35, 20);
+    }
+
+    doc.setTextColor(0, 0, 0);
+
+    // Booked From -> Boarding At -> To (Arrow mockup)
+    doc.setFillColor(153, 204, 255);
+    doc.rect(70, 32, 70, 6, 'F');
+    doc.triangle(140, 30, 140, 40, 145, 35, 'F');
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text(isHotel ? "City/Location" : "Booked From", 35, 30, { align: 'center' });
+    doc.text(isHotel ? "Address Details" : "Boarding At", 105, 36, { align: 'center' });
+    doc.text(isHotel ? "City/Location" : "To", 175, 30, { align: 'center' });
+
+    // Stations
+    doc.setFont("helvetica", "normal");
+    const source = booking.from || 'HOWRAH JN (HWH)';
+    const dest = booking.to || 'NEW DELHI (NDLS)';
+    doc.text(source.toUpperCase(), 35, 42, { align: 'center' });
+    doc.text(source.toUpperCase(), 105, 42, { align: 'center' });
+    doc.text(dest.toUpperCase(), 175, 42, { align: 'center' });
+
+    // Date / Time
+    const dateStr = booking.journeyDate ? booking.journeyDate.split('T')[0] : new Date(booking.createdAt).toISOString().split('T')[0];
+    const timeStr = booking.departureTime || '18:30';
+    const arrTimeStr = '08:45';
+
+    doc.text(isHotel ? `Check-in Date: ${dateStr}` : `Start Date: ${dateStr}`, 35, 48, { align: 'center' });
+    doc.setFont("helvetica", "bold");
+    doc.text(isHotel ? `Check-in: ${timeStr} | ${dateStr}` : `Departure: ${timeStr} | ${dateStr}`, 105, 48, { align: 'center' });
+    doc.setFont("helvetica", "normal");
+    doc.text(isHotel ? `Check-out: ${arrTimeStr}` : `Arrival: ${arrTimeStr} | ${dateStr}`, 175, 48, { align: 'center' });
+
+    // Main Details Grid
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.5);
+    doc.line(10, 52, 200, 52);
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text("PNR", 35, 57, { align: 'center' });
+    const serviceNameHeader = isHotel ? "Hotel Name" : `${booking.serviceType} No./Name`;
+    doc.text(serviceNameHeader, 105, 57, { align: 'center' });
+    doc.text("Class", 160, 57, { align: 'center' });
+    doc.text("Pantry", 190, 57, { align: 'center' });
+
+    doc.setTextColor(0, 51, 153);
+    const pnrStr = booking.pnr || 'N/A';
+    doc.text(pnrStr, 35, 62, { align: 'center' });
+
+    const trainName = booking.trainId?.name || (booking.from ? `${booking.from.split(' ')[0]} ${isFlight ? 'AIRLINES' : isBus ? 'TRAVELS' : 'EXPRESS'}` : 'KAMRUP EXPRESS');
+    const trainNum = booking.trainId?.trainNumber || booking.trainId?._id?.substring(0, 5).toUpperCase() || 'MOCK';
     
-    doc.text(`Class: ${booking.serviceClass}`, 105, 54);
-    doc.text(`Status: ${booking.status.toUpperCase()}`, 15, 60);
-    doc.text(`PNR/Booking ID: ${booking.pnr || 'N/A'}`, 105, 60);
+    const trainDesc = `${trainNum} / ${trainName}`.toUpperCase();
+    doc.text(trainDesc, 105, 62, { align: 'center' });
+
+    doc.text(booking.serviceClass || 'SL', 160, 62, { align: 'center' });
+    doc.setFontSize(7);
+    const wantsPantry = !!booking.pantryItems?.meal;
+    const pantryText = wantsPantry ? 'YES' : 'N/A';
+    doc.text(pantryText, 190, 62, { align: 'center' });
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
 
     doc.setFont("helvetica", "bold");
-    doc.text(isSpecialService ? "Guest Details" : "Passenger Details", 15, 75);
-    
-    const passRows = booking.passengers?.map((p: any, idx: number) => [
-      (idx + 1).toString(),
-      p.name.toUpperCase(),
-      p.age.toString(),
-      p.gender.charAt(0).toUpperCase(),
-      p.seatPreference || 'No Preference'
-    ]) || [];
+    doc.text("Quota", 35, 68, { align: 'center' });
+    doc.text("Distance", 105, 68, { align: 'center' });
+    doc.text("Booking Date", 175, 68, { align: 'center' });
+
+    doc.setFont("helvetica", "normal");
+    const quotaStr = booking.quota ? booking.quota.toUpperCase() : 'GENERAL (GN)';
+    const distanceStr = isHotel ? 'N/A' : (booking.distance ? `${booking.distance} KM` : `${booking.trainId?.distance || 1200} KM`);
+    doc.text(isHotel ? 'N/A' : quotaStr, 35, 73, { align: 'center' });
+    doc.text(distanceStr, 105, 73, { align: 'center' });
+    doc.text(new Date(booking.createdAt).toLocaleString(), 175, 73, { align: 'center' });
+
+    doc.line(10, 75, 200, 75);
+
+    // Passenger Details Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("Passenger Details", 12, 80);
+
+    // Passenger autoTable
+    const passCols = ["#", "Name", "Age", "Gender", "Booking Status", "Current Status"];
+    const passRows = booking.passengers?.map((p: any, idx: number) => {
+      let seat = booking.seatNumbers && booking.seatNumbers[idx] ? booking.seatNumbers[idx] : '';
+      if (!seat) {
+         if (isFlight) seat = `${idx + 1}A (WINDOW)`;
+         else if (isBus) seat = `${idx + 1}W (WINDOW)`;
+         else seat = `S6/${60 + idx}/MIDDLE`;
+      } else {
+         if (isFlight || isBus) {
+             const parts = seat.split('/');
+             seat = parts[parts.length - 1];
+         }
+      }
+      const bStatus = `CNF / ${seat}`;
+      const cStatus = booking.status === 'Confirmed' ? bStatus : (booking.status === 'Verification Pending' ? 'Pending' : booking.status);
+      return [(idx + 1).toString(), p.name.toUpperCase(), p.age.toString(), p.gender.charAt(0).toUpperCase(), bStatus, cStatus];
+    }) || [];
 
     autoTable(doc, {
-      startY: 80,
-      head: [['#', 'Name', 'Age', 'Gender', 'Preference']],
+      startY: 82,
+      head: [passCols],
       body: passRows,
-      theme: 'grid',
-      headStyles: { fillColor: [40, 40, 40] }
+      theme: 'plain',
+      styles: { fontSize: 8, cellPadding: 1, textColor: [0, 0, 0] },
+      headStyles: { fontStyle: 'bold' }
     });
 
     const py = (doc as any).lastAutoTable?.finalY || 100;
-    
-    let offsetY = py + 15;
-    
-    if (user && user.accountType === 'Employee') {
-       doc.setFontSize(9);
-       doc.setFont("helvetica", "bold");
-       doc.setTextColor(0, 51, 153);
-       doc.text(`Employee Booking: ID [${user.employeeId || 'N/A'}] - Status: ${user.isEmployeeVerified ? 'Verified' : 'Pending'} (Staff Booking)`, 15, offsetY);
-       doc.setTextColor(0);
-       offsetY += 10;
+    doc.line(10, py + 2, 200, py + 2);
+
+    // Acronyms & Contact Details
+    doc.setFontSize(6);
+    doc.setFont("helvetica", "bold");
+    doc.text("Acronyms:             RLWL: REMOTE LOCATION WAITLIST                 PQWL: POOLED QUOTA WAITLIST                 RSWL: ROAD-SIDE WAITLIST", 12, py + 6);
+    const contactEmail = booking.contactInfo?.email || user?.email || 'N/A';
+    const contactPhone = booking.contactInfo?.phone || user?.phone || 'N/A';
+    doc.text(`Contact Details:     Email: ${contactEmail}                 Mobile: ${contactPhone}`, 12, py + 10);
+
+    // Transaction ID
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Transaction ID: ${booking.bookingRef || booking._id}`, 12, py + 16);
+    doc.setFont("helvetica", "normal");
+    doc.text("IR recovers only 57% of cost of travel on an average.", 12, py + 20);
+
+    // Payment Details
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("Payment Details", 12, py + 26);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+
+    const baseFareAmt = tPrice / 1.18;
+    const taxAmt = tPrice - baseFareAmt;
+    doc.text("Ticket Fare", 12, py + 32); doc.text(`Rs. ${baseFareAmt.toFixed(2)}`, 100, py + 32);
+    doc.text("IRCTC Convenience Fee (Incl. of GST)", 12, py + 37); doc.text(`Rs. ${taxAmt.toFixed(2)}`, 100, py + 37);
+    doc.text("Travel Insurance Premium (Incl. of GST)", 12, py + 42); doc.text("Rs. 1.40", 100, py + 42);
+    doc.setFont("helvetica", "bold");
+    doc.text("Total Fare (all inclusive)", 12, py + 47); doc.text(`Rs. ${(tPrice + 1.40).toFixed(2)}`, 100, py + 47);
+
+    // QR Code simulation block
+    doc.setFillColor(0, 0, 0);
+    const qrSize = 35;
+    const pxVal = 150;
+    const pyVal = py + 14;
+
+    // Position markers (3 corners)
+    doc.rect(pxVal, pyVal, 7, 7, 'F'); doc.setFillColor(255, 255, 255); doc.rect(pxVal + 1, pyVal + 1, 5, 5, 'F'); doc.setFillColor(0, 0, 0); doc.rect(pxVal + 2, pyVal + 2, 3, 3, 'F');
+    doc.rect(pxVal + qrSize - 7, pyVal, 7, 7, 'F'); doc.setFillColor(255, 255, 255); doc.rect(pxVal + qrSize - 6, pyVal + 1, 5, 5, 'F'); doc.setFillColor(0, 0, 0); doc.rect(pxVal + qrSize - 5, pyVal + 2, 3, 3, 'F');
+    doc.rect(pxVal, pyVal + qrSize - 7, 7, 7, 'F'); doc.setFillColor(255, 255, 255); doc.rect(pxVal + 1, pyVal + qrSize - 6, 5, 5, 'F'); doc.setFillColor(0, 0, 0); doc.rect(pxVal + 2, pyVal + qrSize - 5, 3, 3, 'F');
+
+    // Fill random squares
+    for (let x = 0; x < qrSize; x += 1.5) {
+      for (let y = 0; y < qrSize; y += 1.5) {
+        if ((x < 8 && y < 8) || (x > qrSize - 8 && y < 8) || (x < 8 && y > qrSize - 8)) continue;
+        if (Math.random() > 0.5) doc.rect(pxVal + x, pyVal + y, 1.5, 1.5, 'F');
+      }
     }
 
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("Payment Details", 15, offsetY);
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Total Amount Paid: Rs. ${booking.totalPrice.toLocaleString()}`, 15, offsetY + 7);
-    
-    doc.setFontSize(8);
-    doc.setTextColor(150);
-    doc.text(`Downloaded on ${new Date().toLocaleString()} from IRCTC 2.0.SATYACMD.DEV`, 105, 280, { align: 'center' });
+    doc.line(10, py + 54, 200, py + 54);
 
-    doc.save(`IRCTC_${booking.pnr || booking._id.substring(0,8)}.pdf`);
-    toast.success('Ticket downloaded successfully!');
+    // Instructions
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text("IRCTC Convenience Fee is charged per e-ticket irrespective of number of passengers on the ticket.", 12, py + 59);
+    doc.text("* The printed Departure and Arrival Times are liable to change. Please Check correct departure, arrival from Railway Station Enquiry.", 12, py + 63);
+    doc.line(10, py + 66, 200, py + 66);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.text("• This ticket is booked on a personal User ID, its sale/purchase is an offence u/s 143 of the Railways Act, 1989.", 15, py + 71);
+    doc.text("• Prescribed original ID proof is required while travelling along with SMS/ VRM/ ERS otherwise will be treated as without ticket.", 15, py + 75);
+
+    // Banner Mockup
+    doc.setFillColor(255, 230, 153);
+    doc.rect(10, py + 79, 190, 15, 'F');
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 150);
+    doc.text("AYUSHMAN BHARAT HEALTH ACCOUNT (ABHA)", pageWidth / 2, py + 88, { align: 'center' });
+
+    // Customer Support & Rules
+    doc.setTextColor(0, 0, 0);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text("Customer Support / Helpline:", 12, py + 102);
+    doc.setFont("helvetica", "normal");
+    doc.text("For any queries, please contact IRCTC Customer Care: 14646 / 0755-6610661 OR Email: care@irctc.co.in", 12, py + 107);
+    
+    doc.setFont("helvetica", "bold");
+    doc.text("Important Rules & Instructions:", 12, py + 114);
+    doc.setFont("helvetica", "normal");
+    doc.text("1. Valid original ID proof is mandatory during journey (Aadhaar, Voter ID, Passport, PAN Card, Driving License).", 15, py + 119);
+    doc.text("2. Fully Waitlisted (WL) e-tickets are invalid for travel. Passengers found traveling will be treated as ticketless.", 15, py + 124);
+    doc.text("3. E-Ticket cancellation is permitted only through the portal before chart preparation.", 15, py + 129);
+
+    // Footer Generation Stamp
+    doc.line(10, py + 135, 200, py + 135);
+    doc.setFont("helvetica", "bolditalic");
+    doc.setFontSize(7);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`TICKET GENERATED BY: IRCTC 2.0 PORTAL  |  ISSUED ON: ${new Date(booking.createdAt).toLocaleString()}  |  IP: SECURED`, 12, py + 140);
+
+    doc.save(`IRCTC_ERS_${booking.pnr || booking._id.substring(0, 8).toUpperCase()}.pdf`);
+    toast.success('Official E-Ticket downloaded successfully!');
   };
 
   return (

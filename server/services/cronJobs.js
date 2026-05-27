@@ -28,9 +28,9 @@ function startCronJobs() {
                 const hoursToDeparture = (journeyDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
                 
                 if (hoursToDeparture > 0 && hoursToDeparture <= 4) {
-                    if (booking.userId && booking.userId.email) {
-                        const userEmail = booking.userId.email;
-                        const userName = booking.userId.name || 'Customer';
+                    const recipientEmail = booking.contactInfo?.email || booking.userId?.email;
+                    if (recipientEmail) {
+                        const userName = booking.userId?.name || 'Customer';
                         const pnr = booking.pnr || 'N/A';
                         
                         let trainName = 'IRCTC Train';
@@ -47,7 +47,7 @@ function startCronJobs() {
                             : 'CONFIRMED';
                         
                         await emailService.sendChartPreparationEmail(
-                            userEmail,
+                            recipientEmail,
                             userName,
                             pnr,
                             trainName,
@@ -58,7 +58,7 @@ function startCronJobs() {
                         booking.chartPreparedEmailSent = true;
                         await booking.save();
                         count++;
-                        console.log(`[Cron] Sent Chart Prep email to ${userEmail} for PNR ${pnr}`);
+                        console.log(`[Cron] Sent Chart Prep email to ${recipientEmail} for PNR ${pnr}`);
                     }
                 }
             }
@@ -80,10 +80,11 @@ function startCronJobs() {
             const bookings = await Booking.find({ journeyDate: tomorrowRegex, status: 'Confirmed' }).populate('userId');
             
             for (const booking of bookings) {
-                if (booking.userId && booking.userId.email) {
+                const recipientEmail = booking.contactInfo?.email || booking.userId?.email;
+                if (recipientEmail) {
                     await emailService.sendJourneyReminderEmail(
-                        booking.userId.email,
-                        booking.userId.name,
+                        recipientEmail,
+                        booking.userId?.name || 'Customer',
                         booking.pnr,
                         booking.serviceType + ' Ticket',
                         booking.departureTime || 'TBD'
@@ -107,10 +108,11 @@ function startCronJobs() {
             const bookings = await Booking.find({ journeyDate: yesterdayRegex, status: 'Confirmed' }).populate('userId');
             
             for (const booking of bookings) {
-                if (booking.userId && booking.userId.email) {
+                const recipientEmail = booking.contactInfo?.email || booking.userId?.email;
+                if (recipientEmail) {
                     await emailService.sendFeedbackEmail(
-                        booking.userId.email,
-                        booking.userId.name,
+                        recipientEmail,
+                        booking.userId?.name || 'Customer',
                         booking.pnr,
                         booking.serviceType + ' Ticket'
                     );
@@ -126,9 +128,11 @@ function startCronJobs() {
     // Ensures that even if the mail server had a temporary network glitch, the user receives their e-ticket.
     cron.schedule('*/1 * * * *', async () => {
         try {
+            const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
             const pendingEmails = await Booking.find({
                 status: 'Confirmed',
-                bookingConfirmationEmailSent: { $ne: true }
+                bookingConfirmationEmailSent: { $ne: true },
+                updatedAt: { $lte: twoMinutesAgo }
             }).populate('trainId serviceId');
 
             if (pendingEmails.length > 0) {
