@@ -40,10 +40,10 @@ export default function AdminLogin() {
 
     try {
       // Map adminId to email since the backend expects email
-      // If adminId is 'admin', we will append the domain used for admin
-      let loginEmail = formData.adminId;
-      if (!loginEmail.includes('@')) {
-        loginEmail = `${loginEmail}@irctc2.co.in`; // fallback domain mapping if they just typed 'admin'
+      // If adminId is 'admin' or has no domain, map it to the main superadmin email
+      let loginEmail = formData.adminId.trim();
+      if (loginEmail.toLowerCase() === 'admin' || !loginEmail.includes('@')) {
+        loginEmail = 'superadmin54@gmail.com';
       }
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
