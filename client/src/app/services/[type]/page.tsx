@@ -42,6 +42,8 @@ function BookingFlowInner() {
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [showThreeMembersModal, setShowThreeMembersModal] = useState(false);
+  const [selectedByOtherModal, setSelectedByOtherModal] = useState<{ isOpen: boolean, passengerName: string, passengerIdx: number, seatId: string } | null>(null);
 
   const getBackgroundImage = () => {
     if (isFlight) return 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=2074&auto=format&fit=crop';
@@ -119,11 +121,22 @@ function BookingFlowInner() {
     
     // Generate all possible seat IDs for this coach layout
     if (cls.includes('1A')) {
-      totalSeats = 20; // 10 rows * 2 seats
-      for (let r = 1; r <= 10; r++) {
-        const base = (r - 1) * 2;
-        seatIds.push((base + 1).toString());
-        seatIds.push((base + 2).toString());
+      if (selectedCoach === 'H3') {
+        totalSeats = 24; // 6 rows * 4 seats
+        for (let r = 1; r <= 6; r++) {
+          const base = (r - 1) * 4;
+          seatIds.push((base + 1).toString());
+          seatIds.push((base + 2).toString());
+          seatIds.push((base + 3).toString());
+          seatIds.push((base + 4).toString());
+        }
+      } else {
+        totalSeats = 20; // 10 rows * 2 seats
+        for (let r = 1; r <= 10; r++) {
+          const base = (r - 1) * 2;
+          seatIds.push((base + 1).toString());
+          seatIds.push((base + 2).toString());
+        }
       }
     } else if (cls.includes('2A') || cls.includes('3A') || ['SL', 'Sleeper'].some(c => cls.includes(c))) {
       totalSeats = 80; // 10 rows * 8 seats
@@ -157,12 +170,26 @@ function BookingFlowInner() {
     // Enforce 1A even constraints & distribute available seats across coaches
     let availableForThisCoach = 0;
     if (cls.includes('1A')) {
-      availableCount = Math.floor(availableCount / 2) * 2;
-      if (availableCount < 2) availableCount = 2; // ensure at least one Coupe is available
-      
-      const availableCoupes = Math.floor(availableCount / 2);
-      const coupesForThisCoach = Math.floor(availableCoupes / numCoaches) + (currentCoachIdx < (availableCoupes % numCoaches) ? 1 : 0);
-      availableForThisCoach = coupesForThisCoach * 2;
+      if (selectedCoach === 'H3') {
+        let h1h2Coupes = Math.floor((Math.floor(availableCount / 2) * 2) / 2);
+        let coupesH1 = Math.floor(h1h2Coupes / numCoaches) + (0 < (h1h2Coupes % numCoaches) ? 1 : 0);
+        let coupesH2 = Math.floor(h1h2Coupes / numCoaches) + (1 < (h1h2Coupes % numCoaches) ? 1 : 0);
+        let availH1 = coupesH1 * 2;
+        let availH2 = coupesH2 * 2;
+        let initialAvail = Math.max(0, availableCount - (availH1 + availH2));
+        let availCompartmentsCount = Math.floor(initialAvail / 4);
+        if (availCompartmentsCount === 0 && initialAvail > 0) {
+          availCompartmentsCount = 1;
+        }
+        availableForThisCoach = availCompartmentsCount * 4;
+      } else {
+        availableCount = Math.floor(availableCount / 2) * 2;
+        if (availableCount < 2) availableCount = 2; // ensure at least one Coupe is available
+        
+        const availableCoupes = Math.floor(availableCount / 2);
+        const coupesForThisCoach = Math.floor(availableCoupes / numCoaches) + (currentCoachIdx < (availableCoupes % numCoaches) ? 1 : 0);
+        availableForThisCoach = coupesForThisCoach * 2;
+      }
     } else {
       availableForThisCoach = Math.floor(availableCount / numCoaches) + (currentCoachIdx < (availableCount % numCoaches) ? 1 : 0);
     }
@@ -182,15 +209,37 @@ function BookingFlowInner() {
                                     .sort((a, b) => a.val - b.val);
 
     // Book the first 'bookedCount' seats
-    if (cls.includes('1A')) {
-      // For 1A, Coupes are (1,2), (3,4), (5,6) etc.
-      // So bookedCount represents the number of booked seats (always even).
-      // We want to book exactly bookedCount / 2 Coupe pairs!
+    if (cls.includes('1A') && selectedCoach === 'H3') {
+      // H3 has 6 compartments (Cabins A to F)
+      const availCompartmentsCount = Math.floor(availableForThisCoach / 4);
+      const sortedCompartments = Array.from({ length: 6 }).map((_, idx) => ({ idx, val: random(idx) }))
+                                                          .sort((a, b) => a.val - b.val);
+                                                          
+      const availCompartmentSet = new Set<number>();
+      for (let i = 0; i < availCompartmentsCount; i++) {
+        if (sortedCompartments[i]) {
+          availCompartmentSet.add(sortedCompartments[i].idx);
+        }
+      }
+      
+      if (availCompartmentsCount === 0 && availableForThisCoach > 0) {
+        availCompartmentSet.add(sortedCompartments[0].idx);
+      }
+      
+      for (let compIdx = 0; compIdx < 6; compIdx++) {
+        if (!availCompartmentSet.has(compIdx)) {
+          const base = compIdx * 4;
+          generated.add((base + 1).toString());
+          generated.add((base + 2).toString());
+          generated.add((base + 3).toString());
+          generated.add((base + 4).toString());
+        }
+      }
+    } else if (cls.includes('1A') && selectedCoach !== 'H3') {
+      // For 1A H1/H2, Coupes are (1,2), (3,4), (5,6) etc.
       const coupePairsCount = bookedCount / 2;
-      // Get all possible coupe indices: 0 to 9
       const coupeRandom = Array.from({ length: 10 }).map((_, i) => ({ idx: i, val: random(i) }))
                                                     .sort((a, b) => a.val - b.val);
-      // Select the first 'coupePairsCount' coupes to be completely booked
       for (let i = 0; i < coupePairsCount; i++) {
         const coupeIdx = coupeRandom[i].idx;
         const base = coupeIdx * 2;
@@ -206,7 +255,26 @@ function BookingFlowInner() {
     }
 
     setBookedSeats(generated);
-  }, [selectedCoach, journeyDetails.travelClass, searchParams]);
+
+    // Sync with backend database to retrieve actually booked seats for this coach/service/date
+    axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/bookings/occupied`, {
+      params: {
+        trainId: urlTrainId,
+        serviceClass: journeyDetails.travelClass,
+        journeyDate: journeyDetails.date1,
+        coach: (!isFlight && !isBus && !isHotel && !isFood) ? selectedCoach : undefined
+      }
+    }).then(res => {
+      if (res.data && Array.isArray(res.data.occupied)) {
+        res.data.occupied.forEach((seatId: string) => {
+          generated.add(seatId);
+        });
+        setBookedSeats(new Set(generated));
+      }
+    }).catch(err => {
+      console.error("Error fetching occupied seats from DB:", err);
+    });
+  }, [selectedCoach, journeyDetails.travelClass, searchParams, urlTrainId, isFlight, isBus, isHotel, isFood, journeyDetails.date1]);
 
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [upiId, setUpiId] = useState('');
@@ -227,14 +295,26 @@ function BookingFlowInner() {
   useEffect(() => {
     if (journeyDetails.travelClass) {
       const cls = journeyDetails.travelClass;
-      if (cls.includes('1A')) setSelectedCoach('H1');
+      if (cls.includes('1A')) {
+        const isCouple = passengers.length === 2;
+        setSelectedCoach(isCouple ? 'H1' : 'H3');
+      }
       else if (cls.includes('2A')) setSelectedCoach('A1');
       else if (cls.includes('3A')) setSelectedCoach('B1');
       else if (cls.includes('EC')) setSelectedCoach('E1');
       else if (cls.includes('CC')) setSelectedCoach('C1');
       else setSelectedCoach('S1');
     }
-  }, [journeyDetails.travelClass]);
+  }, [journeyDetails.travelClass, passengers.length]);
+
+  useEffect(() => {
+    if (showSeatMapForPassenger !== null && journeyDetails.travelClass?.includes('1A')) {
+      const isCouple = passengers.length === 2;
+      if (!isCouple) {
+        setSelectedCoach('H3');
+      }
+    }
+  }, [showSeatMapForPassenger, journeyDetails.travelClass, passengers.length]);
 
   const getIcon = () => {
     if (isFlight) return <Plane className="w-8 h-8" />;
@@ -276,15 +356,22 @@ function BookingFlowInner() {
     }
 
     if (journeyDetails.travelClass.includes('1A')) {
-      if (passengers.length !== 2) {
-        toast.error('1A Class bookings require exactly 2 passengers per ticket (Couples only).');
+      if (passengers.length === 3) {
+        setShowThreeMembersModal(true);
         return;
       }
-      const hasMale = passengers.some(p => p.gender === 'Male');
-      const hasFemale = passengers.some(p => p.gender === 'Female');
-      if (!hasMale || !hasFemale) {
-        toast.error('1A Class is strictly for couples (1 Male and 1 Female).');
+
+      if (passengers.length > 4) {
+        toast.error('1A Class Compartments support a maximum of 4 passengers.');
         return;
+      }
+      
+      const isCouple = passengers.length === 2;
+
+      if (isCouple) {
+        toast.success('Proceeding with Couple booking. You can select Coach H1, H2, or H3.', { duration: 6000 });
+      } else {
+        toast.success('Proceeding with Family/General booking. Please select Coach H3 for family cabin berths.', { duration: 6000 });
       }
     }
 
@@ -450,7 +537,22 @@ function BookingFlowInner() {
     }
   };
 
-  const maxMembers = (isHotel || (journeyDetails.travelClass && journeyDetails.travelClass.includes('1A'))) ? 2 : 6;
+  const handleQuickPassengerFill = (type: 'couple' | 'family') => {
+    const count = type === 'couple' ? 2 : 4;
+    const currentPassengers = [...passengers];
+    const newPassengers = [];
+    for (let i = 0; i < count; i++) {
+      if (currentPassengers[i]) {
+        newPassengers.push(currentPassengers[i]);
+      } else {
+        newPassengers.push({ name: '', age: '', gender: 'Male', pref: 'No Preference' });
+      }
+    }
+    setPassengers(newPassengers);
+    toast.success(`Populated ${count} passengers for ${type === 'couple' ? 'Couple' : 'Family'} booking.`);
+  };
+
+  const maxMembers = isHotel ? 2 : (journeyDetails.travelClass && journeyDetails.travelClass.includes('1A')) ? 4 : 6;
   const addPassenger = () => {
     if (passengers.length < maxMembers) {
       setPassengers([...passengers, { name: '', age: '', gender: 'Male', pref: 'No Preference' }]);
@@ -1097,6 +1199,41 @@ function BookingFlowInner() {
                 )}
               </div>
 
+              {/* Couple / Family quick selector (Only shown for 1AC bookings to facilitate Compartment / Coupe rules) */}
+              {(!isHotel && !isFlight && !isBus && !isFood && journeyDetails.travelClass?.includes('1A')) && (
+                <div className="mb-8 bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 backdrop-blur-xl relative overflow-hidden shadow-inner">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-blue-500 to-indigo-600" />
+                  <div className="pl-3">
+                    <h4 className="text-sm font-bold text-white mb-1 tracking-wide">Select Booking Type</h4>
+                    <p className="text-xs text-white/50">Quickly add passenger slots based on your travel plan</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleQuickPassengerFill('couple')}
+                      className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                        passengers.length === 2 
+                          ? 'bg-blue-600 text-white border border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.6)] scale-[1.03]' 
+                          : 'bg-black/40 text-white/60 hover:bg-black/60 border border-white/10'
+                      }`}
+                    >
+                      Couple (2 MAX)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickPassengerFill('family')}
+                      className={`px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                        passengers.length === 4 
+                          ? 'bg-indigo-600 text-white border border-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.6)] scale-[1.03]' 
+                          : 'bg-black/40 text-white/60 hover:bg-black/60 border border-white/10'
+                      }`}
+                    >
+                      Family (4 MAX)
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-6 mb-12">
                 {passengers.map((p, idx) => (
                   <div key={idx} className="bg-white/5 border border-white/10 rounded-2xl p-6 relative overflow-hidden backdrop-blur-xl">
@@ -1612,20 +1749,46 @@ function BookingFlowInner() {
                              let availCount = parseInt(searchParams.get('available') || '20');
                              let avail = 0;
                              if (cls.includes('1A')) {
-                               availCount = Math.floor(availCount / 2) * 2;
-                               if (availCount < 2) availCount = 2;
-                               const availableCoupes = Math.floor(availCount / 2);
-                               const coupesForThisCoach = Math.floor(availableCoupes / length) + (i < (availableCoupes % length) ? 1 : 0);
-                               avail = coupesForThisCoach * 2;
+                               if (`${prefix}${i+1}` === 'H3') {
+                                   let h1h2Coupes = Math.floor((Math.floor(availCount / 2) * 2) / 2);
+                                   let coupesH1 = Math.floor(h1h2Coupes / length) + (0 < (h1h2Coupes % length) ? 1 : 0);
+                                   let coupesH2 = Math.floor(h1h2Coupes / length) + (1 < (h1h2Coupes % length) ? 1 : 0);
+                                   let availH1 = coupesH1 * 2;
+                                   let availH2 = coupesH2 * 2;
+                                   let initialAvail = Math.max(0, availCount - (availH1 + availH2));
+                                   let availCompartmentsCount = Math.floor(initialAvail / 4);
+                                   if (availCompartmentsCount === 0 && initialAvail > 0) {
+                                      availCompartmentsCount = 1;
+                                   }
+                                   avail = availCompartmentsCount * 4;
+                               } else {
+                                 availCount = Math.floor(availCount / 2) * 2;
+                                 if (availCount < 2) availCount = 2;
+                                 const availableCoupes = Math.floor(availCount / 2);
+                                 const coupesForThisCoach = Math.floor(availableCoupes / length) + (i < (availableCoupes % length) ? 1 : 0);
+                                 avail = coupesForThisCoach * 2;
+                               }
                              } else {
                                avail = Math.floor(availCount / length) + (i < (availCount % length) ? 1 : 0);
                              }
+                             
+                             const coachName = `${prefix}${i+1}`;
+                             let disabled = false;
+                             let labelSuffix = '';
+                             
+                             if (cls.includes('1A')) {
+                               const isCouple = passengers.length === 2;
+                               if (!isCouple && (coachName === 'H1' || coachName === 'H2')) {
+                                 labelSuffix = ' (Couples Only)';
+                               }
+                             }
+
                              return (
-                               <option key={i} value={`${prefix}${i+1}`} className="bg-gray-900 text-white">
-                                 {prefix}{i+1} ({avail} seats available)
+                               <option key={i} value={coachName} className="bg-gray-900 text-white">
+                                 {coachName} ({avail} seats available){labelSuffix}
                                </option>
                              );
-                           });
+                          });
                         })()}
                       </select>
                   </div>
@@ -1664,9 +1827,15 @@ function BookingFlowInner() {
                        } else if (journeyDetails.travelClass.includes('CC') || journeyDetails.travelClass.includes('2S')) {
                          seatRows = 15; seatLeft = ['A', 'B', 'C']; seatRight = ['D', 'E'];
                        } else if (journeyDetails.travelClass.includes('1A')) {
-                         seatRows = 10; 
-                         seatLeft = ['L', 'U']; 
-                         seatRight = [];
+                         if (selectedCoach === 'H3') {
+                           seatRows = 6;
+                           seatLeft = ['L1', 'U1', 'L2', 'U2'];
+                           seatRight = [];
+                         } else {
+                           seatRows = 10; 
+                           seatLeft = ['L', 'U']; 
+                           seatRight = [];
+                         }
                        } else {
                          seatRows = 10; 
                          seatLeft = ['SU', 'SL']; 
@@ -1676,66 +1845,180 @@ function BookingFlowInner() {
 
                     return Array.from({ length: seatRows }).map((_, rowIdx) => {
                       if (!isFlight && !isBus && !isHotel && !isFood) {
-                        // 1AC Coupe Layout
+                        // 1AC Coupe / Cabin Layout
                         if (journeyDetails.travelClass.includes('1A')) {
+                          const isH3 = selectedCoach === 'H3';
                           return (
                             <div key={rowIdx} className="w-full bg-[#111216]/80 border border-[#2e323d] rounded-2xl p-4 flex flex-col gap-3 relative shadow-lg hover:border-blue-500/30 transition-all">
                               <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">Coupe {String.fromCharCode(65 + rowIdx)}</span>
-                                <span className="text-[9px] font-medium text-white/40">Compartment {rowIdx + 1}</span>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">
+                                  {isH3 ? `Cabin ${String.fromCharCode(65 + rowIdx)}` : `Coupe ${String.fromCharCode(65 + rowIdx)}`}
+                                </span>
+                                <span className="text-[9px] font-medium text-white/40">
+                                  {isH3 ? `Family Compartment ${rowIdx + 1}` : `Compartment ${rowIdx + 1}`}
+                                </span>
                               </div>
                               
                               <div className="flex justify-around items-center py-2 relative">
-                                {/* Window Graphic on left */}
-                                <div className="w-1.5 h-8 bg-blue-500/10 border border-blue-500/30 rounded-r-md absolute left-0" title="Window"></div>
-                                
-                                {seatLeft.map(col => {
-                                  let displayCol = col;
-                                  let seatId = `${rowIdx + 1}${col}`;
-                                  const base = rowIdx * 2;
-                                  if (col === 'L') seatId = (base + 1).toString();
-                                  if (col === 'U') seatId = (base + 2).toString();
-                                  displayCol = `${seatId} ${col}`;
+                                {isH3 ? (
+                                  <div className="grid grid-cols-2 gap-6 max-w-xs mx-auto py-2">
+                                    {['L1', 'L2', 'U1', 'U2'].map(col => {
+                                      let displayCol = col;
+                                      let seatId = '';
+                                      const base = rowIdx * 4;
+                                      if (col === 'L1') seatId = (base + 1).toString();
+                                      if (col === 'L2') seatId = (base + 3).toString();
+                                      if (col === 'U1') seatId = (base + 2).toString();
+                                      if (col === 'U2') seatId = (base + 4).toString();
+                                      displayCol = `${seatId} ${col}`;
+                                      
+                                      const isBlocked = bookedSeats.has(seatId);
+                                      const seatType = col.startsWith('L') ? 'Lower' : 'Upper';
+                                      
+                                      const numId = parseInt(seatId.replace(/\D/g, '') || '0');
+                                      const isLadies = numId > 0 && numId % 14 === 0;
+                                      const isPremium = numId > 0 && numId % 9 === 0;
 
-                                  // If EITHER seat in this Coupe is booked, the whole Coupe shows as booked/blocked
-                                  const isBlocked = bookedSeats.has((base + 1).toString()) || bookedSeats.has((base + 2).toString());
-                                  const seatType = col === 'L' ? 'Lower' : 'Upper';
-                                  const numId = parseInt(seatId.replace(/\D/g, '') || '0');
-                                  const isLadies = numId > 0 && numId % 14 === 0;
-                                  const isPremium = numId > 0 && numId % 9 === 0;
+                                      const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.toUpperCase()}`;
+                                      const isSelected = passengers[showSeatMapForPassenger!].pref === trainPrefStr;
+                                      const selectedByOtherIdx = passengers.findIndex((p, idx) => idx !== showSeatMapForPassenger && p.pref === trainPrefStr);
 
-                                  const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').toUpperCase()}`;
-                                  const isSelected = passengers[showSeatMapForPassenger].pref === trainPrefStr;
+                                      return (
+                                        <div key={col} className="flex flex-col items-center gap-1">
+                                          <span className="text-[8px] text-white/40 uppercase font-black tracking-widest">
+                                            {col.startsWith('L') ? 'Lower' : 'Upper'}
+                                          </span>
+                                          <button 
+                                            disabled={isBlocked}
+                                            onClick={() => {
+                                              if (selectedByOtherIdx !== -1) {
+                                                setSelectedByOtherModal({
+                                                  isOpen: true,
+                                                  passengerName: passengers[selectedByOtherIdx].name || `Passenger ${selectedByOtherIdx + 1}`,
+                                                  passengerIdx: selectedByOtherIdx + 1,
+                                                  seatId: seatId
+                                                });
+                                                return;
+                                              }
+                                              if (journeyDetails.travelClass.includes('1A') && selectedCoach === 'H3' && passengers.length === 4) {
+                                                const baseVal = rowIdx * 4;
+                                                const cabinSeatIds = [
+                                                  { id: (baseVal + 1).toString(), type: 'LOWER' },
+                                                  { id: (baseVal + 2).toString(), type: 'UPPER' },
+                                                  { id: (baseVal + 3).toString(), type: 'LOWER' },
+                                                  { id: (baseVal + 4).toString(), type: 'UPPER' }
+                                                ];
+                                                
+                                                const updated = [...passengers];
+                                                cabinSeatIds.forEach((s, idx) => {
+                                                  if (updated[idx]) {
+                                                    updated[idx].pref = `${selectedCoach}/${s.id}/${s.type}`;
+                                                  }
+                                                });
+                                                setPassengers(updated);
+                                                setShowSeatMapForPassenger(null);
+                                                toast.success(`Family Cabin ${String.fromCharCode(65 + rowIdx)} (Seats ${baseVal+1}-${baseVal+4}) successfully allocated for all 4 passengers!`, { duration: 5000 });
+                                              } else {
+                                                updatePassenger(showSeatMapForPassenger!, 'pref', trainPrefStr);
+                                                setShowSeatMapForPassenger(null);
+                                              }
+                                            }}
+                                            className={`w-14 h-14 rounded-xl font-bold text-[11px] sm:text-[12px] flex flex-col items-center justify-center transition-all ${
+                                              isBlocked ? 'bg-[#201010] text-[#a03030] border border-[#602020] cursor-not-allowed' :
+                                              isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 border border-blue-500 scale-105' :
+                                              selectedByOtherIdx !== -1 ? 'bg-amber-600/40 text-amber-300 border border-amber-500 shadow-md scale-105 hover:bg-amber-600/50' :
+                                              isLadies ? 'bg-pink-500/20 text-pink-400 border border-pink-500/50 hover:bg-pink-500/30' :
+                                              isPremium ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 hover:bg-yellow-500/30' :
+                                              'bg-purple-500/20 text-purple-400 border border-purple-500/50 hover:bg-purple-500/30'
+                                            }`}
+                                          >
+                                            {isBlocked ? <Lock className="w-5 h-5" strokeWidth={2} /> : 
+                                             selectedByOtherIdx !== -1 ? <span className="text-xs mb-0.5">👤</span> :
+                                             isLadies ? <span className="text-xs mb-0.5">👩</span> : 
+                                             isPremium ? <span className="text-xs mb-0.5">✨</span> : 
+                                             <span className="text-xs mb-0.5">🛏️</span>}
+                                            {!isBlocked && (
+                                              <span className="text-[10px] font-extrabold">
+                                                {selectedByOtherIdx !== -1 ? `P${selectedByOtherIdx + 1} (${displayCol.split(' ')[0]})` : displayCol}
+                                              </span>
+                                            )}
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <>
+                                    {/* Window Graphic on left */}
+                                    <div className="w-1.5 h-8 bg-blue-500/10 border border-blue-500/30 rounded-r-md absolute left-0" title="Window"></div>
+                                    
+                                    {seatLeft.map(col => {
+                                      let displayCol = col;
+                                      let seatId = `${rowIdx + 1}${col}`;
+                                      
+                                      let isBlocked = false;
+                                      let seatType = 'Lower';
+                                      
+                                      const base = rowIdx * 2;
+                                      if (col === 'L') seatId = (base + 1).toString();
+                                      if (col === 'U') seatId = (base + 2).toString();
+                                      displayCol = `${seatId} ${col}`;
+                                      // If EITHER seat in this Coupe is booked, the whole Coupe shows as booked/blocked
+                                      isBlocked = bookedSeats.has((base + 1).toString()) || bookedSeats.has((base + 2).toString());
+                                      seatType = col === 'L' ? 'Lower' : 'Upper';
 
-                                  return (
-                                    <button 
-                                      key={col}
-                                      disabled={isBlocked}
-                                      onClick={() => {
-                                        updatePassenger(showSeatMapForPassenger, 'pref', trainPrefStr);
-                                        setShowSeatMapForPassenger(null);
-                                      }}
-                                      className={`w-14 h-14 rounded-xl font-bold text-[11px] sm:text-[12px] flex flex-col items-center justify-center transition-all ${
-                                        isBlocked ? 'bg-[#201010] text-[#a03030] border border-[#602020] cursor-not-allowed' :
-                                        isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 border border-blue-500 scale-105' :
-                                        isLadies ? 'bg-pink-500/20 text-pink-400 border border-pink-500/50 hover:bg-pink-500/30' :
-                                        isPremium ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 hover:bg-yellow-500/30' :
-                                        'bg-purple-500/20 text-purple-400 border border-purple-500/50 hover:bg-purple-500/30'
-                                      }`}
-                                    >
-                                      {isBlocked ? <Lock className="w-5 h-5" strokeWidth={2} /> : 
-                                       isLadies ? <span className="text-xs mb-0.5">👩</span> : 
-                                       isPremium ? <span className="text-xs mb-0.5">✨</span> : 
-                                       <span className="text-xs mb-0.5">🛏️</span>}
-                                      {!isBlocked && (
-                                        <span className="text-[10px] font-extrabold">{displayCol}</span>
-                                      )}
-                                    </button>
-                                  );
-                                })}
+                                      const numId = parseInt(seatId.replace(/\D/g, '') || '0');
+                                      const isLadies = numId > 0 && numId % 14 === 0;
+                                      const isPremium = numId > 0 && numId % 9 === 0;
 
-                                {/* Sliding Door Graphic on right */}
-                                <div className="w-1.5 h-10 bg-indigo-500/30 border border-indigo-500/50 rounded-l-md absolute right-0" title="Sliding Door"></div>
+                                      const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').toUpperCase()}`;
+                                      const isSelected = passengers[showSeatMapForPassenger!].pref === trainPrefStr;
+                                      const selectedByOtherIdx = passengers.findIndex((p, idx) => idx !== showSeatMapForPassenger && p.pref === trainPrefStr);
+
+                                      return (
+                                        <button 
+                                          key={col}
+                                          disabled={isBlocked}
+                                          onClick={() => {
+                                            if (selectedByOtherIdx !== -1) {
+                                              setSelectedByOtherModal({
+                                                isOpen: true,
+                                                passengerName: passengers[selectedByOtherIdx].name || `Passenger ${selectedByOtherIdx + 1}`,
+                                                passengerIdx: selectedByOtherIdx + 1,
+                                                seatId: seatId
+                                              });
+                                              return;
+                                            }
+                                            updatePassenger(showSeatMapForPassenger!, 'pref', trainPrefStr);
+                                            setShowSeatMapForPassenger(null);
+                                          }}
+                                          className={`w-14 h-14 rounded-xl font-bold text-[11px] sm:text-[12px] flex flex-col items-center justify-center transition-all ${
+                                            isBlocked ? 'bg-[#201010] text-[#a03030] border border-[#602020] cursor-not-allowed' :
+                                            isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 border border-blue-500 scale-105' :
+                                            selectedByOtherIdx !== -1 ? 'bg-amber-600/40 text-amber-300 border border-amber-500 shadow-md scale-105 hover:bg-amber-600/50' :
+                                            isLadies ? 'bg-pink-500/20 text-pink-400 border border-pink-500/50 hover:bg-pink-500/30' :
+                                            isPremium ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 hover:bg-yellow-500/30' :
+                                            'bg-purple-500/20 text-purple-400 border border-purple-500/50 hover:bg-purple-500/30'
+                                          }`}
+                                        >
+                                          {isBlocked ? <Lock className="w-5 h-5" strokeWidth={2} /> : 
+                                           selectedByOtherIdx !== -1 ? <span className="text-xs mb-0.5">👤</span> :
+                                           isLadies ? <span className="text-xs mb-0.5">👩</span> : 
+                                           isPremium ? <span className="text-xs mb-0.5">✨</span> : 
+                                           <span className="text-xs mb-0.5">🛏️</span>}
+                                          {!isBlocked && (
+                                            <span className="text-[10px] font-extrabold">
+                                              {selectedByOtherIdx !== -1 ? `P${selectedByOtherIdx + 1} (${displayCol.split(' ')[0]})` : displayCol}
+                                            </span>
+                                          )}
+                                        </button>
+                                      );
+                                    })}
+
+                                    {/* Sliding Door Graphic on right */}
+                                    <div className="w-1.5 h-10 bg-indigo-500/30 border border-indigo-500/50 rounded-l-md absolute right-0" title="Sliding Door"></div>
+                                  </>
+                                )}
                               </div>
                             </div>
                           );
@@ -1772,30 +2055,44 @@ function BookingFlowInner() {
                                       const isPremium = numId > 0 && numId % 9 === 0;
 
                                       const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').replace(' Berth', '').toUpperCase()}`;
-                                      const isSelected = passengers[showSeatMapForPassenger].pref === trainPrefStr;
+                                      const isSelected = passengers[showSeatMapForPassenger!].pref === trainPrefStr;
+                                      const selectedByOtherIdx = passengers.findIndex((p, idx) => idx !== showSeatMapForPassenger && p.pref === trainPrefStr);
 
                                       return (
                                         <button 
                                           key={col}
                                           disabled={isBlocked}
                                           onClick={() => {
-                                            updatePassenger(showSeatMapForPassenger, 'pref', trainPrefStr);
+                                            if (selectedByOtherIdx !== -1) {
+                                              setSelectedByOtherModal({
+                                                isOpen: true,
+                                                passengerName: passengers[selectedByOtherIdx].name || `Passenger ${selectedByOtherIdx + 1}`,
+                                                passengerIdx: selectedByOtherIdx + 1,
+                                                seatId: seatId
+                                              });
+                                              return;
+                                            }
+                                            updatePassenger(showSeatMapForPassenger!, 'pref', trainPrefStr);
                                             setShowSeatMapForPassenger(null);
                                           }}
                                           className={`w-14 h-11 rounded-lg font-bold text-[9px] sm:text-[10px] flex flex-col items-center justify-center transition-all ${
                                             isBlocked ? 'bg-[#201010] text-[#a03030] border border-[#602020] cursor-not-allowed' :
                                             isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 border border-blue-500 scale-105' :
+                                            selectedByOtherIdx !== -1 ? 'bg-amber-600/40 text-amber-300 border border-amber-500 shadow-md scale-105 hover:bg-amber-600/50' :
                                             isLadies ? 'bg-pink-500/20 text-pink-400 border border-pink-500/50 hover:bg-pink-500/30' :
                                             isPremium ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 hover:bg-yellow-500/30' :
                                             'bg-purple-500/20 text-purple-400 border border-purple-500/50 hover:bg-purple-500/30'
                                           }`}
                                         >
                                           {isBlocked ? <Lock className="w-4 h-4" strokeWidth={2} /> : 
+                                           selectedByOtherIdx !== -1 ? <span className="text-[10px] mb-0.5">👤</span> :
                                            isLadies ? <span className="text-[10px] mb-0.5">👩</span> : 
                                            isPremium ? <span className="text-[10px] mb-0.5">✨</span> : 
                                            <span className="text-[10px] mb-0.5">🛏️</span>}
                                           {!isBlocked && (
-                                            <span className="font-extrabold">{displayCol}</span>
+                                            <span className="font-extrabold">
+                                              {selectedByOtherIdx !== -1 ? `P${selectedByOtherIdx + 1} (${displayCol.split(' ')[0]})` : displayCol}
+                                            </span>
                                           )}
                                         </button>
                                       );
@@ -1832,30 +2129,44 @@ function BookingFlowInner() {
                                       const isPremium = numId > 0 && numId % 9 === 0;
 
                                       const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').replace(' Berth', '').toUpperCase()}`;
-                                      const isSelected = passengers[showSeatMapForPassenger].pref === trainPrefStr;
+                                      const isSelected = passengers[showSeatMapForPassenger!].pref === trainPrefStr;
+                                      const selectedByOtherIdx = passengers.findIndex((p, idx) => idx !== showSeatMapForPassenger && p.pref === trainPrefStr);
 
                                       return (
                                         <button 
                                           key={col}
                                           disabled={isBlocked}
                                           onClick={() => {
-                                            updatePassenger(showSeatMapForPassenger, 'pref', trainPrefStr);
+                                            if (selectedByOtherIdx !== -1) {
+                                              setSelectedByOtherModal({
+                                                isOpen: true,
+                                                passengerName: passengers[selectedByOtherIdx].name || `Passenger ${selectedByOtherIdx + 1}`,
+                                                passengerIdx: selectedByOtherIdx + 1,
+                                                seatId: seatId
+                                              });
+                                              return;
+                                            }
+                                            updatePassenger(showSeatMapForPassenger!, 'pref', trainPrefStr);
                                             setShowSeatMapForPassenger(null);
                                           }}
                                           className={`w-11 h-11 rounded-lg font-bold text-[9px] sm:text-[10px] flex flex-col items-center justify-center transition-all ${
                                             isBlocked ? 'bg-[#201010] text-[#a03030] border border-[#602020] cursor-not-allowed' :
                                             isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 border border-blue-500 scale-105' :
+                                            selectedByOtherIdx !== -1 ? 'bg-amber-600/40 text-amber-300 border border-amber-500 shadow-md scale-105 hover:bg-amber-600/50' :
                                             isLadies ? 'bg-pink-500/20 text-pink-400 border border-pink-500/50 hover:bg-pink-500/30' :
                                             isPremium ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 hover:bg-yellow-500/30' :
                                             'bg-purple-500/20 text-purple-400 border border-purple-500/50 hover:bg-purple-500/30'
                                           }`}
                                         >
                                           {isBlocked ? <Lock className="w-4 h-4" strokeWidth={2} /> : 
+                                           selectedByOtherIdx !== -1 ? <span className="text-[10px] mb-0.5">👤</span> :
                                            isLadies ? <span className="text-[10px] mb-0.5">👩</span> : 
                                            isPremium ? <span className="text-[10px] mb-0.5">✨</span> : 
                                            <span className="text-[10px] mb-0.5">🛏️</span>}
                                           {!isBlocked && (
-                                            <span className="font-extrabold">{displayCol}</span>
+                                            <span className="font-extrabold">
+                                              {selectedByOtherIdx !== -1 ? `P${selectedByOtherIdx + 1} (${displayCol.split(' ')[0]})` : displayCol}
+                                            </span>
                                           )}
                                         </button>
                                       );
@@ -1888,22 +2199,31 @@ function BookingFlowInner() {
                                 const isSleeper = ['SL', 'SU', 'L1', 'U1', 'M1', 'L2', 'U2', 'M2', 'L', 'U'].includes(col);
 
                                 const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').toUpperCase()}`;
-                                const isSelected = (!isFlight && !isBus && !isHotel && !isFood) 
-                                   ? passengers[showSeatMapForPassenger].pref === trainPrefStr 
-                                   : passengers[showSeatMapForPassenger].pref === `${seatId} (${seatType})`;
+                                const expectedPref = (!isFlight && !isBus && !isHotel && !isFood) ? trainPrefStr : `${seatId} (${seatType})`;
+                                const isSelected = passengers[showSeatMapForPassenger!].pref === expectedPref;
+                                const selectedByOtherIdx = passengers.findIndex((p, idx) => idx !== showSeatMapForPassenger && p.pref === expectedPref);
 
                                 return (
                                   <button 
                                     key={col}
                                     disabled={isBlocked}
                                     onClick={() => {
-                                      const newPref = (!isFlight && !isBus && !isHotel && !isFood) ? trainPrefStr : `${seatId} (${seatType})`;
-                                      updatePassenger(showSeatMapForPassenger, 'pref', newPref);
+                                      if (selectedByOtherIdx !== -1) {
+                                        setSelectedByOtherModal({
+                                          isOpen: true,
+                                          passengerName: passengers[selectedByOtherIdx].name || `Passenger ${selectedByOtherIdx + 1}`,
+                                          passengerIdx: selectedByOtherIdx + 1,
+                                          seatId: seatId
+                                        });
+                                        return;
+                                      }
+                                      updatePassenger(showSeatMapForPassenger!, 'pref', expectedPref);
                                       setShowSeatMapForPassenger(null);
                                     }}
                                     className={`w-11 h-11 rounded-lg font-bold text-[10px] sm:text-[11px] flex flex-col items-center justify-center transition-all ${
                                       isBlocked ? 'bg-[#201010] text-[#a03030] border border-[#602020] cursor-not-allowed' :
-                                      isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 border border-blue-500' :
+                                      isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 border border-blue-500 scale-105' :
+                                      selectedByOtherIdx !== -1 ? 'bg-amber-600/40 text-amber-300 border border-amber-500 shadow-md scale-105 hover:bg-amber-600/50' :
                                       isLadies ? 'bg-pink-500/20 text-pink-400 border border-pink-500/50 hover:bg-pink-500/30' :
                                       isPremium ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 hover:bg-yellow-500/30' :
                                       isSleeper ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50 hover:bg-purple-500/30' :
@@ -1911,11 +2231,14 @@ function BookingFlowInner() {
                                     }`}
                                   >
                                     {isBlocked ? <Lock className="w-5 h-5" strokeWidth={2} /> : 
+                                     selectedByOtherIdx !== -1 ? <span className="text-xs mb-0.5">👤</span> :
                                      isLadies ? <span className="text-xs mb-0.5">👩</span> : 
                                      isPremium ? <span className="text-xs mb-0.5">✨</span> : 
                                      isSleeper ? <span className="text-xs mb-0.5">🛏️</span> : null}
                                     {!isBlocked && (
-                                      <span className={isLadies || isPremium || isSleeper ? 'text-[8px] opacity-80' : ''}>{displayCol}</span>
+                                      <span className={isLadies || isPremium || isSleeper || selectedByOtherIdx !== -1 ? 'text-[8px] opacity-80 font-extrabold' : 'font-extrabold'}>
+                                        {selectedByOtherIdx !== -1 ? `P${selectedByOtherIdx + 1} (${displayCol})` : displayCol}
+                                      </span>
                                     )}
                                   </button>
                                 );
@@ -1939,22 +2262,31 @@ function BookingFlowInner() {
                                 const isSleeper = ['SL', 'SU', 'L1', 'U1', 'M1', 'L2', 'U2', 'M2'].includes(col);
 
                                 const trainPrefStr = `${selectedCoach}/${seatId}/${seatType.replace(' Seat', '').toUpperCase()}`;
-                                const isSelected = (!isFlight && !isBus && !isHotel && !isFood) 
-                                   ? passengers[showSeatMapForPassenger].pref === trainPrefStr 
-                                   : passengers[showSeatMapForPassenger].pref === `${seatId} (${seatType})`;
+                                const expectedPref = (!isFlight && !isBus && !isHotel && !isFood) ? trainPrefStr : `${seatId} (${seatType})`;
+                                const isSelected = passengers[showSeatMapForPassenger!].pref === expectedPref;
+                                const selectedByOtherIdx = passengers.findIndex((p, idx) => idx !== showSeatMapForPassenger && p.pref === expectedPref);
 
                                 return (
                                   <button 
                                     key={col}
                                     disabled={isBlocked}
                                     onClick={() => {
-                                      const newPref = (!isFlight && !isBus && !isHotel && !isFood) ? trainPrefStr : `${seatId} (${seatType})`;
-                                      updatePassenger(showSeatMapForPassenger, 'pref', newPref);
+                                      if (selectedByOtherIdx !== -1) {
+                                        setSelectedByOtherModal({
+                                          isOpen: true,
+                                          passengerName: passengers[selectedByOtherIdx].name || `Passenger ${selectedByOtherIdx + 1}`,
+                                          passengerIdx: selectedByOtherIdx + 1,
+                                          seatId: seatId
+                                        });
+                                        return;
+                                      }
+                                      updatePassenger(showSeatMapForPassenger!, 'pref', expectedPref);
                                       setShowSeatMapForPassenger(null);
                                     }}
                                     className={`w-11 h-11 rounded-lg font-bold text-[10px] sm:text-[11px] flex flex-col items-center justify-center transition-all ${
                                       isBlocked ? 'bg-[#201010] text-[#a03030] border border-[#602020] cursor-not-allowed' :
-                                      isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 border border-blue-500' :
+                                      isSelected ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/40 border border-blue-500 scale-105' :
+                                      selectedByOtherIdx !== -1 ? 'bg-amber-600/40 text-amber-300 border border-amber-500 shadow-md scale-105 hover:bg-amber-600/50' :
                                       isLadies ? 'bg-pink-500/20 text-pink-400 border border-pink-500/50 hover:bg-pink-500/30' :
                                       isPremium ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/50 hover:bg-yellow-500/30' :
                                       isSleeper ? 'bg-purple-500/20 text-purple-400 border border-purple-500/50 hover:bg-purple-500/30' :
@@ -1962,11 +2294,14 @@ function BookingFlowInner() {
                                     }`}
                                   >
                                     {isBlocked ? <Lock className="w-5 h-5" strokeWidth={2} /> : 
+                                     selectedByOtherIdx !== -1 ? <span className="text-xs mb-0.5">👤</span> :
                                      isLadies ? <span className="text-xs mb-0.5">👩</span> : 
                                      isPremium ? <span className="text-xs mb-0.5">✨</span> : 
                                      isSleeper ? <span className="text-xs mb-0.5">🛏️</span> : null}
                                     {!isBlocked && (
-                                      <span className={isLadies || isPremium || isSleeper ? 'text-[8px] opacity-80' : ''}>{displayCol}</span>
+                                      <span className={isLadies || isPremium || isSleeper || selectedByOtherIdx !== -1 ? 'text-[8px] opacity-80 font-extrabold' : 'font-extrabold'}>
+                                        {selectedByOtherIdx !== -1 ? `P${selectedByOtherIdx + 1} (${displayCol})` : displayCol}
+                                      </span>
                                     )}
                                   </button>
                                 );
@@ -1992,6 +2327,64 @@ function BookingFlowInner() {
              <h3 className="text-2xl font-bold text-white mb-2">Verification Pending</h3>
              <p className="text-yellow-200/80 mb-6">Your ticket is temporarily booked. Please wait while we verify your ID proof.</p>
              <button onClick={() => setShowVerificationModal(false)} className="bg-yellow-500 hover:bg-yellow-400 text-black px-8 py-3 rounded-xl font-bold transition-colors">Got it</button>
+          </div>
+        </div>
+      )}
+
+      {showThreeMembersModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#1a1c23] border border-red-500/30 p-8 rounded-3xl text-center shadow-[0_0_50px_rgba(239,68,68,0.2)] max-w-lg w-[95%] animate-in zoom-in-95 duration-300">
+             <div className="bg-red-500/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-500/20">
+                <Users className="w-10 h-10 text-red-500" />
+             </div>
+             <h3 className="text-2xl font-black text-white mb-4 tracking-wide">1AC Compartment Restriction</h3>
+             <p className="text-red-200/80 mb-8 leading-relaxed text-base">
+                Kindly book in <span className="font-extrabold text-white">2AC, 3AC, SL</span> for 3 members.
+                <br />
+                Total <span className="font-extrabold text-white">4 members</span> are allowed for 1AC family bookings to ensure whole compartment allocation.
+             </p>
+             <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <button 
+                  onClick={() => {
+                    setShowThreeMembersModal(false);
+                  }} 
+                  className="bg-red-600 hover:bg-red-500 text-white px-8 py-3 rounded-xl font-bold transition-colors shadow-lg"
+                >
+                  Adjust Passenger Count
+                </button>
+                <button 
+                  onClick={() => {
+                    setShowThreeMembersModal(false);
+                    const url = `/search?source=${encodeURIComponent(journeyDetails.from)}&destination=${encodeURIComponent(journeyDetails.to)}&date=${encodeURIComponent(journeyDetails.date1)}&type=Train`;
+                    router.push(url);
+                  }}
+                  className="bg-white/10 hover:bg-white/20 text-white px-8 py-3 rounded-xl font-bold transition-colors border border-white/10"
+                >
+                  Change Class / Search Again
+                </button>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {selectedByOtherModal?.isOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-[#1a1c23]/95 border border-amber-500/30 p-8 rounded-3xl text-center shadow-[0_0_50px_rgba(245,158,11,0.25)] max-w-md w-[90%] animate-in zoom-in-95 duration-300 backdrop-blur-xl">
+             <div className="bg-amber-500/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 border border-amber-500/20 animate-pulse">
+                <Users className="w-10 h-10 text-amber-500" />
+             </div>
+             <h3 className="text-2xl font-black text-white mb-4 tracking-wide">Seat Already Selected</h3>
+             <p className="text-amber-200/80 mb-8 leading-relaxed text-base">
+                This seat has already been selected by <span className="font-extrabold text-white text-lg">{selectedByOtherModal.passengerName || `Passenger ${selectedByOtherModal.passengerIdx}`}</span> already.
+                <br />
+                <span className="text-sm opacity-75 mt-2 block">Please select another seat for this passenger.</span>
+             </p>
+             <button 
+               onClick={() => setSelectedByOtherModal(null)} 
+               className="bg-amber-500 hover:bg-amber-400 text-black px-8 py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-amber-500/20 w-full"
+             >
+               Select Another Seat
+             </button>
           </div>
         </div>
       )}

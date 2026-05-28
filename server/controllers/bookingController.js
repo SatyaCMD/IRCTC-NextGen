@@ -87,31 +87,54 @@ exports.createBooking = async (req, res) => {
       }
     }
 
-    const seatNumbers = passengers.map((p, i) => {
+    let seatNumbers = [];
+    const is1A = cls.includes('1A') || cls.includes('1AC');
+    if (is1A && passengers.length === 3) {
+      return res.status(400).json({ error: "Kindly book in 2AC, 3AC, SL for 3 members. Total 4 members are allowed for 1AC family." });
+    }
+    const hasManualSelection = passengers.some(p => {
       const pref = p.seatPreference || p.pref;
-      if (pref && pref.includes('/')) return pref.toUpperCase(); // Respect exact train seat selection from frontend
-      if (pref && pref.match(/^\d+[A-F]\b/)) return pref.toUpperCase();
-      const coachNum = isSpecialCoach ? 1 : Math.floor(Math.random() * (coachPrefix === 'GEN' ? 2 : 5)) + 1;
-      const seatNum = Math.floor(Math.random() * capacity) + 1;
-      let seatType = 'MIDDLE';
-      if (pref && pref !== 'No Preference') {
-         if (pref.includes('Lower')) seatType = 'LOWER';
-         else if (pref.includes('Upper')) seatType = 'UPPER';
-         else if (pref.includes('Middle')) seatType = 'MIDDLE';
-         else if (pref.includes('Side Lower')) seatType = 'SIDE LOWER';
-         else if (pref.includes('Side Upper')) seatType = 'SIDE UPPER';
-         else seatType = pref.toUpperCase();
-      } else {
-         if (coachPrefix === 'A' || coachPrefix === 'H') {
-            seatType = seatNum % 2 === 0 ? 'UPPER' : 'LOWER';
-         } else {
-            if (seatNum % 3 === 0) seatType = 'UPPER';
-            else if (seatNum % 3 === 1) seatType = 'LOWER';
-            else seatType = 'MIDDLE';
-         }
-      }
-      return `${coachPrefix}${coachNum}/${seatNum}/${seatType}`;
+      return pref && (pref.includes('/') || pref.match(/^\d+[A-F]\b/));
     });
+
+    if (is1A && passengers.length === 4 && !hasManualSelection) {
+      // Allot an entire compartment in H3
+      // Randomly pick a compartment number from 1 to 6
+      const compNum = Math.floor(Math.random() * 6) + 1;
+      const base = (compNum - 1) * 4;
+      seatNumbers = [
+        `H3/${base + 1}/LOWER`,
+        `H3/${base + 2}/UPPER`,
+        `H3/${base + 3}/LOWER`,
+        `H3/${base + 4}/UPPER`
+      ];
+    } else {
+      seatNumbers = passengers.map((p, i) => {
+        const pref = p.seatPreference || p.pref;
+        if (pref && pref.includes('/')) return pref.toUpperCase(); // Respect exact train seat selection from frontend
+        if (pref && pref.match(/^\d+[A-F]\b/)) return pref.toUpperCase();
+        const coachNum = isSpecialCoach ? 1 : Math.floor(Math.random() * (coachPrefix === 'GEN' ? 2 : 5)) + 1;
+        const seatNum = Math.floor(Math.random() * capacity) + 1;
+        let seatType = 'MIDDLE';
+        if (pref && pref !== 'No Preference') {
+           if (pref.includes('Lower')) seatType = 'LOWER';
+           else if (pref.includes('Upper')) seatType = 'UPPER';
+           else if (pref.includes('Middle')) seatType = 'MIDDLE';
+           else if (pref.includes('Side Lower')) seatType = 'SIDE LOWER';
+           else if (pref.includes('Side Upper')) seatType = 'SIDE UPPER';
+           else seatType = pref.toUpperCase();
+        } else {
+           if (coachPrefix === 'A' || coachPrefix === 'H') {
+              seatType = seatNum % 2 === 0 ? 'UPPER' : 'LOWER';
+           } else {
+              if (seatNum % 3 === 0) seatType = 'UPPER';
+              else if (seatNum % 3 === 1) seatType = 'LOWER';
+              else seatType = 'MIDDLE';
+           }
+        }
+        return `${coachPrefix}${coachNum}/${seatNum}/${seatType}`;
+      });
+    }
 
     let isRunningOnDate = true;
     let notRunningMsg = '';
@@ -553,6 +576,62 @@ exports.getPnrStatus = async (req, res) => {
       })
     });
   } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
+exports.getOccupiedSeats = async (req, res) => {
+  try {
+    const { trainId, serviceId, serviceClass, journeyDate, coach } = req.query;
+    
+    const query = {
+      status: { $ne: 'Cancelled' }
+    };
+    
+    if (trainId && mongoose.Types.ObjectId.isValid(trainId)) {
+      query.trainId = trainId;
+    }
+    if (serviceId && mongoose.Types.ObjectId.isValid(serviceId)) {
+      query.serviceId = serviceId;
+    }
+    if (serviceClass) {
+      query.serviceClass = serviceClass;
+    }
+    if (journeyDate) {
+      query.$or = [
+        { journeyDate: journeyDate },
+        { journeyDate: new Date(journeyDate).toISOString() }
+      ];
+    }
+    
+    const bookings = await Booking.find(query);
+    
+    let occupied = [];
+    bookings.forEach(b => {
+      if (b.seatNumbers && b.seatNumbers.length > 0) {
+        b.seatNumbers.forEach(seat => {
+          if (coach) {
+            if (seat.startsWith(`${coach}/`)) {
+              const parts = seat.split('/');
+              if (parts[1]) occupied.push(parts[1]);
+            }
+          } else {
+            if (seat.includes('/')) {
+              occupied.push(seat);
+            } else if (seat.includes(' (')) {
+              // Extract e.g. "12A" from "12A (Window Seat)"
+              const seatId = seat.split(' (')[0];
+              occupied.push(seatId);
+            } else {
+              occupied.push(seat);
+            }
+          }
+        });
+      }
+    });
+    
+    res.json({ occupied });
+  } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
 };
