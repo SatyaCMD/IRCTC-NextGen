@@ -1699,8 +1699,7 @@ function BookingFlowInner() {
 
                                   // If EITHER seat in this Coupe is booked, the whole Coupe shows as booked/blocked
                                   const isBlocked = bookedSeats.has((base + 1).toString()) || bookedSeats.has((base + 2).toString());
-                                  const isWindow = col === 'L';
-                                  const seatType = isWindow ? 'Window Seat' : 'Aisle/Berth';
+                                  const seatType = col === 'L' ? 'Lower' : 'Upper';
                                   const numId = parseInt(seatId.replace(/\D/g, '') || '0');
                                   const isLadies = numId > 0 && numId % 14 === 0;
                                   const isPremium = numId > 0 && numId % 9 === 0;
@@ -1767,8 +1766,7 @@ function BookingFlowInner() {
                                       displayCol = `${seatId} ${col}`;
 
                                       const isBlocked = bookedSeats.has(seatId);
-                                      const isWindow = col === 'SL';
-                                      const seatType = isWindow ? 'Window Seat' : 'Upper Berth';
+                                      const seatType = col === 'SL' ? 'Side Lower' : 'Side Upper';
                                       const numId = parseInt(seatId.replace(/\D/g, '') || '0');
                                       const isLadies = numId > 0 && numId % 14 === 0;
                                       const isPremium = numId > 0 && numId % 9 === 0;
@@ -1828,9 +1826,7 @@ function BookingFlowInner() {
                                       displayCol = `${seatId} ${col.replace(/[0-9]/g, '')}`;
 
                                       const isBlocked = bookedSeats.has(seatId);
-                                      const isWindow = col.startsWith('L');
-                                      const isMiddle = col.startsWith('M');
-                                      const seatType = isWindow ? 'Window Seat' : isMiddle ? 'Middle Seat' : 'Upper Berth';
+                                      const seatType = col.startsWith('L') ? 'Lower' : col.startsWith('M') ? 'Middle' : 'Upper';
                                       const numId = parseInt(seatId.replace(/\D/g, '') || '0');
                                       const isLadies = numId > 0 && numId % 14 === 0;
                                       const isPremium = numId > 0 && numId % 9 === 0;
