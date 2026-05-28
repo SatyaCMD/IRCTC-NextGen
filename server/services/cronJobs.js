@@ -23,7 +23,7 @@ function startCronJobs() {
             for (const booking of bookings) {
                 const datePart = booking.journeyDate ? booking.journeyDate.split('T')[0] : new Date().toISOString().split('T')[0];
                 const departureStr = booking.departureTime || '10:00';
-                const journeyDateTime = new Date(`${datePart}T${departureStr}`);
+                const journeyDateTime = new Date(`${datePart}T${departureStr}:00+05:30`);
                 
                 const hoursToDeparture = (journeyDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
                 
@@ -76,6 +76,7 @@ function startCronJobs() {
             console.log('[Cron] Running Journey Reminder Check...');
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
             const tomorrowRegex = new RegExp(`^${tomorrowStr}`);
             const bookings = await Booking.find({ journeyDate: tomorrowRegex, status: 'Confirmed' }).populate('userId');
             
@@ -104,6 +105,7 @@ function startCronJobs() {
             console.log('[Cron] Running Feedback Check...');
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
             const yesterdayRegex = new RegExp(`^${yesterdayStr}`);
             const bookings = await Booking.find({ journeyDate: yesterdayRegex, status: 'Confirmed' }).populate('userId');
             

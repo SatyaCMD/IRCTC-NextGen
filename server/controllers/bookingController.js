@@ -276,6 +276,10 @@ exports.confirmBookingPayment = async (req, res) => {
     else if (status === 'Verification Pending') booking.status = 'Verification Pending';
     else booking.status = 'Cancelled';
 
+    // Extend expireAt to 30 days after the journey date so it is kept in database history
+    const journeyTime = booking.journeyDate ? new Date(booking.journeyDate).getTime() : Date.now();
+    booking.expireAt = new Date(journeyTime + 30 * 24 * 60 * 60 * 1000);
+
     if (req.body.contactInfo) {
       booking.contactInfo = {
         email: req.body.contactInfo.email || '',
@@ -414,6 +418,11 @@ exports.cancelBooking = async (req, res) => {
     booking.status = 'Cancelled';
     booking.refundAmount = refundAmount;
     booking.refundStatus = 'Completed';
+    
+    // Extend expireAt to 30 days after the journey date so it is kept in database history
+    const journeyTime = booking.journeyDate ? new Date(booking.journeyDate).getTime() : Date.now();
+    booking.expireAt = new Date(journeyTime + 30 * 24 * 60 * 60 * 1000);
+    
     await booking.save();
     
     if (refundAmount > 0) {
