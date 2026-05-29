@@ -41,7 +41,8 @@ exports.createBooking = async (req, res) => {
     }
 
     // Senior Citizen Logic:
-    // 15% seats reserved for senior citizens, only if booked at least 2 days before the journey date
+    // 20% seats reserved for senior citizens, only if booked at least 2 days before the journey date (except 1AC)
+    const is1A = cls.includes('1A') || cls.includes('1AC');
     const journeyDay = new Date(journeyDateObj);
     journeyDay.setHours(0, 0, 0, 0);
     const diffTime = journeyDay.getTime() - today.getTime();
@@ -54,8 +55,8 @@ exports.createBooking = async (req, res) => {
     let seniorLogicApplied = false;
     const cleanTrainId = (trainId && mongoose.Types.ObjectId.isValid(trainId)) ? trainId : undefined;
 
-    if (hasSeniorCitizen && diffDays >= 2) {
-      // Check 15% quota
+    if (!is1A && hasSeniorCitizen && diffDays >= 2) {
+      // Check 20% quota
       const existingBookings = await Booking.find({
         trainId: cleanTrainId,
         journeyDate: new Date(journeyDate).toISOString(),
@@ -70,7 +71,7 @@ exports.createBooking = async (req, res) => {
         }
       });
       
-      let maxSeniorSeats = Math.floor(capacity * 0.15);
+      let maxSeniorSeats = Math.floor(capacity * 0.20);
       if (maxSeniorSeats < 1) maxSeniorSeats = 1;
 
       if (bookedSeniorSeats + seniorCitizens.length <= maxSeniorSeats) {
@@ -88,7 +89,6 @@ exports.createBooking = async (req, res) => {
     }
 
     let seatNumbers = [];
-    const is1A = cls.includes('1A') || cls.includes('1AC');
     if (is1A && passengers.length === 3) {
       return res.status(400).json({ error: "Kindly book in 2AC, 3AC, SL for 3 members. Total 4 members are allowed for 1AC family." });
     }
